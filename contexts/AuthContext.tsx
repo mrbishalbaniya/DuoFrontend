@@ -15,6 +15,7 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<LoginResponse>;
+  loginWithGoogle: (idToken: string) => Promise<LoginResponse>;
   register: (
     email: string,
     password: string,
@@ -57,6 +58,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data;
   };
 
+  const loginWithGoogle = async (idToken: string) => {
+    const data = await api.loginWithGoogle(idToken);
+    await fetchUser();
+    return data;
+  };
+
   const register = async (
     email: string,
     password: string,
@@ -73,7 +80,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, fetchUser }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, loginWithGoogle, register, logout, fetchUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

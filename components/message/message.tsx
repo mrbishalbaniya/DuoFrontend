@@ -73,7 +73,7 @@ function isVoiceOnlyMessage(msg: ChatMessage): boolean {
 
 function isTextOnlyMessage(msg: ChatMessage): boolean {
   if (isVoiceMessage(msg) || msg.image_url) return false;
-  return Boolean(msg.content?.trim()) || msg.is_deleted_for_everyone;
+  return Boolean(msg.content?.trim()) || Boolean(msg.is_deleted_for_everyone);
 }
 
 function isCompactBubble(msg: ChatMessage): boolean {
@@ -145,8 +145,10 @@ function normalizeReactionsOnePerUser(reactions: unknown): Record<string, number
   return next;
 }
 
+type ReactionsMap = Record<string, number | number[]> | undefined;
+
 function setUserReactionOnMessage(
-  reactions: Record<string, number[]> | undefined,
+  reactions: ReactionsMap,
   userId: number,
   emoji: string
 ): Record<string, number[]> {
@@ -163,7 +165,7 @@ function setUserReactionOnMessage(
 }
 
 function removeUserReaction(
-  reactions: Record<string, number[]> | undefined,
+  reactions: ReactionsMap,
   userId: number
 ): Record<string, number[]> {
   const next: Record<string, number[]> = {};
@@ -179,7 +181,7 @@ function reactionIncludesUser(ids: number[], userId: number): boolean {
 }
 
 function applyUserReaction(
-  reactions: Record<string, number[]> | undefined,
+  reactions: ReactionsMap,
   userId: number,
   emoji: string
 ): Record<string, number[]> {
@@ -200,7 +202,7 @@ function applyUserReaction(
 }
 
 function getReactionEmojiForUser(
-  reactions: Record<string, number[]> | undefined,
+  reactions: ReactionsMap,
   userId: number
 ): string | null {
   if (!reactions) return null;
@@ -212,7 +214,7 @@ function getReactionEmojiForUser(
 }
 
 function getReactionEmojiForOtherUsers(
-  reactions: Record<string, number[]> | undefined,
+  reactions: ReactionsMap,
   currentUserId: number
 ): string | null {
   if (!reactions) return null;
@@ -765,7 +767,10 @@ export default function MessagesSection() {
                   : null;
 
             if (hadReaction === eventEmoji && serverCount === 0) {
-              return { ...m, reactions: removeUserReaction(m.reactions, eventUserId) };
+              return {
+                ...m,
+                reactions: removeUserReaction(m.reactions, eventUserId),
+              };
             }
 
             return {

@@ -3,12 +3,16 @@
 import { useState, useEffect, useCallback, useMemo, useRef, startTransition } from "react";
 import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
+import { DashboardActionBar } from "@/components/dashboard/DashboardActionBar";
+import { DashboardMenuSheet } from "@/components/dashboard/DashboardMenuSheet";
+import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar";
 import DiscoveryFiltersSheet, {
   type DiscoveryFilters,
 } from "@/components/dashboard/DiscoveryFiltersSheet";
 import {
   SwipeableCardStack,
   type SwipeDirection,
+  type SwipeableCardStackHandle,
 } from "@/components/ui/tinder-like-swipe";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
@@ -287,9 +291,11 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [swiping, setSwiping] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [discoverInfoOpen, setDiscoverInfoOpen] = useState(false);
   const [stackKey, setStackKey] = useState(0);
   const swipingRef = useRef(false);
+  const stackRef = useRef<SwipeableCardStackHandle>(null);
   const locationSyncedRef = useRef(false);
 
   const fetchProfiles = useCallback(async () => {
@@ -394,7 +400,7 @@ export default function DashboardPage() {
 
   const handleStackSwipe = useCallback(
     (direction: SwipeDirection, _image: string, stackIndex: number) => {
-      if (swipingRef.current || filtersOpen || discoverInfoOpen) return false;
+      if (swipingRef.current || filtersOpen || discoverInfoOpen || menuOpen) return false;
 
       const profile = deckProfiles[deckProfiles.length - 1 - stackIndex];
       if (!profile) return false;
@@ -402,12 +408,20 @@ export default function DashboardPage() {
       const action: SwipeAction = direction === "right" ? "LIKE" : "SKIP";
       return handleSwipe(action, profile);
     },
-    [deckProfiles, discoverInfoOpen, filtersOpen, handleSwipe]
+    [deckProfiles, discoverInfoOpen, filtersOpen, handleSwipe, menuOpen]
   );
 
   const userProfile = user?.profile ?? null;
-  const sheetOpen = filtersOpen || discoverInfoOpen;
+  const sheetOpen = filtersOpen || discoverInfoOpen || menuOpen;
   const controlsDisabled = swiping || sheetOpen;
+
+  const triggerSwipe = useCallback(
+    (direction: SwipeDirection) => {
+      if (controlsDisabled) return;
+      stackRef.current?.swipeTop(direction);
+    },
+    [controlsDisabled]
+  );
 
   if (authLoading || loading) {
     return (
@@ -424,26 +438,61 @@ export default function DashboardPage() {
   }
 
   if (!currentProfile) {
+    const prefs = user?.profile;
     return (
       <>
-        <main className="pt-6 pb-32 px-4 max-w-lg mx-auto min-h-screen flex items-center justify-center">
-          <div className="text-center space-y-6">
+        <main className="flex min-h-screen w-full max-w-none flex-col bg-surface px-4 pb-28 pt-2">
+          <DashboardTopBar
+            onOpenMenu={() => setMenuOpen(true)}
+            onOpenFilters={() => setFiltersOpen(true)}
+            disabled={controlsDisabled}
+          />
+
+          <div className="mx-auto flex min-h-[50vh] w-full max-w-md flex-1 items-center justify-center">
+            <div className="text-center space-y-6">
             <span className="material-symbols-outlined text-6xl text-primary/30">search_off</span>
             <h2 className="text-2xl font-[var(--font-headline)] font-bold text-on-surface">
-              No more profiles
+              No profiles to show
             </h2>
             <p className="text-on-surface-variant">
-              You&apos;ve seen all available profiles. Check back later!
+              {prefs?.pref_verified_only
+                ? "No verified profiles match your filters. Try turning off “Verified only”."
+                : prefs?.pref_age_min && prefs?.pref_age_max && prefs.pref_age_max - prefs.pref_age_min <= 5
+                  ? "Your age range may be too narrow. Widen it in discovery filters."
+                  : "No one matches your current filters, or you have swiped through everyone nearby. Try adjusting filters or check back later."}
             </p>
-            <button
-              onClick={fetchProfiles}
-              className="px-8 py-3 gradient-brand text-white rounded-full font-bold shadow-lg active:scale-95 transition-all"
-            >
-              Refresh
-            </button>
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+              <button
+                onClick={() => setFiltersOpen(true)}
+                className="px-8 py-3 rounded-full border border-primary/20 bg-background font-bold text-primary shadow-sm active:scale-95 transition-all"
+              >
+                Adjust filters
+              </button>
+              <button
+                onClick={() => {
+                  setLoading(true);
+                  void fetchProfiles();
+                }}
+                className="px-8 py-3 gradient-brand text-white rounded-full font-bold shadow-lg active:scale-95 transition-all"
+              >
+                Refresh
+              </button>
+            </div>
+            </div>
           </div>
         </main>
-        <BottomNav />
+        <DashboardMenuSheet
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          onOpenFilters={() => setFiltersOpen(true)}
+        />
+        <DiscoveryFiltersSheet
+          open={filtersOpen}
+          onClose={() => setFiltersOpen(false)}
+          profile={user?.profile ?? null}
+          onApply={handleApplyFilters}
+        />
+        {!sheetOpen && <BottomNav />}
       </>
     );
   }
@@ -451,35 +500,16 @@ export default function DashboardPage() {
   return (
     <>
       <main className="flex min-h-screen w-full max-w-none flex-col bg-surface px-4 pb-28 pt-2">
-        <div className="relative mx-auto mb-2 flex w-full max-w-md items-center justify-between">
-          <button
-            type="button"
-            aria-label="Go to your profile"
-            disabled={controlsDisabled}
-            onClick={() => router.push("/profile")}
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/20 bg-background text-primary shadow-[0_4px_16px] shadow-primary/10 transition-all hover:bg-secondary active:scale-95 disabled:opacity-50"
-          >
-            <span
-              className="material-symbols-outlined text-[24px]"
-              style={{ fontVariationSettings: "'FILL' 1" }}
-            >
-              person
-            </span>
-          </button>
-
-          <button
-            type="button"
-            aria-label="Open discovery filters"
-            disabled={controlsDisabled}
-            onClick={() => setFiltersOpen(true)}
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/20 bg-background text-primary shadow-[0_4px_16px] shadow-primary/10 transition-all hover:bg-secondary active:scale-95 disabled:opacity-50"
-          >
-            <span className="material-symbols-outlined text-[24px]">tune</span>
-          </button>
-        </div>
+        <DashboardTopBar
+          onOpenMenu={() => setMenuOpen(true)}
+          onOpenFilters={() => setFiltersOpen(true)}
+          disabled={controlsDisabled}
+          profilesLeft={profiles.length}
+        />
 
         <div className="relative mx-auto mt-5 h-[min(72vh,680px)] min-h-[420px] w-full max-w-md shrink-0">
           <SwipeableCardStack
+            ref={stackRef}
             key={stackKey}
             images={deckImages}
             borderRadius={16}
@@ -504,10 +534,23 @@ export default function DashboardPage() {
           />
         </div>
 
-        <p className="mt-6 text-center text-xs font-medium text-on-surface-variant/60">
-          Swipe the card left to skip, right to like · {profiles.length} left
+        <DashboardActionBar
+          disabled={controlsDisabled}
+          onSkip={() => triggerSwipe("left")}
+          onLike={() => triggerSwipe("right")}
+          onInfo={() => setDiscoverInfoOpen(true)}
+        />
+
+        <p className="mt-4 text-center text-xs font-medium text-on-surface-variant/60">
+          Swipe the card left to skip, right to like
         </p>
       </main>
+
+      <DashboardMenuSheet
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        onOpenFilters={() => setFiltersOpen(true)}
+      />
 
       <ProfileDetailSheet
         profile={currentProfile}

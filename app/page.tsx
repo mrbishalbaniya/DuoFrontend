@@ -166,7 +166,7 @@ export default function LandingPage() {
                   </p>
                   <div className="flex justify-center px-1">
                     <Link
-                      href="/registration"
+                      href="/register"
                       className="btn-premium w-full max-w-sm sm:w-auto text-sm sm:text-base md:text-lg px-6 sm:px-8 md:px-10 py-3.5 sm:py-4 md:py-5"
                     >
                       Create Your Free Profile

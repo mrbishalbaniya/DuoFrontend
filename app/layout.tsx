@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Viewport } from "next";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { GoogleOAuthProviderWrapper } from "@/components/auth/google-oauth-provider";
 import { LenisProvider } from "@/components/lenis-provider";
 import "./globals.css";
 
@@ -34,7 +35,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="antialiased text-on-surface">
         <LenisProvider>
           <div className="app-background" aria-hidden="true" />
-          <AuthProvider>{children}</AuthProvider>
+          <GoogleOAuthProviderWrapper>
+            <AuthProvider>{children}</AuthProvider>
+          </GoogleOAuthProviderWrapper>
         </LenisProvider>
       </body>
     </html>

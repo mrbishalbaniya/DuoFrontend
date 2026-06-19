@@ -3,10 +3,11 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -27,6 +28,20 @@ export default function LoginPage() {
           ? err.message
           : "Invalid username or password."
       );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credential: string) => {
+    setError("");
+    setLoading(true);
+    try {
+      const data = await loginWithGoogle(credential);
+      const onboarded = data.user?.profile?.is_onboarded;
+      router.push(onboarded ? "/dashboard" : "/register");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Google sign-in failed.");
     } finally {
       setLoading(false);
     }
@@ -118,12 +133,24 @@ export default function LoginPage() {
               {loading ? "Signing in..." : "Login"}
             </button>
           </form>
+
+          <div className="my-6 flex items-center gap-3">
+            <div className="h-px flex-1 bg-outline-variant/20" />
+            <span className="text-xs font-bold uppercase tracking-widest text-outline">or</span>
+            <div className="h-px flex-1 bg-outline-variant/20" />
+          </div>
+
+          <GoogleSignInButton
+            onSuccess={handleGoogleSuccess}
+            onError={() => setError("Google sign-in was cancelled or failed.")}
+            disabled={loading}
+          />
         </div>
 
         <div className="mt-8 text-center">
           <p className="text-on-surface-variant font-medium text-sm">
             New to Duo?{" "}
-            <Link className="text-accent font-bold hover:underline underline-offset-4 ml-1" href="/registration">
+            <Link className="text-accent font-bold hover:underline underline-offset-4 ml-1" href="/register">
               Create an account
             </Link>
           </p>

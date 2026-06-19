@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { Profile } from "@/types";
 import { detectUserLocation, isDefaultLocation } from "@/lib/geolocation";
 import { NEPAL_CITY_NAMES } from "@/lib/locationCoords";
@@ -16,6 +16,35 @@ export type DiscoveryFilters = {
 };
 
 const NEPAL_CITIES = NEPAL_CITY_NAMES;
+
+const DEFAULT_FILTERS: DiscoveryFilters = {
+  pref_age_min: 22,
+  pref_age_max: 35,
+  pref_location: "",
+  pref_max_distance_km: 50,
+  pref_gender: "everyone",
+  pref_relationship_goal: "everyone",
+  pref_verified_only: false,
+};
+
+function normalizeCityPref(location?: string): string {
+  const value = location?.trim() ?? "";
+  if (!value) return "";
+
+  const lower = value.toLowerCase();
+  for (const city of NEPAL_CITIES) {
+    if (lower.includes(city.toLowerCase())) {
+      return city;
+    }
+  }
+
+  return value.split(",")[0]?.trim() ?? "";
+}
+
+function isCitySelected(city: string, prefLocation: string): boolean {
+  if (!city) return prefLocation.trim() === "";
+  return prefLocation.trim().toLowerCase() === city.toLowerCase();
+}
 
 function IosToggle({
   checked,
@@ -41,22 +70,16 @@ function IosToggle({
   );
 }
 
-function FilterSection({
-  title,
-  children,
-}: {
-  title?: string;
-  children: React.ReactNode;
-}) {
+function FilterSection({ title, children }: { title?: string; children: ReactNode }) {
   return (
-    <div className="space-y-2">
+    <section className="space-y-2">
       {title ? (
-        <p className="px-4 text-[13px] font-medium uppercase tracking-wide text-on-surface-variant">
+        <p className="px-1 text-[13px] font-semibold uppercase tracking-wide text-on-surface-variant">
           {title}
         </p>
       ) : null}
       <div className="ios-inset-group">{children}</div>
-    </div>
+    </section>
   );
 }
 
@@ -73,24 +96,42 @@ export default function DiscoveryFiltersSheet({
   profile,
   onApply,
 }: DiscoveryFiltersSheetProps) {
-  const [prefAgeMin, setPrefAgeMin] = useState(22);
-  const [prefAgeMax, setPrefAgeMax] = useState(35);
+  const [prefAgeMin, setPrefAgeMin] = useState(DEFAULT_FILTERS.pref_age_min);
+  const [prefAgeMax, setPrefAgeMax] = useState(DEFAULT_FILTERS.pref_age_max);
   const [prefLocation, setPrefLocation] = useState("");
-  const [prefMaxDistance, setPrefMaxDistance] = useState(50);
+  const [prefMaxDistance, setPrefMaxDistance] = useState(DEFAULT_FILTERS.pref_max_distance_km);
   const [prefGender, setPrefGender] = useState<DiscoveryFilters["pref_gender"]>("everyone");
   const [prefRelationshipGoal, setPrefRelationshipGoal] =
     useState<DiscoveryFilters["pref_relationship_goal"]>("everyone");
   const [prefVerifiedOnly, setPrefVerifiedOnly] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
 
-  const runLocationDetect = useCallback(async (preferFullLabel = false) => {
+  const loadFromProfile = useCallback((current: Profile) => {
+    setPrefAgeMin(current.pref_age_min ?? DEFAULT_FILTERS.pref_age_min);
+    setPrefAgeMax(current.pref_age_max ?? DEFAULT_FILTERS.pref_age_max);
+    setPrefLocation(
+      normalizeCityPref(current.pref_location || current.location || "")
+    );
+    setPrefMaxDistance(current.pref_max_distance_km ?? DEFAULT_FILTERS.pref_max_distance_km);
+    setPrefGender((current.pref_gender as DiscoveryFilters["pref_gender"]) ?? "everyone");
+    setPrefRelationshipGoal(
+      (current.pref_relationship_goal as DiscoveryFilters["pref_relationship_goal"]) ??
+        "everyone"
+    );
+    setPrefVerifiedOnly(current.pref_verified_only ?? false);
+    setSaveError(null);
+    setLocationError(null);
+  }, []);
+
+  const runLocationDetect = useCallback(async () => {
     setDetectingLocation(true);
     setLocationError(null);
     try {
       const detected = await detectUserLocation();
-      setPrefLocation(preferFullLabel ? detected.label : detected.city);
+      setPrefLocation(detected.city || normalizeCityPref(detected.label));
       return detected;
     } catch (error) {
       const message =
@@ -104,43 +145,13 @@ export default function DiscoveryFiltersSheet({
 
   useEffect(() => {
     if (open && profile) {
-      setPrefAgeMin(profile.pref_age_min ?? 22);
-      setPrefAgeMax(profile.pref_age_max ?? 35);
-      setPrefLocation(profile.pref_location ?? profile.location ?? "");
-      setPrefMaxDistance(profile.pref_max_distance_km ?? 50);
-      setPrefGender((profile.pref_gender as DiscoveryFilters["pref_gender"]) ?? "everyone");
-      setPrefRelationshipGoal(
-        (profile.pref_relationship_goal as DiscoveryFilters["pref_relationship_goal"]) ??
-          "everyone"
-      );
-      setPrefVerifiedOnly(profile.pref_verified_only ?? false);
-      setLocationError(null);
+      loadFromProfile(profile);
     }
-  }, [open, profile]);
-
-  useEffect(() => {
-    if (!open || !profile) return;
-
-    const existing = (profile.pref_location ?? profile.location ?? "").trim();
-    if (existing && !isDefaultLocation(existing)) return;
-
-    let cancelled = false;
-    void (async () => {
-      try {
-        const detected = await runLocationDetect(false);
-        if (cancelled || !detected) return;
-      } catch {
-        /* user can tap detect manually */
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [open, profile, runLocationDetect]);
+  }, [open, profile, loadFromProfile]);
 
   useEffect(() => {
     if (!open) return;
+
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -148,10 +159,24 @@ export default function DiscoveryFiltersSheet({
     };
   }, [open]);
 
+  const handleReset = () => {
+    setPrefAgeMin(DEFAULT_FILTERS.pref_age_min);
+    setPrefAgeMax(DEFAULT_FILTERS.pref_age_max);
+    setPrefLocation("");
+    setPrefMaxDistance(DEFAULT_FILTERS.pref_max_distance_km);
+    setPrefGender(DEFAULT_FILTERS.pref_gender);
+    setPrefRelationshipGoal(DEFAULT_FILTERS.pref_relationship_goal);
+    setPrefVerifiedOnly(DEFAULT_FILTERS.pref_verified_only);
+    setSaveError(null);
+    setLocationError(null);
+  };
+
   const handleApply = async () => {
     const min = Math.min(prefAgeMin, prefAgeMax);
     const max = Math.max(prefAgeMin, prefAgeMax);
+
     setSaving(true);
+    setSaveError(null);
     try {
       await onApply({
         pref_age_min: min,
@@ -164,57 +189,71 @@ export default function DiscoveryFiltersSheet({
       });
       onClose();
     } catch (err) {
-      console.error("Filter save error:", err);
+      setSaveError(
+        err instanceof Error ? err.message : "Could not save filters. Please try again."
+      );
     } finally {
       setSaving(false);
     }
   };
 
+  if (!open) return null;
+
+  const ageMin = Math.min(prefAgeMin, prefAgeMax);
+  const ageMax = Math.max(prefAgeMin, prefAgeMax);
+
   return (
-    <div
-      className={`fixed inset-0 z-[100] flex flex-col justify-end transition-opacity duration-300 ${
-        open ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
-      }`}
-      aria-hidden={!open}
-    >
+    <div className="fixed inset-0 z-[100]" role="presentation">
       <button
         type="button"
-        className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
         aria-label="Close filters"
         onClick={onClose}
       />
 
       <div
-        className={`ios-sheet relative z-[101] mx-auto flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-[20px] transition-transform duration-300 ease-out ${
-          open ? "translate-y-0" : "translate-y-full"
-        }`}
-        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="discovery-filters-title"
+        className="ios-sheet absolute inset-x-0 bottom-0 z-[101] mx-auto flex h-[min(88dvh,760px)] w-full max-w-lg flex-col overflow-hidden rounded-t-[24px]"
+        onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-white/[0.08] px-4 pb-3 pt-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-[17px] font-normal text-primary active:opacity-70"
-          >
-            Cancel
-          </button>
-          <h2 className="text-[17px] font-semibold text-on-surface">Filters</h2>
-          <button
-            type="button"
-            onClick={handleApply}
-            disabled={saving}
-            className="text-[17px] font-semibold text-primary active:opacity-70 disabled:opacity-40"
-          >
-            {saving ? "…" : "Apply"}
-          </button>
+        <div className="flex shrink-0 flex-col items-center border-b border-white/[0.08] px-4 pb-3 pt-2">
+          <div className="mb-3 h-1 w-10 rounded-full bg-white/20" />
+          <div className="flex w-full items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-[17px] font-normal text-primary active:opacity-70"
+            >
+              Cancel
+            </button>
+            <h2 id="discovery-filters-title" className="text-[17px] font-semibold text-on-surface">
+              Filters
+            </h2>
+            <button
+              type="button"
+              onClick={() => void handleApply()}
+              disabled={saving}
+              className="text-[17px] font-semibold text-primary active:opacity-70 disabled:opacity-40"
+            >
+              {saving ? "Saving…" : "Apply"}
+            </button>
+          </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-8 hide-scrollbar">
-          <div className="space-y-6">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain touch-pan-y [scrollbar-gutter:stable]">
+          <div className="space-y-6 px-4 py-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
+            {saveError ? (
+              <div className="rounded-xl bg-error-container px-4 py-3 text-sm text-on-error-container">
+                {saveError}
+              </div>
+            ) : null}
+
             <FilterSection title="Location">
               <button
                 type="button"
-                onClick={() => void runLocationDetect(true)}
+                onClick={() => void runLocationDetect()}
                 disabled={detectingLocation}
                 className="ios-filter-row w-full border-b border-white/[0.06] text-left transition-colors active:bg-white/[0.04] disabled:opacity-60"
               >
@@ -231,7 +270,7 @@ export default function DiscoveryFiltersSheet({
                       {detectingLocation ? "Detecting location…" : "Use current location"}
                     </p>
                     <p className="mt-0.5 text-[13px] text-on-surface-variant">
-                      Auto-fill from GPS
+                      Auto-fill city from GPS
                     </p>
                   </div>
                 </div>
@@ -239,9 +278,11 @@ export default function DiscoveryFiltersSheet({
                   chevron_right
                 </span>
               </button>
+
               {locationError ? (
                 <p className="px-4 py-2 text-[13px] text-error">{locationError}</p>
               ) : null}
+
               <div className="ios-filter-row border-b border-white/[0.06]">
                 <label htmlFor="filter-location" className="ios-filter-label shrink-0">
                   City
@@ -250,17 +291,18 @@ export default function DiscoveryFiltersSheet({
                   id="filter-location"
                   type="text"
                   value={prefLocation}
-                  onChange={(e) => setPrefLocation(e.target.value)}
-                  placeholder={detectingLocation ? "Detecting…" : "Anywhere in Nepal"}
+                  onChange={(event) => setPrefLocation(event.target.value)}
+                  placeholder="Anywhere in Nepal"
                   className="min-w-0 flex-1 bg-transparent text-right text-[17px] text-on-surface outline-none placeholder:text-on-surface-variant/60"
                 />
               </div>
+
               <div className="flex flex-wrap gap-2 px-3 py-3">
                 {NEPAL_CITIES.map((city) => (
                   <button
                     key={city}
                     type="button"
-                    data-active={prefLocation.toLowerCase() === city.toLowerCase()}
+                    data-active={isCitySelected(city, prefLocation)}
                     onClick={() => setPrefLocation(city)}
                     className="ios-chip"
                   >
@@ -269,7 +311,7 @@ export default function DiscoveryFiltersSheet({
                 ))}
                 <button
                   type="button"
-                  data-active={prefLocation === ""}
+                  data-active={prefLocation.trim() === ""}
                   onClick={() => setPrefLocation("")}
                   className="ios-chip"
                 >
@@ -279,40 +321,44 @@ export default function DiscoveryFiltersSheet({
             </FilterSection>
 
             <FilterSection title="Age">
-              <div className="space-y-4 px-4 py-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-[15px] text-on-surface-variant">Minimum</span>
-                  <span className="text-[17px] font-semibold tabular-nums text-on-surface">
-                    {Math.min(prefAgeMin, prefAgeMax)}
-                  </span>
+              <div className="space-y-5 px-4 py-4">
+                <div>
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="text-[15px] text-on-surface-variant">Minimum</span>
+                    <span className="text-[17px] font-semibold tabular-nums text-on-surface">
+                      {ageMin}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={18}
+                    max={60}
+                    value={ageMin}
+                    onChange={(event) => setPrefAgeMin(Number(event.target.value))}
+                    className="ios-range"
+                  />
                 </div>
-                <input
-                  type="range"
-                  min={18}
-                  max={60}
-                  value={Math.min(prefAgeMin, prefAgeMax)}
-                  onChange={(e) => setPrefAgeMin(Number(e.target.value))}
-                  className="ios-range"
-                />
-                <div className="flex items-center justify-between">
-                  <span className="text-[15px] text-on-surface-variant">Maximum</span>
-                  <span className="text-[17px] font-semibold tabular-nums text-on-surface">
-                    {Math.max(prefAgeMin, prefAgeMax)}
-                  </span>
+                <div>
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="text-[15px] text-on-surface-variant">Maximum</span>
+                    <span className="text-[17px] font-semibold tabular-nums text-on-surface">
+                      {ageMax}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={18}
+                    max={60}
+                    value={ageMax}
+                    onChange={(event) => setPrefAgeMax(Number(event.target.value))}
+                    className="ios-range"
+                  />
                 </div>
-                <input
-                  type="range"
-                  min={18}
-                  max={60}
-                  value={Math.max(prefAgeMin, prefAgeMax)}
-                  onChange={(e) => setPrefAgeMax(Number(e.target.value))}
-                  className="ios-range"
-                />
               </div>
             </FilterSection>
 
             <FilterSection title="Distance">
-              <div className="space-y-3 px-4 py-4">
+              <div className="space-y-4 px-4 py-4">
                 <div className="flex items-center justify-between">
                   <span className="ios-filter-label">Maximum distance</span>
                   <span className="text-[17px] font-semibold tabular-nums text-primary">
@@ -325,9 +371,22 @@ export default function DiscoveryFiltersSheet({
                   max={200}
                   step={5}
                   value={prefMaxDistance}
-                  onChange={(e) => setPrefMaxDistance(Number(e.target.value))}
+                  onChange={(event) => setPrefMaxDistance(Number(event.target.value))}
                   className="ios-range"
                 />
+                <div className="flex flex-wrap gap-2">
+                  {[25, 50, 100, 200].map((km) => (
+                    <button
+                      key={km}
+                      type="button"
+                      data-active={prefMaxDistance === km}
+                      onClick={() => setPrefMaxDistance(km)}
+                      className="ios-chip"
+                    >
+                      {km} km
+                    </button>
+                  ))}
+                </div>
               </div>
             </FilterSection>
 
@@ -400,6 +459,14 @@ export default function DiscoveryFiltersSheet({
                 />
               </div>
             </FilterSection>
+
+            <button
+              type="button"
+              onClick={handleReset}
+              className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] py-3 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-white/[0.06]"
+            >
+              Reset to recommended defaults
+            </button>
           </div>
         </div>
       </div>

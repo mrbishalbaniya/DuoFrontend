@@ -47,7 +47,7 @@ export function LampDemo() {
         className="mt-8"
       >
         <Link
-          href="/registration"
+          href="/register"
           className="btn-premium px-8 py-4 text-base sm:px-10 sm:py-5 sm:text-lg"
         >
           Create Your Free Profile

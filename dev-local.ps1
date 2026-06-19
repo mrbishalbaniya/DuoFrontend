@@ -8,7 +8,7 @@ if (-not (Test-Path $dst)) {
   New-Item -ItemType Directory -Path $dst -Force | Out-Null
 }
 
-$syncDirs = @("app", "components", "contexts", "lib", "types", "public")
+$syncDirs = @("app", "components", "contexts", "lib", "store", "types", "public")
 $syncFiles = @(
   "package.json",
   "package-lock.json",
@@ -18,7 +18,8 @@ $syncFiles = @(
   "postcss.config.mjs",
   "tsconfig.json",
   "eslint.config.mjs",
-  "next-env.d.ts"
+  "next-env.d.ts",
+  ".env.local"
 )
 
 function Sync-DuoFrontend {

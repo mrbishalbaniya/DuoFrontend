@@ -153,6 +153,100 @@ class ApiClient {
     return data;
   }
 
+  async loginWithGoogle(idToken: string): Promise<LoginResponse> {
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}/auth/google/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id_token: idToken }),
+      });
+    } catch {
+      throw new Error(
+        "Cannot reach the API at http://localhost:8001. Start the backend: cd backend && py -3 manage.py runserver 8001"
+      );
+    }
+
+    if (!res.ok) {
+      const errorData = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      const detail =
+        errorData.detail ||
+        (Array.isArray(errorData.non_field_errors)
+          ? errorData.non_field_errors[0]
+          : null) ||
+        (typeof errorData === "object"
+          ? (Object.values(errorData).flat()[0] as string | undefined)
+          : null);
+      throw new Error((detail as string) || "Google sign-in failed");
+    }
+
+    const data = (await res.json()) as LoginResponse;
+    this.setTokens(data.access, data.refresh);
+    return data;
+  }
+
+  async verifyFirebasePhone(
+    idToken: string,
+    phone?: string
+  ): Promise<{ verified: boolean; phone: string }> {
+    return this.request<{ verified: boolean; phone: string }>("/auth/firebase/verify-phone/", {
+      method: "POST",
+      body: JSON.stringify({ id_token: idToken, phone }),
+    });
+  }
+
+  async sendEmailOtp(email: string): Promise<{ sent: boolean; email: string }> {
+    return this.request<{ sent: boolean; email: string }>("/auth/email/send-otp/", {
+      method: "POST",
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
+    });
+  }
+
+  async verifyEmailOtp(
+    email: string,
+    otp: string
+  ): Promise<{ verified: boolean; email: string }> {
+    return this.request<{ verified: boolean; email: string }>("/auth/email/verify-otp/", {
+      method: "POST",
+      body: JSON.stringify({
+        email: email.trim().toLowerCase(),
+        otp,
+      }),
+    });
+  }
+
+  async loginWithFirebase(idToken: string): Promise<LoginResponse> {
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}/auth/firebase/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id_token: idToken }),
+      });
+    } catch {
+      throw new Error(
+        "Cannot reach the API at http://localhost:8001. Start the backend: cd backend && py -3 manage.py runserver 8001"
+      );
+    }
+
+    if (!res.ok) {
+      const errorData = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      const detail =
+        errorData.detail ||
+        (Array.isArray(errorData.non_field_errors)
+          ? errorData.non_field_errors[0]
+          : null) ||
+        (typeof errorData === "object"
+          ? (Object.values(errorData).flat()[0] as string | undefined)
+          : null);
+      throw new Error((detail as string) || "Phone sign-in failed");
+    }
+
+    const data = (await res.json()) as LoginResponse;
+    this.setTokens(data.access, data.refresh);
+    return data;
+  }
+
   async register(
     email: string,
     password: string,
@@ -179,6 +273,25 @@ class ApiClient {
       method: "PUT",
       body: JSON.stringify(data),
     });
+  }
+
+  async uploadProfilePhoto(file: File): Promise<{ image_url: string }> {
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const token = this.getToken();
+    const response = await fetch(`${this.baseUrl}/profiles/me/upload-photo/`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+      throw new Error(String(errorData.detail ?? "Failed to upload profile photo"));
+    }
+
+    return response.json() as Promise<{ image_url: string }>;
   }
 
   async discoverProfiles(): Promise<Profile[]> {
