@@ -25,7 +25,7 @@ export default function LoginPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "Invalid username or password. Try: demo / demo1234"
+          : "Invalid username or password."
       );
     } finally {
       setLoading(false);
@@ -33,7 +33,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="soft-abstract-bg min-h-screen flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6">
       <header className="mb-12 z-10 text-center">
         <h1 className="text-3xl font-black text-gradient-brand font-[var(--font-headline)] tracking-tight mb-2">
           Duo
@@ -44,7 +44,7 @@ export default function LoginPage() {
       </header>
 
       <main className="w-full max-w-md z-10">
-        <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-[0_40px_60px_-15px] shadow-primary/8 border border-white/20">
+        <div className="glass-card rounded-[2rem] p-8 shadow-[0_40px_60px_-15px] shadow-primary/15">
           <div className="mb-8">
             <h2 className="font-[var(--font-headline)] text-2xl font-bold text-on-surface mb-1">
               Welcome back
@@ -55,7 +55,7 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl text-sm font-medium">
+            <div className="mb-6 p-4 bg-error-container text-on-error-container rounded-xl text-sm font-medium">
               {error}
             </div>
           )}
@@ -63,19 +63,19 @@ export default function LoginPage() {
           <form onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-on-surface-variant ml-1" htmlFor="username">
-                Username
+                Email
               </label>
               <div className="relative group">
                 <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
                   person
                 </span>
                 <input
-                  className="w-full pl-12 pr-4 py-4 bg-surface rounded-[1rem] border-none ring-1 ring-outline-variant/30 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-on-surface placeholder:text-outline shadow-sm"
+                  className="w-full pl-12 pr-4 py-4 bg-surface-container-high rounded-[1rem] border-none ring-1 ring-outline-variant/30 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-on-surface placeholder:text-outline"
                   id="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="demo"
-                  type="text"
+                  placeholder="you@example.com"
+                  type="email"
                   required
                 />
               </div>
@@ -91,11 +91,11 @@ export default function LoginPage() {
                   lock
                 </span>
                 <input
-                  className="w-full pl-12 pr-12 py-4 bg-surface rounded-[1rem] border-none ring-1 ring-outline-variant/30 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-on-surface placeholder:text-outline shadow-sm"
+                  className="w-full pl-12 pr-12 py-4 bg-surface-container-high rounded-[1rem] border-none ring-1 ring-outline-variant/30 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-on-surface placeholder:text-outline"
                   id="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="demo1234"
+                  placeholder="Your password"
                   type={showPassword ? "text" : "password"}
                   required
                 />
@@ -118,30 +118,12 @@ export default function LoginPage() {
               {loading ? "Signing in..." : "Login"}
             </button>
           </form>
-
-          <div className="relative my-8">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-outline-variant/30"></div>
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-4 text-outline font-bold tracking-widest">
-                Demo credentials
-              </span>
-            </div>
-          </div>
-
-          <div className="bg-surface rounded-xl p-4 text-center">
-            <p className="text-sm text-on-surface-variant">
-              Username: <code className="font-bold text-primary">demo</code> &nbsp;|&nbsp;
-              Password: <code className="font-bold text-primary">demo1234</code>
-            </p>
-          </div>
         </div>
 
         <div className="mt-8 text-center">
           <p className="text-on-surface-variant font-medium text-sm">
             New to Duo?{" "}
-            <Link className="text-secondary font-bold hover:underline underline-offset-4 ml-1" href="/onboarding">
+            <Link className="text-accent font-bold hover:underline underline-offset-4 ml-1" href="/registration">
               Create an account
             </Link>
           </p>

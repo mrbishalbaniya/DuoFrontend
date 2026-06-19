@@ -104,7 +104,7 @@ export default function BottomNav() {
       className="md:hidden fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2"
       aria-label="Main navigation"
     >
-      <div className="flex w-full max-w-md items-end justify-between gap-1 rounded-[2.2rem] border border-outline-variant/35 bg-background/92 px-2 py-2 shadow-[0_16px_40px] shadow-primary/12 backdrop-blur-xl">
+      <div className="flex w-full max-w-md items-end justify-between gap-1 rounded-[2.2rem] border border-outline-variant/35 bg-surface/92 px-2 py-2 shadow-[0_16px_40px] shadow-primary/12 backdrop-blur-xl">
         <div className="flex min-w-0 flex-1 items-end justify-around">
           {navLeft.map((item) => (
             <NavLink key={item.href} item={item} pathname={pathname} />

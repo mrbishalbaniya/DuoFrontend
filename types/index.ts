@@ -3,6 +3,8 @@ export interface Profile {
   user_id?: number;
   full_name: string;
   age?: number | string | null;
+  phone_country_code?: string;
+  phone_number?: string;
   gender?: string;
   bio?: string;
   location?: string;
@@ -21,6 +23,12 @@ export interface Profile {
   pref_min_height?: string;
   pref_occupation?: string;
   pref_values?: string;
+  pref_gender?: "everyone" | "women" | "men";
+  pref_location?: string;
+  pref_max_distance_km?: number;
+  pref_relationship_goal?: "everyone" | "serious" | "casual" | "dating";
+  pref_verified_only?: boolean;
+  relationship_goal?: "serious" | "casual" | "dating" | "";
 }
 
 export interface User {
@@ -110,11 +118,19 @@ export interface ProfileFormData {
   age: string | number;
   bio: string;
   location: string;
+  phone_country_code?: string;
+  phone_number?: string;
   education: string;
   occupation: string;
   pref_age_min: number;
   pref_age_max: number;
   pref_values: string;
+  pref_gender?: string;
+  pref_location?: string;
+  pref_max_distance_km?: number;
+  pref_relationship_goal?: string;
+  pref_verified_only?: boolean;
+  relationship_goal?: string;
   gender?: string;
   religion?: string;
   work_preference?: string;
@@ -122,11 +138,10 @@ export interface ProfileFormData {
 }
 
 export interface OnboardingFormData {
-  username: string;
   email: string;
   password: string;
   full_name: string;
-  age: string;
+  date_of_birth: string;
   gender: string;
   religion: string;
   education: string;

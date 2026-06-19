@@ -1,11 +1,19 @@
 import type { ReactNode } from "react";
+import type { Viewport } from "next";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { LenisProvider } from "@/components/lenis-provider";
 import "./globals.css";
 
 export const metadata = {
   title: "Duo - Find Your Life Partner, Intuitively",
   description:
     "Duo blends deep-rooted tradition with advanced algorithmic matching to guide you toward a connection that feels like home.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -23,8 +31,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           rel="stylesheet"
         />
       </head>
-      <body className="antialiased">
-        <AuthProvider>{children}</AuthProvider>
+      <body className="antialiased text-on-surface">
+        <LenisProvider>
+          <div className="app-background" aria-hidden="true" />
+          <AuthProvider>{children}</AuthProvider>
+        </LenisProvider>
       </body>
     </html>
   );

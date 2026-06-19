@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import BottomNav from "@/components/BottomNav";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
+import { detectUserLocation, isDefaultLocation } from "@/lib/geolocation";
 import type { Profile, ProfileFormData } from "@/types";
 
 export default function ProfilePage() {
@@ -25,6 +26,23 @@ export default function ProfilePage() {
     pref_values: "",
   });
   const [saving, setSaving] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  const handleDetectLocation = async () => {
+    setDetectingLocation(true);
+    setLocationError(null);
+    try {
+      const detected = await detectUserLocation();
+      setFormData((prev) => ({ ...prev, location: detected.label }));
+    } catch (error) {
+      setLocationError(
+        error instanceof Error ? error.message : "Could not detect your location."
+      );
+    } finally {
+      setDetectingLocation(false);
+    }
+  };
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -47,6 +65,36 @@ export default function ProfilePage() {
       });
     }
   }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (!editing) return;
+    if (!isDefaultLocation(formData.location)) return;
+
+    let cancelled = false;
+    setDetectingLocation(true);
+    setLocationError(null);
+
+    detectUserLocation()
+      .then((detected) => {
+        if (!cancelled) {
+          setFormData((prev) => ({ ...prev, location: detected.label }));
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setLocationError(
+            error instanceof Error ? error.message : "Could not detect your location."
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setDetectingLocation(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [editing]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -211,11 +259,35 @@ export default function ProfilePage() {
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-bold text-on-surface-variant">Location</label>
-                  <input
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="w-full px-4 py-3 bg-secondary/50 border border-outline-variant/30 rounded-xl outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary/30"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      value={formData.location}
+                      onChange={(e) => {
+                        setLocationError(null);
+                        setFormData({ ...formData, location: e.target.value });
+                      }}
+                      placeholder={detectingLocation ? "Detecting location…" : "City, Country"}
+                      className="min-w-0 flex-1 px-4 py-3 bg-secondary/50 border border-outline-variant/30 rounded-xl outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary/30"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleDetectLocation()}
+                      disabled={detectingLocation}
+                      aria-label="Detect current location"
+                      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      <span
+                        className={`material-symbols-outlined text-[22px] ${
+                          detectingLocation ? "animate-pulse" : ""
+                        }`}
+                      >
+                        my_location
+                      </span>
+                    </button>
+                  </div>
+                  {locationError ? (
+                    <p className="text-xs text-error">{locationError}</p>
+                  ) : null}
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-bold text-on-surface-variant">Education</label>

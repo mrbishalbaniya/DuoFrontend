@@ -1,14 +1,18 @@
-/** City centers in Nepal for demo map pins (profiles only store location text). */
-const CITY_COORDS: Record<string, [number, number]> = {
+/** City centers in Nepal for map pins and nearest-city detection. */
+export const NEPAL_CITY_COORDS: Record<string, [number, number]> = {
   kathmandu: [27.7172, 85.324],
-  pokhara: [28.2096, 83.9856],
   lalitpur: [27.6588, 85.3247],
+  pokhara: [28.2096, 83.9856],
   bhaktapur: [27.671, 85.4298],
   chitwan: [27.5291, 84.3542],
   biratnagar: [26.4525, 87.2718],
   dharan: [26.8147, 87.2848],
   butwal: [27.7, 83.4483],
 };
+
+export const NEPAL_CITY_NAMES = Object.keys(NEPAL_CITY_COORDS).map(
+  (city) => city.charAt(0).toUpperCase() + city.slice(1)
+);
 
 const DEFAULT_CENTER: [number, number] = [27.7172, 85.324];
 
@@ -21,12 +25,39 @@ function hashSeed(value: string): number {
   return Math.abs(hash);
 }
 
-function findCityCenter(location: string): [number, number] {
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const r = 6371;
+  const p1 = (lat1 * Math.PI) / 180;
+  const p2 = (lat2 * Math.PI) / 180;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(p1) * Math.cos(p2) * Math.sin(dLon / 2) ** 2;
+  return 2 * r * Math.asin(Math.sqrt(a));
+}
+
+export function findCityCenter(location: string): [number, number] {
   const normalized = location.toLowerCase();
-  for (const [city, coords] of Object.entries(CITY_COORDS)) {
+  for (const [city, coords] of Object.entries(NEPAL_CITY_COORDS)) {
     if (normalized.includes(city)) return coords;
   }
   return DEFAULT_CENTER;
+}
+
+export function nearestNepalCity(lat: number, lng: number): string {
+  let bestCity = "Kathmandu";
+  let bestDistance = Infinity;
+
+  for (const [city, [cityLat, cityLng]] of Object.entries(NEPAL_CITY_COORDS)) {
+    const distance = haversineKm(lat, lng, cityLat, cityLng);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestCity = city;
+    }
+  }
+
+  return bestCity.charAt(0).toUpperCase() + bestCity.slice(1);
 }
 
 /** Spread markers slightly so profiles in the same city don't stack. */

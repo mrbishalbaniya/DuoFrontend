@@ -3,12 +3,16 @@
 import { useState, useEffect, useCallback, useMemo, useRef, startTransition } from "react";
 import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
+import DiscoveryFiltersSheet, {
+  type DiscoveryFilters,
+} from "@/components/dashboard/DiscoveryFiltersSheet";
 import {
   SwipeableCardStack,
   type SwipeDirection,
 } from "@/components/ui/tinder-like-swipe";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
+import { detectUserLocation, isDefaultLocation } from "@/lib/geolocation";
 import type { Profile, SwipeAction } from "@/types";
 
 function getProfilePhotos(profile: Profile): string[] {
@@ -110,12 +114,12 @@ function ProfileDetailSheet({
     : [];
 
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = "";
-      };
-    }
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
   }, [open]);
 
   if (!profile) return null;
@@ -276,158 +280,6 @@ function ProfileDetailSheet({
   );
 }
 
-function FiltersSheet({
-  open,
-  onClose,
-  profile,
-  onApply,
-}: {
-  open: boolean;
-  onClose: () => void;
-  profile: Profile | null;
-  onApply: (filters: {
-    pref_age_min: number;
-    pref_age_max: number;
-    pref_values: string;
-  }) => Promise<void>;
-}) {
-  const [prefAgeMin, setPrefAgeMin] = useState(22);
-  const [prefAgeMax, setPrefAgeMax] = useState(35);
-  const [prefValues, setPrefValues] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (open && profile) {
-      setPrefAgeMin(profile.pref_age_min ?? 22);
-      setPrefAgeMax(profile.pref_age_max ?? 35);
-      setPrefValues(profile.pref_values ?? "");
-    }
-  }, [open, profile]);
-
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = "";
-      };
-    }
-  }, [open]);
-
-  const handleApply = async () => {
-    const min = Math.min(prefAgeMin, prefAgeMax);
-    const max = Math.max(prefAgeMin, prefAgeMax);
-    setSaving(true);
-    try {
-      await onApply({ pref_age_min: min, pref_age_max: max, pref_values: prefValues });
-      onClose();
-    } catch (err) {
-      console.error("Filter save error:", err);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div
-      className={`fixed inset-0 z-[100] flex flex-col justify-end transition-opacity duration-300 ${
-        open ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
-      }`}
-      aria-hidden={!open}
-    >
-      <button
-        type="button"
-        className="absolute inset-0 bg-primary/30 backdrop-blur-sm"
-        aria-label="Close filters"
-        onClick={onClose}
-      />
-
-      <div
-        className={`relative z-[101] mx-auto flex max-h-[85dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-[1.75rem] border-t-4 border-primary/35 bg-background shadow-[0_-12px_48px] shadow-primary/20 transition-transform duration-300 ease-out ${
-          open ? "translate-y-0" : "translate-y-full"
-        }`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex shrink-0 justify-center bg-background pb-2 pt-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-1.5 w-12 rounded-full bg-primary/35 transition-colors hover:bg-primary/55"
-            aria-label="Close filters"
-          />
-        </div>
-
-        <div className="overflow-y-auto overscroll-contain px-5 pb-8 pt-2">
-          <div className="mb-6 flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-secondary text-primary">
-              <span className="material-symbols-outlined text-[24px]">tune</span>
-            </div>
-            <div>
-              <h2 className="font-[var(--font-headline)] text-xl font-bold text-on-surface">
-                Discovery filters
-              </h2>
-              <p className="text-sm text-on-surface-variant">Who you want to see while swiping</p>
-            </div>
-          </div>
-
-          <div className="space-y-5">
-            <div className="rounded-2xl border border-primary/10 bg-secondary/40 p-5">
-              <label className="mb-3 block text-sm font-bold text-on-surface">Age range</label>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-on-surface-variant/70">
-                    Min
-                  </span>
-                  <input
-                    type="number"
-                    min={18}
-                    max={99}
-                    value={prefAgeMin}
-                    onChange={(e) => setPrefAgeMin(Number(e.target.value))}
-                    className="w-full rounded-xl border border-outline-variant/30 bg-background px-4 py-3 outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/20"
-                  />
-                </div>
-                <div>
-                  <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-on-surface-variant/70">
-                    Max
-                  </span>
-                  <input
-                    type="number"
-                    min={18}
-                    max={99}
-                    value={prefAgeMax}
-                    onChange={(e) => setPrefAgeMax(Number(e.target.value))}
-                    className="w-full rounded-xl border border-outline-variant/30 bg-background px-4 py-3 outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/20"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-primary/10 bg-secondary/40 p-5">
-              <label className="mb-3 block text-sm font-bold text-on-surface">Values & priorities</label>
-              <textarea
-                rows={3}
-                value={prefValues}
-                onChange={(e) => setPrefValues(e.target.value)}
-                placeholder="e.g. honesty, family-oriented, career-driven..."
-                className="w-full resize-none rounded-xl border border-outline-variant/30 bg-background px-4 py-3 outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/20"
-              />
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleApply}
-            disabled={saving}
-            className="mt-6 flex w-full items-center justify-center gap-2 rounded-full gradient-brand-br px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-primary/25 transition-all active:scale-[0.98] disabled:opacity-50"
-          >
-            {saving ? "Applying..." : "Apply filters"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function DashboardPage() {
   const { user, loading: authLoading, fetchUser } = useAuth();
   const router = useRouter();
@@ -438,6 +290,7 @@ export default function DashboardPage() {
   const [discoverInfoOpen, setDiscoverInfoOpen] = useState(false);
   const [stackKey, setStackKey] = useState(0);
   const swipingRef = useRef(false);
+  const locationSyncedRef = useRef(false);
 
   const fetchProfiles = useCallback(async () => {
     try {
@@ -458,6 +311,24 @@ export default function DashboardPage() {
     if (user) fetchProfiles();
   }, [user, authLoading, router, fetchProfiles]);
 
+  useEffect(() => {
+    if (!user || locationSyncedRef.current) return;
+
+    const location = user.profile?.location;
+    if (!isDefaultLocation(location)) return;
+
+    locationSyncedRef.current = true;
+    void (async () => {
+      try {
+        const detected = await detectUserLocation();
+        await api.updateProfile({ location: detected.label });
+        await fetchUser();
+      } catch {
+        locationSyncedRef.current = false;
+      }
+    })();
+  }, [user, fetchUser]);
+
   const currentProfile = profiles[0];
 
   const deckProfiles = useMemo(() => profiles.slice(0, 4), [profiles]);
@@ -472,9 +343,10 @@ export default function DashboardPage() {
   }, [currentProfile?.user_id, currentProfile?.id]);
 
   const handleApplyFilters = useCallback(
-    async (filters: { pref_age_min: number; pref_age_max: number; pref_values: string }) => {
+    async (filters: DiscoveryFilters) => {
       await api.updateProfile(filters);
       await fetchUser();
+      setStackKey((key) => key + 1);
       setLoading(true);
       await fetchProfiles();
     },
@@ -643,7 +515,7 @@ export default function DashboardPage() {
         onClose={() => setDiscoverInfoOpen(false)}
       />
 
-      <FiltersSheet
+      <DiscoveryFiltersSheet
         profile={userProfile}
         open={filtersOpen}
         onClose={() => setFiltersOpen(false)}

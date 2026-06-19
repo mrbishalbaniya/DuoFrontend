@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getDevicePosition } from "@/lib/geolocation";
 import { resolveProfileCoordinates } from "@/lib/locationCoords";
 
 /**
@@ -16,21 +17,13 @@ export function useUserCoordinates(
     let cancelled = false;
     const fallback = resolveProfileCoordinates(profileLocation, userId);
 
-    if (typeof window === "undefined" || !navigator.geolocation) {
-      setCoords(fallback);
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        if (cancelled) return;
-        setCoords([position.coords.latitude, position.coords.longitude]);
-      },
-      () => {
+    getDevicePosition()
+      .then((position) => {
+        if (!cancelled) setCoords(position);
+      })
+      .catch(() => {
         if (!cancelled) setCoords(fallback);
-      },
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 120000 }
-    );
+      });
 
     return () => {
       cancelled = true;

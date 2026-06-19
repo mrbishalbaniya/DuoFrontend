@@ -18,7 +18,7 @@ import {
 
 export type MatchBrowseSheetSnap = "map" | "list";
 
-const PEEK_HEIGHT = 112;
+const PEEK_HEIGHT = 128;
 
 interface MatchBrowseMobileSheetProps {
   snap: MatchBrowseSheetSnap;
@@ -48,7 +48,7 @@ export default function MatchBrowseMobileSheet({
 
     const measure = () => {
       const h = parent.getBoundingClientRect().height;
-      setSheetHeight(Math.max(280, Math.round(h * 0.92)));
+      setSheetHeight(Math.max(300, Math.round(h * 0.88)));
     };
 
     measure();
@@ -65,8 +65,9 @@ export default function MatchBrowseMobileSheet({
     const target = snap === "map" ? collapsedY : 0;
     const controls = animate(y, target, {
       type: "spring",
-      damping: 34,
-      stiffness: 400,
+      damping: 32,
+      stiffness: 380,
+      mass: 0.85,
     });
     return () => controls.stop();
   }, [snap, collapsedY, y]);
@@ -78,13 +79,13 @@ export default function MatchBrowseMobileSheet({
   const handleDragEnd = useCallback(
     (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
       const current = y.get();
-      const mid = collapsedY * 0.45;
+      const mid = collapsedY * 0.42;
 
-      if (info.velocity.y > 350 || current > mid) {
+      if (info.velocity.y > 400 || current > mid) {
         onSnapChange("map");
         return;
       }
-      if (info.velocity.y < -350 || current < mid) {
+      if (info.velocity.y < -400 || current < mid) {
         onSnapChange("list");
         return;
       }
@@ -98,61 +99,55 @@ export default function MatchBrowseMobileSheet({
   return (
     <div
       ref={measureRef}
-      className="pointer-events-none absolute inset-0 z-[35] lg:hidden"
+      className="pointer-events-none absolute inset-0 z-[35] md:hidden"
       aria-hidden={hidden}
     >
       <motion.div
-        className="pointer-events-auto absolute inset-x-0 bottom-0 flex flex-col overflow-hidden rounded-t-[22px] border-t border-outline-variant/70 bg-surface shadow-[0_-10px_48px_rgba(0,0,0,0.12)]"
+        className="ios-sheet pointer-events-auto absolute inset-x-0 bottom-0 flex flex-col overflow-hidden rounded-t-[20px]"
         style={{ height: sheetHeight, y }}
         drag="y"
         dragControls={dragControls}
         dragListener={false}
         dragConstraints={{ top: 0, bottom: collapsedY }}
-        dragElastic={0.06}
+        dragElastic={0.05}
         onDragEnd={handleDragEnd}
       >
         <div
-          className="flex shrink-0 cursor-grab touch-none flex-col active:cursor-grabbing"
+          className="flex shrink-0 touch-none flex-col"
           aria-label="Drag to show map or list"
           onPointerDown={(event) => dragControls.start(event)}
         >
-          <div className="flex justify-center pb-1 pt-2.5">
-            <div className="h-1 w-9 rounded-full bg-outline-variant/90" />
+          <div className="flex justify-center pb-2 pt-2.5">
+            <div className="h-[5px] w-9 rounded-full bg-white/25" />
           </div>
 
-          <p className="px-4 pb-2 text-center text-xs font-semibold text-on-surface-variant">
-            {matchCount} {matchCount === 1 ? "match" : "matches"} · swipe up for list
-          </p>
+          <div className="px-4 pb-3">
+            <p className="text-center text-[13px] font-medium text-on-surface-variant">
+              {matchCount} {matchCount === 1 ? "friend" : "friends"} nearby
+            </p>
+          </div>
 
-          <div className="mx-4 mb-2 flex rounded-full bg-surface-dim p-1">
+          <div className="ios-segmented mx-4 mb-3">
             <button
               type="button"
+              data-active={snap === "map"}
               onClick={() => onSnapChange("map")}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-sm font-bold transition-all ${
-                snap === "map"
-                  ? "bg-surface text-on-surface shadow-sm"
-                  : "text-on-surface-variant"
-              }`}
+              className="ios-segmented-btn"
             >
-              <span className="material-symbols-outlined text-base">map</span>
               Map
             </button>
             <button
               type="button"
+              data-active={snap === "list"}
               onClick={() => onSnapChange("list")}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-sm font-bold transition-all ${
-                snap === "list"
-                  ? "bg-surface text-on-surface shadow-sm"
-                  : "text-on-surface-variant"
-              }`}
+              className="ios-segmented-btn"
             >
-              <span className="material-symbols-outlined text-base">list</span>
               List
             </button>
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-1">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(5.5rem,env(safe-area-inset-bottom))] pt-1 hide-scrollbar">
           {children}
         </div>
       </motion.div>

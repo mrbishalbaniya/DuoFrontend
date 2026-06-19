@@ -39,7 +39,7 @@ export default function MatchPage() {
 
       {/* Match Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-on-surface/20 backdrop-blur-sm">
-        <div className="relative w-full max-w-lg glass-panel rounded-[2rem] shadow-[0_40px_80px_-15px_rgba(33,79,199,0.2)] overflow-hidden flex flex-col items-center py-12 px-8 text-center border border-white/20">
+        <div className="relative w-full max-w-lg glass-panel rounded-[2rem] shadow-[0_40px_80px_-15px] shadow-primary/25 overflow-hidden flex flex-col items-center py-12 px-8 text-center border border-primary/15">
           <h1 className="font-[var(--font-headline)] font-extrabold text-4xl md:text-5xl tracking-tight text-on-surface mb-2">
             It&apos;s a Match!
           </h1>
@@ -49,8 +49,8 @@ export default function MatchPage() {
 
           <div className="relative flex items-center justify-center mb-16 h-48 w-full">
             <div className="relative z-10 -mr-6 transform -rotate-3 transition-transform hover:rotate-0 duration-500">
-              <div className="p-1.5 bg-white rounded-full shadow-xl">
-                <div className="w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-white shadow-inner bg-surface-container">
+              <div className="p-1.5 bg-surface-bright rounded-full shadow-xl">
+                <div className="w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-surface-bright shadow-inner bg-surface-container">
                   {myProfile?.photo_url ? (
                     <img alt="You" className="w-full h-full object-cover" src={myProfile.photo_url} />
                   ) : (
@@ -61,12 +61,12 @@ export default function MatchPage() {
                 </div>
               </div>
             </div>
-            <div className="absolute z-30 flex items-center justify-center w-16 h-16 gradient-brand-br rounded-full shadow-[0_10px_30px_rgba(33,79,199,0.3)] border-4 border-white transform scale-110">
+            <div className="absolute z-30 flex items-center justify-center w-16 h-16 gradient-brand-br rounded-full shadow-[0_10px_30px] shadow-primary/30 border-4 border-surface-bright transform scale-110">
               <span className="material-symbols-outlined text-white text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span>
             </div>
             <div className="relative z-20 -ml-6 transform rotate-3 transition-transform hover:rotate-0 duration-500">
-              <div className="p-1.5 bg-white rounded-full shadow-xl">
-                <div className="w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-white shadow-inner bg-surface-container">
+              <div className="p-1.5 bg-surface-bright rounded-full shadow-xl">
+                <div className="w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-surface-bright shadow-inner bg-surface-container">
                   {otherProfile?.photo_url ? (
                     <img alt={otherProfile?.full_name} className="w-full h-full object-cover" src={otherProfile.photo_url} />
                   ) : (
@@ -86,7 +86,7 @@ export default function MatchPage() {
           )}
 
           <div className="w-full space-y-4 max-w-sm">
-            <Link href="/chat" className="w-full h-14 gradient-brand text-white rounded-full font-[var(--font-headline)] font-bold text-lg shadow-[0_15px_30px_-5px_rgba(33,79,199,0.4)] active:scale-95 transition-all duration-200 flex items-center justify-center gap-2">
+            <Link href="/chat" className="w-full h-14 gradient-brand text-white rounded-full font-[var(--font-headline)] font-bold text-lg shadow-[0_15px_30px_-5px] shadow-primary/35 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2">
               <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>chat_bubble</span>
               Start Chatting
             </Link>

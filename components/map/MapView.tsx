@@ -10,6 +10,7 @@ import {
   useMap,
 } from "@/components/ui/mapcn-map";
 import { formatDistanceCompact } from "@/lib/distance";
+import { profilePhotoUrl } from "@/components/map/MatchMapCard";
 import type { MapProfile } from "./types";
 
 interface MapViewProps {
@@ -195,11 +196,21 @@ function ProfileMarker({
 
   return (
     <MapMarker longitude={longitude} latitude={latitude} onClick={handleClick}>
-      <MarkerContent className="flex flex-col items-center">
-        <div className="rounded-full border-2 border-white bg-primary px-3 py-1 text-xs font-bold text-on-primary shadow-lg whitespace-nowrap">
-          {formatDistanceCompact(profile.distanceMeters)}
+      <MarkerContent className="flex cursor-pointer flex-col items-center">
+        <div className="relative">
+          <div className="h-11 w-11 overflow-hidden rounded-full border-[2.5px] border-white bg-surface-dim shadow-[0_4px_14px_rgba(0,0,0,0.35)] sm:h-12 sm:w-12">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={profilePhotoUrl(profile)}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          </div>
+          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-[#1c1c1e]/90 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-md backdrop-blur-sm">
+            {formatDistanceCompact(profile.distanceMeters)}
+          </div>
         </div>
-        <div className="-mt-1 h-3 w-3 rounded-full border-2 border-white bg-primary shadow" />
+        <div className="mt-2 h-2 w-2 rounded-full border border-white/80 bg-primary shadow-sm" />
       </MarkerContent>
     </MapMarker>
   );
@@ -210,9 +221,10 @@ function UserLocationMarker({ coordinates }: { coordinates: [number, number] }) 
 
   return (
     <MapMarker longitude={longitude} latitude={latitude}>
-      <MarkerContent className="relative flex h-14 w-14 items-center justify-center">
-        <div className="absolute h-14 w-14 rounded-full bg-blue-600/15" />
-        <div className="relative h-7 w-7 rounded-full border-[3px] border-white bg-blue-600 shadow-md" />
+      <MarkerContent className="relative flex h-16 w-16 items-center justify-center">
+        <div className="ios-location-pulse absolute h-14 w-14 rounded-full bg-[#0a84ff]/25" />
+        <div className="absolute h-10 w-10 rounded-full bg-[#0a84ff]/15" />
+        <div className="relative h-4 w-4 rounded-full border-[2.5px] border-white bg-[#0a84ff] shadow-[0_2px_8px_rgba(10,132,255,0.45)]" />
       </MarkerContent>
     </MapMarker>
   );
@@ -235,9 +247,15 @@ export default function MapView({
       <Map
         center={DEFAULT_CENTER}
         zoom={11}
+        theme="dark"
         className="h-full min-h-[300px] w-full"
       >
-        <MapControls showZoom showLocate position="bottom-right" />
+        <MapControls
+          showZoom
+          showLocate
+          position="top-right"
+          className="ios-map-controls right-3 top-[calc(5.75rem+env(safe-area-inset-top))] md:top-3"
+        />
         {userCoordinates && isValidCoord(userCoordinates) ? (
           <UserLocationMarker coordinates={userCoordinates} />
         ) : null}

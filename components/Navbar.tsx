@@ -17,16 +17,10 @@ export default function Navbar() {
   ];
 
   return (
-    <header className="bg-surface/60 backdrop-blur-xl fixed top-0 w-full z-50 shadow-[0_40px_40px_-15px] shadow-primary/4">
-      <nav className="flex justify-between items-center px-6 h-16 w-full max-w-7xl mx-auto">
-        <div className="flex items-center gap-3">
-          <span
-            className="material-symbols-outlined text-primary md:hidden"
-            style={{ fontVariationSettings: "'FILL' 1" }}
-          >
-            menu
-          </span>
-          <Logo />
+    <header className="premium-nav fixed top-0 w-full z-50">
+      <nav className="flex justify-between items-center px-4 sm:px-6 h-14 sm:h-16 w-full max-w-7xl mx-auto">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <Logo solid={pathname === "/"} />
         </div>
         <div className="hidden md:flex items-center gap-8">
           {links.map((link) => (
@@ -53,10 +47,10 @@ export default function Navbar() {
             Insights
           </Link>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
           {user ? (
             <>
-              <span className="hidden md:inline text-sm font-semibold text-on-surface-variant">
+              <span className="hidden md:inline text-sm font-semibold text-on-surface-variant truncate max-w-[10rem]">
                 {user.profile?.full_name || user.username}
               </span>
               <button
@@ -69,7 +63,11 @@ export default function Navbar() {
           ) : (
             <Link
               href="/login"
-              className="hidden md:flex gradient-brand-br text-white px-6 py-2 rounded-full font-[var(--font-headline)] font-bold text-sm active:scale-95 transition-all shadow-lg shadow-primary/20"
+              className={`flex text-white px-4 sm:px-6 py-1.5 sm:py-2 rounded-full font-[var(--font-headline)] font-bold text-xs sm:text-sm active:scale-95 transition-all shadow-lg shadow-primary/20 ${
+                pathname === "/"
+                  ? "bg-primary hover:bg-primary/90"
+                  : "gradient-brand-br"
+              }`}
             >
               Sign In
             </Link>

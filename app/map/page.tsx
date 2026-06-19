@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import BottomNav from "@/components/BottomNav";
 import MatchFriendsSidebar from "@/components/map/MatchFriendsSidebar";
+import { profilePhotoUrl } from "@/components/map/MatchMapCard";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
 import { haversineMeters, formatDistanceAway } from "@/lib/distance";
@@ -18,8 +19,8 @@ import type { Match, Profile } from "@/types";
 const MapView = dynamic(() => import("@/components/map/MapView"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full min-h-[300px] w-full items-center justify-center bg-surface-dim">
-      <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+    <div className="flex h-full min-h-[300px] w-full items-center justify-center bg-[#1c1c1e]">
+      <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-primary border-t-transparent" />
     </div>
   ),
 });
@@ -110,8 +111,8 @@ export default function MapPage() {
 
   if (authLoading || !user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-surface">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      <div className="flex min-h-screen items-center justify-center bg-[#1c1c1e]">
+        <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-primary border-t-transparent" />
       </div>
     );
   }
@@ -119,9 +120,12 @@ export default function MapPage() {
   const waitingForLocation = !userCoords;
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-surface">
-      <Navbar />
-      <main className="flex min-h-0 flex-1 flex-col overflow-hidden pt-16 pb-24 md:pb-0">
+    <div className="flex h-dvh flex-col overflow-hidden bg-[#1c1c1e]">
+      <div className="hidden md:block">
+        <Navbar />
+      </div>
+
+      <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden md:pt-16">
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <MatchFriendsSidebar
             layout="sidebar"
@@ -134,37 +138,61 @@ export default function MapPage() {
             onRetry={() => void loadMatches()}
           />
 
-          <div className="relative h-full min-h-0 min-w-0 flex-1 bg-surface-dim">
+          <div className="relative h-full min-h-0 min-w-0 flex-1 bg-[#0f0f10]">
+            {/* iOS-style floating header (mobile) */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-[25] px-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:hidden">
+              <div className="ios-glass pointer-events-auto flex items-center gap-3 rounded-2xl px-4 py-3 shadow-lg">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20">
+                  <span
+                    className="material-symbols-outlined text-xl text-primary"
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                  >
+                    map
+                  </span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[17px] font-semibold leading-tight text-on-surface">Friends Map</p>
+                  <p className="text-[13px] text-on-surface-variant">
+                    {loadingMatches
+                      ? "Loading…"
+                      : waitingForLocation
+                        ? "Finding your location…"
+                        : `${matches.length} ${matches.length === 1 ? "match" : "matches"} nearby`}
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {loadingMatches ? (
               <div className="flex h-full items-center justify-center">
-                <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-primary border-t-transparent" />
               </div>
             ) : waitingForLocation ? (
-              <div className="flex h-full items-center justify-center px-4 text-center">
-                <p className="text-sm text-on-surface-variant">Finding your location…</p>
+              <div className="flex h-full items-center justify-center px-6 text-center">
+                <p className="text-[15px] text-on-surface-variant">Finding your location…</p>
               </div>
             ) : error ? (
-              <div className="flex h-full flex-col items-center justify-center gap-4 px-4 text-center">
-                <p className="text-sm text-on-surface-variant">{error}</p>
+              <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
+                <p className="text-[15px] text-on-surface-variant">{error}</p>
                 <button
                   type="button"
                   onClick={() => void loadMatches()}
-                  className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white"
+                  className="rounded-full bg-primary px-6 py-2.5 text-[15px] font-semibold text-white active:scale-[0.98]"
                 >
                   Try again
                 </button>
               </div>
             ) : matches.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center px-4 text-center">
-                <span className="material-symbols-outlined mb-3 text-4xl text-primary/40">
-                  map
-                </span>
-                <p className="text-sm text-on-surface-variant">
+              <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-container-high">
+                  <span className="material-symbols-outlined text-4xl text-primary/50">map</span>
+                </div>
+                <p className="max-w-[260px] text-[15px] leading-snug text-on-surface-variant">
                   Match with someone to see them on the map.
                 </p>
                 <Link
                   href="/dashboard"
-                  className="mt-4 rounded-full bg-primary px-6 py-2 text-sm font-semibold text-white"
+                  className="mt-5 rounded-full bg-primary px-6 py-2.5 text-[15px] font-semibold text-white active:scale-[0.98]"
                 >
                   Start matching
                 </Link>
@@ -191,37 +219,50 @@ export default function MapPage() {
             />
 
             {focusedProfile && matches.length > 0 ? (
-              <div className="pointer-events-none absolute inset-x-0 bottom-16 z-[30] flex justify-center px-3 md:bottom-6 md:px-4">
-                    <div className="pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-2xl border border-outline-variant/30 bg-surface/95 p-3 shadow-xl backdrop-blur-md">
-                      <div className="min-w-0 flex-1 text-left">
-                        <p className="truncate font-[var(--font-headline)] text-sm font-bold text-on-surface sm:text-base">
-                          {focusedProfile.full_name}
-                          {focusedProfile.age != null ? `, ${focusedProfile.age}` : ""}
-                        </p>
-                        <p className="mt-0.5 text-xs font-semibold text-primary sm:text-sm">
-                          {formatDistanceAway(focusedProfile.distanceMeters)}
-                        </p>
-                        <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-on-surface-variant sm:text-sm">
-                          <span className="material-symbols-outlined text-base">
-                            location_on
-                          </span>
-                          {focusedProfile.location || "Nepal"}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="Close preview"
-                        onClick={() => setFocusProfileId(null)}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-dim text-on-surface-variant"
-                      >
-                        <span className="material-symbols-outlined text-xl">close</span>
-                      </button>
-                    </div>
+              <div className="pointer-events-none absolute inset-x-0 bottom-[calc(8.5rem+env(safe-area-inset-bottom))] z-[30] flex justify-center px-3 md:bottom-6 md:px-4">
+                <div className="ios-glass pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-2xl p-3 shadow-2xl">
+                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full ring-2 ring-white/25">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={profilePhotoUrl(focusedProfile)}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
                   </div>
-                ) : null}
+                  <div className="min-w-0 flex-1 text-left">
+                    <p className="truncate text-[17px] font-semibold text-on-surface">
+                      {focusedProfile.full_name}
+                      {focusedProfile.age != null ? `, ${focusedProfile.age}` : ""}
+                    </p>
+                    <p className="text-[13px] font-medium text-primary">
+                      {formatDistanceAway(focusedProfile.distanceMeters)}
+                    </p>
+                    <p className="truncate text-[13px] text-on-surface-variant">
+                      {focusedProfile.location || "Nepal"}
+                    </p>
+                  </div>
+                  <Link
+                      href="/chat"
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-primary/25 active:scale-95"
+                      aria-label="Open chat"
+                    >
+                      <span className="material-symbols-outlined text-xl">chat_bubble</span>
+                    </Link>
+                  <button
+                    type="button"
+                    aria-label="Close preview"
+                    onClick={() => setFocusProfileId(null)}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-on-surface-variant active:scale-95"
+                  >
+                    <span className="material-symbols-outlined text-lg">close</span>
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </main>
+
       <BottomNav />
     </div>
   );
