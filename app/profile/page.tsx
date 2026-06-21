@@ -6,6 +6,11 @@ import Navbar from "@/components/Navbar";
 import BottomNav from "@/components/BottomNav";
 import { ProfileEditForm } from "@/components/profile/ProfileEditForm";
 import { ProfileDataSection } from "@/components/profile/ProfileDataSection";
+import {
+  ProfileHeaderSkeleton,
+  ProfileSectionsSkeleton,
+  ProfileSidebarSkeleton,
+} from "@/components/profile/ProfilePageSkeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
 import { detectUserLocation, isDefaultLocation } from "@/lib/geolocation";
@@ -22,7 +27,6 @@ export default function ProfilePage() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileUser, setProfileUser] = useState<User | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState(true);
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState<ProfileEditFormData | null>(null);
   const [saving, setSaving] = useState(false);
@@ -55,24 +59,26 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!authLoading && !user) {
       router.push("/login");
-      return;
     }
+  }, [authLoading, user, router]);
 
-    if (!user) return;
+  useEffect(() => {
+    if (!user || profile) return;
+    applyProfile(user.profile, user);
+  }, [user, profile, applyProfile]);
+
+  useEffect(() => {
+    if (!user || authLoading) return;
 
     let cancelled = false;
 
     const loadProfile = async () => {
-      setLoadingProfile(true);
       try {
         const freshProfile = await api.getMyProfile();
         if (cancelled) return;
         applyProfile(freshProfile, user);
       } catch {
-        if (cancelled) return;
-        applyProfile(user.profile, user);
-      } finally {
-        if (!cancelled) setLoadingProfile(false);
+        // Keep profile seeded from auth context.
       }
     };
 
@@ -81,7 +87,7 @@ export default function ProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [user, authLoading, router, applyProfile]);
+  }, [user, authLoading, applyProfile]);
 
   useEffect(() => {
     if (!editing || !formData) return;
@@ -145,128 +151,142 @@ export default function ProfilePage() {
 
   const sections =
     profile && profileUser ? buildProfileSections(profileUser, profile) : null;
+  const showContentSkeleton =
+    authLoading || !profile || !profileUser || !sections || !formData;
 
-  if (authLoading || loadingProfile || !profile || !profileUser || !sections || !formData) {
-    return (
-      <>
-        <Navbar />
-        <main className="pt-20 min-h-screen flex items-center justify-center bg-surface">
-          <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-        </main>
-      </>
-    );
+  if (!authLoading && !user) {
+    return null;
   }
 
   return (
     <>
       <Navbar />
-      <main className="pt-16 pb-40 md:pb-16 bg-surface min-h-screen">
-        <div className="relative h-32 sm:h-40 md:h-48 bg-gradient-to-br from-primary/30 via-secondary/50 to-accent/25">
+      <main
+        className="min-h-screen bg-surface pb-40 pt-16 md:pb-16"
+        aria-busy={showContentSkeleton}
+      >
+        <div className="relative h-32 bg-gradient-to-br from-primary/30 via-secondary/50 to-accent/25 sm:h-40 md:h-48">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-transparent to-surface/80" />
         </div>
 
-        <div className="relative z-10 px-5 sm:px-6 -mt-14 sm:-mt-16 md:-mt-20 max-w-7xl mx-auto">
-          <div className="flex flex-col items-center md:flex-row md:items-end gap-4 md:gap-6">
-            <div className="shrink-0 w-28 h-28 sm:w-32 sm:h-32 md:w-40 md:h-40 rounded-full border-4 border-background shadow-[0_12px_32px] shadow-primary/25 overflow-hidden bg-surface-container">
-              {profile.photo_url ? (
-                <img
-                  className="w-full h-full object-cover"
-                  alt="Profile"
-                  src={profile.photo_url}
-                />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-primary/15 to-accent/10 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-5xl sm:text-6xl text-primary/35">
-                    person
-                  </span>
-                </div>
-              )}
-            </div>
+        <div className="relative z-10 mx-auto -mt-14 max-w-7xl px-5 sm:-mt-16 sm:px-6 md:-mt-20">
+          {showContentSkeleton ? (
+            <ProfileHeaderSkeleton />
+          ) : (
+            <div className="flex flex-col items-start gap-4 md:flex-row md:items-end md:gap-6">
+              <div className="h-28 w-28 shrink-0 overflow-hidden rounded-full border-4 border-background bg-surface-container shadow-[0_12px_32px] shadow-primary/25 sm:h-32 sm:w-32 md:h-40 md:w-40">
+                {profile.photo_url ? (
+                  <img
+                    className="h-full w-full object-cover"
+                    alt="Profile"
+                    src={profile.photo_url}
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/15 to-accent/10">
+                    <span className="material-symbols-outlined text-5xl text-primary/35 sm:text-6xl">
+                      person
+                    </span>
+                  </div>
+                )}
+              </div>
 
-            <div className="flex-1 text-center md:text-left min-w-0 pb-1 md:pb-3">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-on-surface font-[var(--font-headline)]">
-                {profile.full_name || user?.username}
-                {profile.age ? (
-                  <span className="text-primary">, {profile.age}</span>
-                ) : null}
-              </h1>
-              <p className="mt-1.5 text-on-surface-variant font-medium flex items-center justify-center md:justify-start gap-1">
-                <span className="material-symbols-outlined text-base text-primary">location_on</span>
-                {profile.location || "Not set"}
-              </p>
-            </div>
+              <div className="min-w-0 flex-1 pb-1 text-left md:pb-3">
+                <h1 className="font-[var(--font-headline)] text-2xl font-extrabold tracking-tight text-on-surface sm:text-3xl md:text-4xl">
+                  {profile.full_name || user?.username}
+                  {profile.age ? (
+                    <span className="text-primary">, {profile.age}</span>
+                  ) : null}
+                </h1>
+                <p className="mt-1.5 flex items-center gap-1 font-medium text-on-surface-variant">
+                  <span className="material-symbols-outlined text-base text-primary">location_on</span>
+                  {profile.location || "Not set"}
+                </p>
+              </div>
 
-            <div className="hidden md:flex shrink-0 mb-2">
-              <button
-                onClick={() => (editing ? handleCancelEdit() : setEditing(true))}
-                className="px-8 py-3 gradient-brand text-white rounded-full font-semibold shadow-lg shadow-primary/20 active:scale-95 transition-all"
-              >
-                {editing ? "Cancel" : "Edit Profile"}
-              </button>
+              <div className="mb-2 hidden shrink-0 md:flex">
+                <button
+                  onClick={() => (editing ? handleCancelEdit() : setEditing(true))}
+                  className="rounded-full px-8 py-3 font-semibold text-white shadow-lg shadow-primary/20 transition-all gradient-brand active:scale-95"
+                >
+                  {editing ? "Cancel" : "Edit Profile"}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        <div className="max-w-7xl mx-auto px-5 sm:px-6 mt-8 md:mt-10 grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
-          <div className="lg:col-span-4 space-y-6">
-            <div className="bg-background rounded-2xl sm:rounded-[2rem] p-6 sm:p-8 border border-primary/10 shadow-[0_8px_30px] shadow-primary/8">
-              <h3 className="text-lg font-bold mb-4 flex items-center justify-between gap-2 font-[var(--font-headline)] text-on-surface">
-                Profile Completeness
-                <span className="text-primary text-sm font-bold">{profile.profile_completeness}%</span>
-              </h3>
-              <div className="w-full h-2.5 bg-secondary rounded-full mb-6 overflow-hidden">
-                <div
-                  className="h-full gradient-brand rounded-full transition-all"
-                  style={{ width: `${profile.profile_completeness}%` }}
-                />
-              </div>
-              <ul className="space-y-3.5">
-                {[
-                  { done: !!profile.full_name, label: "Full name added" },
-                  { done: !!profile.education, label: "Education details" },
-                  { done: !!profile.bio, label: "Bio written" },
-                  { done: profile.is_verified, label: "Identity verified" },
-                ].map((item, i) => (
-                  <li key={i} className="flex items-center gap-3 text-sm text-on-surface-variant">
-                    <span
-                      className={`material-symbols-outlined text-lg ${item.done ? "text-accent" : "text-primary/30"}`}
-                      style={item.done ? { fontVariationSettings: "'FILL' 1" } : undefined}
-                    >
-                      {item.done ? "check_circle" : "add_circle"}
+        <div className="mx-auto mt-8 grid max-w-7xl grid-cols-1 gap-6 px-5 sm:px-6 md:mt-10 md:gap-8 lg:grid-cols-12">
+          <div className="space-y-6 lg:col-span-4 lg:col-start-1">
+            {showContentSkeleton ? (
+              <ProfileSidebarSkeleton />
+            ) : (
+              <>
+                <div className="rounded-2xl border border-primary/10 bg-background p-6 shadow-[0_8px_30px] shadow-primary/8 sm:rounded-[2rem] sm:p-8">
+                  <h3 className="mb-4 flex items-center justify-between gap-2 font-[var(--font-headline)] text-lg font-bold text-on-surface">
+                    Profile Completeness
+                    <span className="text-sm font-bold text-primary">
+                      {profile.profile_completeness}%
                     </span>
-                    {item.label}
-                  </li>
-                ))}
-              </ul>
-            </div>
+                  </h3>
+                  <div className="mb-6 h-2.5 w-full overflow-hidden rounded-full bg-secondary">
+                    <div
+                      className="h-full rounded-full gradient-brand transition-all"
+                      style={{ width: `${profile.profile_completeness}%` }}
+                    />
+                  </div>
+                  <ul className="space-y-3.5">
+                    {[
+                      { done: !!profile.full_name, label: "Full name added" },
+                      { done: !!profile.education, label: "Education details" },
+                      { done: !!profile.bio, label: "Bio written" },
+                      { done: profile.is_verified, label: "Identity verified" },
+                    ].map((item, i) => (
+                      <li key={i} className="flex items-center gap-3 text-sm text-on-surface-variant">
+                        <span
+                          className={`material-symbols-outlined text-lg ${item.done ? "text-accent" : "text-primary/30"}`}
+                          style={item.done ? { fontVariationSettings: "'FILL' 1" } : undefined}
+                        >
+                          {item.done ? "check_circle" : "add_circle"}
+                        </span>
+                        {item.label}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
 
-            {profile.is_verified && (
-              <div className="bg-secondary/70 rounded-2xl p-5 flex items-center gap-4 border border-primary/10">
-                <div className="p-3 gradient-brand-br text-white rounded-full shrink-0">
-                  <span
-                    className="material-symbols-outlined"
-                    style={{ fontVariationSettings: "'FILL' 1" }}
-                  >
-                    verified_user
-                  </span>
-                </div>
-                <div>
-                  <p className="font-bold text-on-surface">Verified Identity</p>
-                  <p className="text-xs text-on-surface-variant">Document verification completed</p>
-                </div>
-              </div>
+                {profile.is_verified && (
+                  <div className="flex items-center gap-4 rounded-2xl border border-primary/10 bg-secondary/70 p-5">
+                    <div className="gradient-brand-br shrink-0 rounded-full p-3 text-white">
+                      <span
+                        className="material-symbols-outlined"
+                        style={{ fontVariationSettings: "'FILL' 1" }}
+                      >
+                        verified_user
+                      </span>
+                    </div>
+                    <div>
+                      <p className="font-bold text-on-surface">Verified Identity</p>
+                      <p className="text-xs text-on-surface-variant">
+                        Document verification completed
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => (editing ? handleCancelEdit() : setEditing(true))}
+                  className="w-full rounded-xl py-3.5 text-sm font-bold text-white shadow-lg shadow-primary/20 transition-all gradient-brand active:scale-[0.98] md:hidden"
+                >
+                  {editing ? "Cancel Editing" : "Edit Profile"}
+                </button>
+              </>
             )}
-
-            <button
-              onClick={() => (editing ? handleCancelEdit() : setEditing(true))}
-              className="md:hidden w-full py-3.5 rounded-xl gradient-brand text-white font-bold text-sm shadow-lg shadow-primary/20 active:scale-[0.98] transition-all"
-            >
-              {editing ? "Cancel Editing" : "Edit Profile"}
-            </button>
           </div>
 
-          <div className="lg:col-span-8 space-y-8 md:space-y-12">
-            {editing ? (
+          <div className="space-y-8 md:space-y-12 lg:col-span-8 lg:col-start-5">
+            {showContentSkeleton ? (
+              <ProfileSectionsSkeleton />
+            ) : editing ? (
               <ProfileEditForm
                 formData={formData}
                 onChange={setFormData}
@@ -293,6 +313,7 @@ export default function ProfilePage() {
                             src={url}
                             alt={`Profile photo ${index + 1}`}
                             className="aspect-[3/4] w-full object-cover"
+                            loading="lazy"
                           />
                         </div>
                       ))}

@@ -117,7 +117,7 @@ export function StepPreferences({ onContinue, onBack }: StepPreferencesProps) {
           error={form.formState.errors.interReligion?.message}
         />
 
-        <StepNavigation onBack={onBack} onNext={() => submit()} />
+        <StepNavigation onBack={onBack} onNext={() => submit()} onSkip={onContinue} />
       </form>
     </StepCard>
   );

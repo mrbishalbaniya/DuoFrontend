@@ -83,7 +83,7 @@ export function StepLifestyle({ onContinue, onBack }: StepLifestyleProps) {
           columns={3}
         />
 
-        <StepNavigation onBack={onBack} onNext={() => submit()} />
+        <StepNavigation onBack={onBack} onNext={() => submit()} onSkip={onContinue} />
       </form>
     </StepCard>
   );

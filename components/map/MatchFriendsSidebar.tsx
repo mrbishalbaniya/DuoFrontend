@@ -6,6 +6,7 @@ import MatchBrowseMobileSheet, {
   type MatchBrowseSheetSnap,
 } from "@/components/map/MatchBrowseMobileSheet";
 import MatchMapCard from "@/components/map/MatchMapCard";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { MapProfile } from "@/components/map/types";
 import type { Profile } from "@/types";
 
@@ -63,8 +64,17 @@ function FriendsListBody({
 }) {
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-primary border-t-transparent" />
+      <div className="space-y-3 p-4">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <div key={index} className="flex items-center gap-3 rounded-2xl p-3">
+            <Skeleton className="h-12 w-12 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-20" />
+            </div>
+            <Skeleton className="h-4 w-14" />
+          </div>
+        ))}
       </div>
     );
   }
@@ -126,7 +136,7 @@ function FriendsListBody({
         Match with someone to see them here.
       </p>
       <Link
-        href="/dashboard"
+            href="/match"
         className="rounded-full bg-primary px-6 py-2.5 text-[15px] font-semibold text-white active:scale-[0.98]"
       >
         Go to Discover

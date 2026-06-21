@@ -21,7 +21,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(username, password);
-      router.push("/dashboard");
+      router.push("/match");
     } catch (err: unknown) {
       setError(
         err instanceof Error
@@ -39,7 +39,10 @@ export default function LoginPage() {
     try {
       const data = await loginWithGoogle(credential);
       const onboarded = data.user?.profile?.is_onboarded;
-      router.push(onboarded ? "/dashboard" : "/register");
+      if (!onboarded) {
+        sessionStorage.setItem("duo_register_via_google", "1");
+      }
+      router.push(onboarded ? "/match" : "/register");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Google sign-in failed.");
     } finally {

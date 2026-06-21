@@ -12,7 +12,8 @@ import type {
   User,
 } from "@/types";
 
-const API_BASE = "http://localhost:8001/api";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:8001/api";
 
 type RequestOptions = RequestInit & {
   headers?: Record<string, string>;
@@ -23,6 +24,22 @@ class ApiClient {
 
   constructor() {
     this.baseUrl = API_BASE;
+  }
+
+  private static extractErrorDetail(errorData: Record<string, unknown>): string | null {
+    const detail = errorData.detail;
+    if (typeof detail === "string" && detail.trim()) return detail;
+    if (Array.isArray(detail) && typeof detail[0] === "string") return detail[0];
+
+    const nonField = errorData.non_field_errors;
+    if (Array.isArray(nonField) && typeof nonField[0] === "string") return nonField[0];
+
+    for (const value of Object.values(errorData)) {
+      if (typeof value === "string" && value.trim()) return value;
+      if (Array.isArray(value) && typeof value[0] === "string") return value[0];
+    }
+
+    return null;
   }
 
   getToken(): string | null {
@@ -169,30 +186,13 @@ class ApiClient {
 
     if (!res.ok) {
       const errorData = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      const detail =
-        errorData.detail ||
-        (Array.isArray(errorData.non_field_errors)
-          ? errorData.non_field_errors[0]
-          : null) ||
-        (typeof errorData === "object"
-          ? (Object.values(errorData).flat()[0] as string | undefined)
-          : null);
-      throw new Error((detail as string) || "Google sign-in failed");
+      const detail = ApiClient.extractErrorDetail(errorData);
+      throw new Error(detail || "Google sign-in failed");
     }
 
     const data = (await res.json()) as LoginResponse;
     this.setTokens(data.access, data.refresh);
     return data;
-  }
-
-  async verifyFirebasePhone(
-    idToken: string,
-    phone?: string
-  ): Promise<{ verified: boolean; phone: string }> {
-    return this.request<{ verified: boolean; phone: string }>("/auth/firebase/verify-phone/", {
-      method: "POST",
-      body: JSON.stringify({ id_token: idToken, phone }),
-    });
   }
 
   async sendEmailOtp(email: string): Promise<{ sent: boolean; email: string }> {
@@ -213,38 +213,6 @@ class ApiClient {
         otp,
       }),
     });
-  }
-
-  async loginWithFirebase(idToken: string): Promise<LoginResponse> {
-    let res: Response;
-    try {
-      res = await fetch(`${this.baseUrl}/auth/firebase/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id_token: idToken }),
-      });
-    } catch {
-      throw new Error(
-        "Cannot reach the API at http://localhost:8001. Start the backend: cd backend && py -3 manage.py runserver 8001"
-      );
-    }
-
-    if (!res.ok) {
-      const errorData = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      const detail =
-        errorData.detail ||
-        (Array.isArray(errorData.non_field_errors)
-          ? errorData.non_field_errors[0]
-          : null) ||
-        (typeof errorData === "object"
-          ? (Object.values(errorData).flat()[0] as string | undefined)
-          : null);
-      throw new Error((detail as string) || "Phone sign-in failed");
-    }
-
-    const data = (await res.json()) as LoginResponse;
-    this.setTokens(data.access, data.refresh);
-    return data;
   }
 
   async register(

@@ -42,7 +42,7 @@ export function StepInterests({ onContinue, onBack }: StepInterestsProps) {
           onChange={(values) => form.setValue("interests", values, { shouldValidate: true })}
           error={form.formState.errors.interests?.message}
         />
-        <StepNavigation onBack={onBack} onNext={() => submit()} />
+        <StepNavigation onBack={onBack} onNext={() => submit()} onSkip={onContinue} />
       </form>
     </StepCard>
   );

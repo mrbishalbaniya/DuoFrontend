@@ -16,6 +16,10 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import BottomNav from "@/components/BottomNav";
+import {
+  ChatMessagesSkeleton,
+  ChatPageSkeleton,
+} from "@/components/skeletons/ChatPageSkeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
 import { VoiceInput, VoiceRecordingBar } from "@/components/ui/voice-input";
@@ -1277,11 +1281,7 @@ export default function MessagesSection() {
   };
 
   if (authLoading || loadingConversations) {
-    return (
-      <div className="flex h-full items-center justify-center bg-surface">
-        <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-      </div>
-    );
+    return <ChatPageSkeleton />;
   }
 
   if (conversations.length === 0) {
@@ -1296,7 +1296,7 @@ export default function MessagesSection() {
             Start swiping to find matches and begin chatting!
           </p>
           <Link
-            href="/dashboard"
+            href="/match"
             className="px-8 py-3 gradient-brand text-white rounded-full font-bold shadow-lg active:scale-95 transition-all"
           >
             Find Matches
@@ -1472,9 +1472,7 @@ export default function MessagesSection() {
                 </div>
 
                 {loadingMessages ? (
-                  <div className="flex justify-center py-12">
-                    <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-                  </div>
+                  <ChatMessagesSkeleton />
                 ) : (
                   messages
                     .filter((msg) => !msg.is_deleted_for_me)

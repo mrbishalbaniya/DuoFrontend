@@ -25,6 +25,10 @@ export const accountSchema = z
     path: ["confirmPassword"],
   });
 
+export const googlePhoneSchema = z.object({
+  phone: phoneSchema,
+});
+
 export const otpSchema = z.object({
   otp: z
     .string()
@@ -162,6 +166,7 @@ export const photosSchema = z.object({
 });
 
 export type AccountFormValues = z.infer<typeof accountSchema>;
+export type GooglePhoneFormValues = z.infer<typeof googlePhoneSchema>;
 export type OtpFormValues = z.infer<typeof otpSchema>;
 export type BasicInfoFormValues = z.infer<typeof basicInfoSchema>;
 export type LocationFormValues = z.infer<typeof locationSchema>;

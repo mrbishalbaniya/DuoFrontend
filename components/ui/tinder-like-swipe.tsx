@@ -316,7 +316,7 @@ export const SwipeableCardStack = React.forwardRef<
     return (
       <div
         className={cn(
-          "relative flex h-full min-h-[420px] w-full items-center justify-center rounded-2xl bg-surface-variant",
+          "relative flex h-full min-h-0 w-full items-center justify-center rounded-2xl bg-surface-variant",
           className
         )}
       >
@@ -329,7 +329,7 @@ export const SwipeableCardStack = React.forwardRef<
 
   return (
     <div
-      className={cn("relative h-full min-h-[420px] w-full touch-none", className)}
+      className={cn("relative h-full min-h-0 w-full touch-none", className)}
     >
       <AnimatePresence initial={false} mode="popLayout">
         {cards.map((image, index) => {

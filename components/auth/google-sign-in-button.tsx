@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 
 interface GoogleSignInButtonProps {
@@ -14,6 +15,21 @@ export function GoogleSignInButton({
   disabled = false,
 }: GoogleSignInButtonProps) {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  const [buttonWidth, setButtonWidth] = useState(320);
+
+  useEffect(() => {
+    const updateWidth = () => {
+      const containerWidth = Math.min(
+        400,
+        Math.max(240, Math.floor(window.innerWidth - 48))
+      );
+      setButtonWidth(containerWidth);
+    };
+
+    updateWidth();
+    window.addEventListener("resize", updateWidth);
+    return () => window.removeEventListener("resize", updateWidth);
+  }, []);
 
   if (!clientId) {
     return (
@@ -24,7 +40,7 @@ export function GoogleSignInButton({
   }
 
   return (
-    <div className={disabled ? "pointer-events-none opacity-50" : ""}>
+    <div className={disabled ? "pointer-events-none opacity-50" : "flex justify-center"}>
       <GoogleLogin
         onSuccess={(response: CredentialResponse) => {
           if (response.credential) {
@@ -38,8 +54,7 @@ export function GoogleSignInButton({
         size="large"
         text="continue_with"
         shape="pill"
-        width="100%"
-        locale="en"
+        width={buttonWidth}
       />
     </div>
   );

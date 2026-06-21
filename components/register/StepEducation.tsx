@@ -93,7 +93,7 @@ export function StepEducation({ onContinue, onBack }: StepEducationProps) {
           columns={2}
         />
 
-        <StepNavigation onBack={onBack} onNext={() => submit()} />
+        <StepNavigation onBack={onBack} onNext={() => submit()} onSkip={onContinue} />
       </form>
     </StepCard>
   );

@@ -10,6 +10,7 @@ function mapGender(gender: RegistrationData["gender"]): string {
 }
 
 function mapReligion(religion: RegistrationData["religion"]): string {
+  if (!religion) return "";
   const map: Record<string, string> = {
     hindu: "Hindu",
     buddhist: "Buddhist",
@@ -68,9 +69,12 @@ function buildLocation(data: RegistrationData): string {
 }
 
 function buildEducation(data: RegistrationData): string {
-  const level = data.educationLevel.replace("_", " ").toUpperCase();
-  const field = data.fieldOfStudy.replace("_", " ");
-  return `${level} · ${field}`.trim();
+  if (!data.educationLevel && !data.fieldOfStudy) return "";
+  const level = data.educationLevel
+    ? data.educationLevel.replace("_", " ").toUpperCase()
+    : "";
+  const field = data.fieldOfStudy ? data.fieldOfStudy.replace("_", " ") : "";
+  return [level, field].filter(Boolean).join(" · ");
 }
 
 function buildLifestyleTags(data: RegistrationData): string[] {

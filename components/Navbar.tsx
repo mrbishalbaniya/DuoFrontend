@@ -11,7 +11,8 @@ export default function Navbar() {
 
   const links = [
     { href: "/", label: "Home" },
-    { href: "/dashboard", label: "Matches" },
+    { href: "/match", label: "Match" },
+    { href: "/discover", label: "Discover" },
     { href: "/chat", label: "Chat" },
     { href: "/profile", label: "Profile" },
   ];

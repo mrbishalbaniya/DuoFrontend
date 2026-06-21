@@ -1,5 +1,6 @@
 import Navbar from "@/components/Navbar";
 import BottomNav from "@/components/BottomNav";
+import { HomePageShell } from "@/components/home/HomePageShell";
 import { BorderRotate } from "@/components/ui/animated-gradient-border";
 import { DuoTestimonialsSection } from "@/components/ui/testimonial-slider";
 import { HeroSection03 } from "@/components/ui/hero-03";
@@ -7,7 +8,8 @@ import Link from "next/link";
 
 export default function LandingPage() {
   return (
-    <>
+    <HomePageShell>
+      <>
       <Navbar />
       <main className="overflow-x-hidden mobile-bottom-nav-offset">
         <HeroSection03 />
@@ -253,6 +255,7 @@ export default function LandingPage() {
       </footer>
 
       <BottomNav />
-    </>
+      </>
+    </HomePageShell>
   );
 }

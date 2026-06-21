@@ -16,19 +16,27 @@ const navLeft: NavItem[] = [
 ];
 
 const navCenter: NavItem = {
-  href: "/dashboard",
+  href: "/match",
   icon: "favorite",
   label: "Match",
 };
 
 const navRight: NavItem[] = [
+  { href: "/discover", icon: "group", label: "Discover" },
   { href: "/map", icon: "map", label: "Map" },
   { href: "/profile", icon: "person", label: "Profile" },
 ];
 
 function isNavActive(pathname: string, href: string) {
-  if (href === "/dashboard") {
-    return pathname === "/dashboard" || pathname === "/match";
+  if (href === "/match") {
+    return (
+      pathname === "/match" ||
+      pathname === "/dashboard" ||
+      pathname.startsWith("/match/celebration")
+    );
+  }
+  if (href === "/discover") {
+    return pathname === "/discover";
   }
   if (href === "/chat") {
     return pathname === "/chat" || pathname.startsWith("/chat/");

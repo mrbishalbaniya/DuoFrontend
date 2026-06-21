@@ -14,7 +14,7 @@ export function DashboardActionBar({
   onInfo,
 }: DashboardActionBarProps) {
   return (
-    <div className="mx-auto mt-5 flex w-full max-w-md items-center justify-center gap-4 sm:gap-5">
+    <div className="mx-auto mt-3 flex w-full max-w-md items-center justify-center gap-4 sm:gap-5">
       <button
         type="button"
         aria-label="Skip profile"

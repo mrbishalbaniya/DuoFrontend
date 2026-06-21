@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import BottomNav from "@/components/BottomNav";
+import { InsightsPageSkeleton } from "@/components/skeletons/InsightsPageSkeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
 import type { Match } from "@/types";
@@ -33,14 +34,7 @@ export default function InsightsPage() {
   };
 
   if (authLoading || loading) {
-    return (
-      <>
-        <Navbar />
-        <main className="pt-24 min-h-screen flex items-center justify-center">
-          <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-        </main>
-      </>
-    );
+    return <InsightsPageSkeleton />;
   }
 
   if (matches.length === 0) {
@@ -51,7 +45,7 @@ export default function InsightsPage() {
           <span className="material-symbols-outlined text-6xl text-primary/20 mb-6">analytics</span>
           <h2 className="text-2xl font-[var(--font-headline)] font-bold text-on-surface mb-2">No match insights yet</h2>
           <p className="text-on-surface-variant mb-8 text-center max-w-xs">Start swiping to find matches and see compatibility insights!</p>
-          <Link href="/dashboard" className="px-8 py-3 gradient-brand text-white rounded-full font-bold shadow-lg active:scale-95 transition-all">
+          <Link href="/match" className="px-8 py-3 gradient-brand text-white rounded-full font-bold shadow-lg active:scale-95 transition-all">
             Find Matches
           </Link>
         </main>

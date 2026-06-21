@@ -86,6 +86,7 @@ export interface RegistrationData {
   password: string;
   confirmPassword: string;
   otpVerified: boolean;
+  signedUpWithGoogle: boolean;
 
   firstName: string;
   lastName: string;
@@ -162,6 +163,7 @@ export const initialRegistrationData = (): RegistrationData => ({
   password: "",
   confirmPassword: "",
   otpVerified: false,
+  signedUpWithGoogle: false,
   firstName: "",
   lastName: "",
   gender: "",

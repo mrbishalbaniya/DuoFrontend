@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import BottomNav from "@/components/BottomNav";
 import MatchFriendsSidebar from "@/components/map/MatchFriendsSidebar";
+import { MapPageSkeleton } from "@/components/skeletons/MapPageSkeleton";
 import { profilePhotoUrl } from "@/components/map/MatchMapCard";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
@@ -19,8 +20,10 @@ import type { Match, Profile } from "@/types";
 const MapView = dynamic(() => import("@/components/map/MapView"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full min-h-[300px] w-full items-center justify-center bg-[#1c1c1e]">
-      <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-primary border-t-transparent" />
+    <div className="h-full w-full bg-[#0f0f10]">
+      <div className="flex h-full items-center justify-center p-8">
+        <div className="h-full w-full max-w-none animate-pulse rounded-none bg-surface-container-high/40" />
+      </div>
     </div>
   ),
 });
@@ -110,11 +113,7 @@ export default function MapPage() {
   }, []);
 
   if (authLoading || !user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#1c1c1e]">
-        <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-primary border-t-transparent" />
-      </div>
-    );
+    return <MapPageSkeleton />;
   }
 
   const waitingForLocation = !userCoords;
@@ -164,8 +163,10 @@ export default function MapPage() {
             </div>
 
             {loadingMatches ? (
-              <div className="flex h-full items-center justify-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-primary border-t-transparent" />
+              <div className="h-full w-full bg-[#0f0f10]">
+                <div className="flex h-full items-center justify-center p-6 md:p-8">
+                  <div className="h-full w-full animate-pulse rounded-none bg-surface-container-high/30" />
+                </div>
               </div>
             ) : waitingForLocation ? (
               <div className="flex h-full items-center justify-center px-6 text-center">
@@ -191,7 +192,7 @@ export default function MapPage() {
                   Match with someone to see them on the map.
                 </p>
                 <Link
-                  href="/dashboard"
+                  href="/match"
                   className="mt-5 rounded-full bg-primary px-6 py-2.5 text-[15px] font-semibold text-white active:scale-[0.98]"
                 >
                   Start matching

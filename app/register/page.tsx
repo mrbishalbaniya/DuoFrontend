@@ -42,7 +42,7 @@ export default function RegisterPage() {
   } = useRegistrationStore();
 
   const createAccount = useCallback(async () => {
-    if (accountCreated) return;
+    if (accountCreated || data.signedUpWithGoogle) return;
     const email = getRegistrationEmail(data);
     const fullName = `${data.firstName} ${data.lastName}`.trim() || "Duo Member";
     await register(email, data.password, fullName);
@@ -78,7 +78,7 @@ export default function RegisterPage() {
       await api.updateProfile(mapRegistrationToProfile(data, photoUrls));
       await fetchUser();
       reset();
-      router.push("/dashboard");
+      router.push("/match");
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to complete registration. Please try again.";
@@ -148,11 +148,7 @@ export default function RegisterPage() {
       </header>
 
       <main className="relative mx-auto max-w-3xl px-4 pb-32 pt-24">
-        <RegistrationStepper
-          currentStep={step}
-          allowJump={step === 11}
-          onStepClick={(target) => goToStep(target)}
-        />
+        <RegistrationStepper currentStep={step} />
 
         {error ? (
           <div className="mb-6 rounded-xl bg-error-container p-4 text-sm font-medium text-on-error-container">

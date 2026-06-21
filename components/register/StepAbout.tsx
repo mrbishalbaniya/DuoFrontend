@@ -81,7 +81,7 @@ export function StepAbout({ onContinue, onBack }: StepAboutProps) {
           <FieldError message={form.formState.errors.futureGoals?.message} />
         </div>
 
-        <StepNavigation onBack={onBack} onNext={() => submit()} />
+        <StepNavigation onBack={onBack} onNext={() => submit()} onSkip={onContinue} />
       </form>
     </StepCard>
   );

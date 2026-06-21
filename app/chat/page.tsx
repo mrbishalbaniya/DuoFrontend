@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import MessagesSection from "@/components/message/message";
 import Navbar from "@/components/Navbar";
+import { ChatPageSkeleton } from "@/components/skeletons/ChatPageSkeleton";
 
 function ChatPageContent() {
   const searchParams = useSearchParams();
@@ -19,13 +20,7 @@ function ChatPageContent() {
         <Navbar />
       </div>
       <div className={`flex min-h-0 flex-1 flex-col overflow-hidden ${inThread ? "max-lg:pt-0" : "pt-16"}`}>
-        <Suspense
-          fallback={
-            <div className="flex h-full items-center justify-center text-on-surface-variant">
-              Loading messages…
-            </div>
-          }
-        >
+        <Suspense fallback={<ChatPageSkeleton />}>
           <MessagesSection />
         </Suspense>
       </div>
@@ -35,13 +30,7 @@ function ChatPageContent() {
 
 export default function ChatPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex h-[100dvh] items-center justify-center text-on-surface-variant">
-          Loading messages…
-        </div>
-      }
-    >
+    <Suspense fallback={<ChatPageSkeleton />}>
       <ChatPageContent />
     </Suspense>
   );

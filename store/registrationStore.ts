@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 import {
   initialRegistrationData,
   type RegistrationData,
@@ -9,15 +9,49 @@ import {
   TOTAL_REGISTRATION_STEPS,
 } from "@/types/registration";
 
+type PersistedRegistrationState = {
+  step: RegistrationStep;
+  accountSubStep: "form" | "otp" | "phone";
+  data: Omit<RegistrationData, "photos">;
+  accountCreated: boolean;
+};
+
+/** Photos use base64 previews and must stay in memory only — not localStorage. */
+function toPersistedData(data: RegistrationData): PersistedRegistrationState["data"] {
+  const { photos: _photos, ...rest } = data;
+  return rest;
+}
+
+const registrationStorage = createJSONStorage<PersistedRegistrationState>(() => ({
+  getItem: (name) => localStorage.getItem(name),
+  setItem: (name, value) => {
+    try {
+      localStorage.setItem(name, value);
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "QuotaExceededError")) {
+        throw error;
+      }
+      // Clear stale entries that may include old photo payloads, then retry once.
+      localStorage.removeItem(name);
+      try {
+        localStorage.setItem(name, value);
+      } catch {
+        console.warn("Could not persist registration progress to localStorage.");
+      }
+    }
+  },
+  removeItem: (name) => localStorage.removeItem(name),
+}));
+
 type RegistrationStore = {
   step: RegistrationStep;
-  accountSubStep: "form" | "otp";
+  accountSubStep: "form" | "otp" | "phone";
   data: RegistrationData;
   isSubmitting: boolean;
   error: string | null;
   accountCreated: boolean;
   setStep: (step: RegistrationStep) => void;
-  setAccountSubStep: (subStep: "form" | "otp") => void;
+  setAccountSubStep: (subStep: "form" | "otp" | "phone") => void;
   patchData: (patch: Partial<RegistrationData>) => void;
   setSubmitting: (value: boolean) => void;
   setError: (value: string | null) => void;
@@ -69,12 +103,27 @@ export const useRegistrationStore = create<RegistrationStore>()(
     }),
     {
       name: "duo-registration-store",
-      partialize: (state) => ({
+      storage: registrationStorage,
+      partialize: (state): PersistedRegistrationState => ({
         step: state.step,
         accountSubStep: state.accountSubStep,
-        data: state.data,
+        data: toPersistedData(state.data),
         accountCreated: state.accountCreated,
       }),
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as PersistedRegistrationState | undefined;
+        if (!persisted) return currentState;
+
+        return {
+          ...currentState,
+          ...persisted,
+          data: {
+            ...currentState.data,
+            ...persisted.data,
+            photos: currentState.data.photos,
+          },
+        };
+      },
     }
   )
 );

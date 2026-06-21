@@ -93,7 +93,7 @@ export function StepReligion({ onContinue, onBack }: StepReligionProps) {
           </div>
         </div>
 
-        <StepNavigation onBack={onBack} onNext={() => submit()} />
+        <StepNavigation onBack={onBack} onNext={() => submit()} onSkip={onContinue} />
       </form>
     </StepCard>
   );
