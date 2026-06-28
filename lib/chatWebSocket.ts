@@ -1,15 +1,12 @@
-const API_ORIGIN =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "") || "http://localhost:8001";
+import { getBackendOrigin } from "@/lib/backendUrl";
 
 export function getChatWebSocketUrl(
   conversationId: number | string,
-  token?: string | null
+  ticket: string
 ): string {
-  const url = new URL(`/ws/chat/${conversationId}/`, API_ORIGIN);
+  const url = new URL(`/ws/chat/${conversationId}/`, getBackendOrigin());
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-  if (token) {
-    url.searchParams.set("token", token);
-  }
+  url.searchParams.set("ticket", ticket);
   return url.toString();
 }
 

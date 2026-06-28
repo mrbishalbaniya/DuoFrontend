@@ -33,12 +33,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUser = useCallback(async () => {
     try {
-      const token =
-        typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-      if (!token) {
-        setLoading(false);
-        return;
-      }
       const data = await api.getMe();
       setUser(data);
     } catch {
@@ -75,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    api.clearTokens();
+    void api.clearTokens();
     setUser(null);
   };
 

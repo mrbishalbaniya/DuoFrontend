@@ -742,9 +742,16 @@ export default function MessagesSection() {
     if (!selectedId || !user?.id) return;
 
     let cancelled = false;
-    const wsUrl = getChatWebSocketUrl(selectedId, api.getToken());
-    const socket = new WebSocket(wsUrl);
-    socketRef.current = socket;
+    let socket: WebSocket | null = null;
+
+    void (async () => {
+      try {
+        const ticket = await api.getWsTicket(Number(selectedId));
+        if (cancelled) return;
+
+        const wsUrl = getChatWebSocketUrl(selectedId, ticket);
+        socket = new WebSocket(wsUrl);
+        socketRef.current = socket;
 
     socket.onopen = () => {
       if (cancelled) {
@@ -856,6 +863,11 @@ export default function MessagesSection() {
         );
       }
     };
+
+      } catch (err) {
+        console.error("WebSocket connection failed:", err);
+      }
+    })();
 
     return () => {
       cancelled = true;
@@ -1077,7 +1089,6 @@ export default function MessagesSection() {
           type: "chat_message",
           content,
           image_url: imageUrl || "",
-          user_id: user?.id,
         })
       );
       setNewMessage("");

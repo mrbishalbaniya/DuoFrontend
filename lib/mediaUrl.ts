@@ -1,5 +1,6 @@
-const API_ORIGIN =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "") || "http://localhost:8001";
+import { getBackendOrigin } from "@/lib/backendUrl";
+
+const API_ORIGIN = getBackendOrigin();
 
 /** Unsplash portraits — reachable where picsum.photos often times out (522). */
 const PLACEHOLDER_PHOTOS = [

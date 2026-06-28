@@ -3,16 +3,6 @@
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-function readCookie(name: string): string | null {
-  if (typeof document === "undefined") return null;
-  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
-function clearCookie(name: string) {
-  document.cookie = `${name}=; Max-Age=0; path=/; SameSite=Lax`;
-}
-
 export default function GoogleAuthCompletePage() {
   return (
     <Suspense
@@ -32,33 +22,44 @@ function GoogleAuthCompleteContent() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const access =
-      params.get("access") || readCookie("duo_oauth_access");
-    const refresh =
-      params.get("refresh") || readCookie("duo_oauth_refresh");
-    const onboarded =
-      (params.get("onboarded") || readCookie("duo_oauth_onboarded")) === "1";
+    const handoff = searchParams.get("handoff");
 
-    clearCookie("duo_oauth_access");
-    clearCookie("duo_oauth_refresh");
-    clearCookie("duo_oauth_onboarded");
+    async function finishAuth() {
+      if (handoff) {
+        try {
+          const res = await fetch("/api/auth/handoff", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ handoff }),
+          });
+          const data = (await res.json()) as { onboarded?: boolean };
+          if (!res.ok) {
+            router.replace("/login?error=google_auth");
+            return;
+          }
+          if (!data.onboarded) {
+            sessionStorage.setItem("duo_register_via_google", "1");
+            router.replace("/register");
+            return;
+          }
+          router.replace("/match");
+          return;
+        } catch {
+          router.replace("/login?error=google_auth");
+          return;
+        }
+      }
 
-    if (!access || !refresh) {
-      router.replace("/login?error=google_auth");
-      return;
+      const onboarded = searchParams.get("onboarded") === "1";
+      if (!onboarded) {
+        sessionStorage.setItem("duo_register_via_google", "1");
+        router.replace("/register");
+        return;
+      }
+      router.replace("/match");
     }
 
-    localStorage.setItem("access_token", access);
-    localStorage.setItem("refresh_token", refresh);
-
-    if (!onboarded) {
-      sessionStorage.setItem("duo_register_via_google", "1");
-      router.replace("/register");
-      return;
-    }
-
-    router.replace("/match");
+    void finishAuth();
   }, [router, searchParams]);
 
   return (

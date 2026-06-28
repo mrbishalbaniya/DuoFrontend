@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:8000/api";
+import { getBackendApiUrl } from "@/lib/backendUrl";
+import { setAuthCookies } from "@/lib/server/apiProxy";
 
 function getRedirectUri(request: NextRequest) {
   return (
@@ -14,7 +13,7 @@ async function completeGoogleAuth(
   request: NextRequest,
   payload: Record<string, string>
 ) {
-  const backendRes = await fetch(`${API_BASE}/auth/google/`, {
+  const backendRes = await fetch(`${getBackendApiUrl()}/auth/google/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -30,22 +29,11 @@ async function completeGoogleAuth(
     user?: { profile?: { is_onboarded?: boolean } };
   };
 
-  const response = NextResponse.redirect(new URL("/login/google/complete", request.url));
-  const cookieOptions = {
-    maxAge: 120,
-    path: "/",
-    sameSite: "lax" as const,
-    httpOnly: false,
-  };
-
-  response.cookies.set("duo_oauth_access", data.access, cookieOptions);
-  response.cookies.set("duo_oauth_refresh", data.refresh, cookieOptions);
-  response.cookies.set(
-    "duo_oauth_onboarded",
-    data.user?.profile?.is_onboarded ? "1" : "0",
-    cookieOptions
+  const onboarded = data.user?.profile?.is_onboarded ? "1" : "0";
+  const response = NextResponse.redirect(
+    new URL(`/login/google/complete?onboarded=${onboarded}`, request.url)
   );
-
+  await setAuthCookies(response, data.access, data.refresh);
   return response;
 }
 

@@ -12,13 +12,13 @@ import {
 type PersistedRegistrationState = {
   step: RegistrationStep;
   accountSubStep: "form" | "otp" | "phone";
-  data: Omit<RegistrationData, "photos">;
+  data: Omit<RegistrationData, "photos" | "password" | "confirmPassword">;
   accountCreated: boolean;
 };
 
-/** Photos use base64 previews and must stay in memory only — not localStorage. */
+/** Photos and passwords must stay in memory only — not localStorage. */
 function toPersistedData(data: RegistrationData): PersistedRegistrationState["data"] {
-  const { photos: _photos, ...rest } = data;
+  const { photos: _photos, password: _password, confirmPassword: _confirm, ...rest } = data;
   return rest;
 }
 

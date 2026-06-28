@@ -25,9 +25,7 @@ import type {
 } from "@/types";
 
 import { getPhotoUploadError } from "@/lib/photos/validatePhotoUpload";
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:8001/api";
+import { getClientApiBase } from "@/lib/backendUrl";
 
 type RequestOptions = RequestInit & {
   headers?: Record<string, string>;
@@ -37,7 +35,7 @@ class ApiClient {
   private baseUrl: string;
 
   constructor() {
-    this.baseUrl = API_BASE;
+    this.baseUrl = getClientApiBase();
   }
 
   private static extractErrorDetail(errorData: Record<string, unknown>): string | null {
@@ -56,56 +54,49 @@ class ApiClient {
     return null;
   }
 
-  getToken(): string | null {
+  async clearTokens(): Promise<void> {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("access_token");
-    }
-    return null;
-  }
-
-  setTokens(access: string, refresh: string): void {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("access_token", access);
-      localStorage.setItem("refresh_token", refresh);
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     }
   }
 
-  clearTokens(): void {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
+  private async refreshSession(): Promise<boolean> {
+    try {
+      const res = await fetch("/api/auth/refresh", {
+        method: "POST",
+        credentials: "include",
+      });
+      return res.ok;
+    } catch {
+      return false;
     }
   }
 
   async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-    const token = this.getToken();
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
     if (options.headers) {
       Object.assign(headers, options.headers as Record<string, string>);
     }
 
-    const res = await fetch(`${this.baseUrl}${endpoint}`, {
+    const fetchOptions: RequestInit = {
       ...options,
+      credentials: "include",
       headers,
-    });
+    };
+
+    let res = await fetch(`${this.baseUrl}${endpoint}`, fetchOptions);
 
     if (res.status === 401) {
-      const refreshed = await this.refreshToken();
+      const refreshed = await this.refreshSession();
       if (refreshed) {
-        headers.Authorization = `Bearer ${this.getToken()}`;
-        const retry = await fetch(`${this.baseUrl}${endpoint}`, {
-          ...options,
-          headers,
-        });
-        if (!retry.ok) throw new Error(`API Error: ${retry.status}`);
-        return retry.json() as Promise<T>;
+        res = await fetch(`${this.baseUrl}${endpoint}`, fetchOptions);
+      } else {
+        await this.clearTokens();
+        if (typeof window !== "undefined") window.location.href = "/login";
+        throw new Error("Authentication failed");
       }
-      this.clearTokens();
-      if (typeof window !== "undefined") window.location.href = "/login";
-      throw new Error("Authentication failed");
     }
 
     if (!res.ok) {
@@ -135,40 +126,51 @@ class ApiClient {
       throw new Error(String(detail ?? `API Error: ${res.status}`));
     }
 
+    if (res.status === 204) {
+      return undefined as T;
+    }
+
     return res.json() as Promise<T>;
   }
 
-  async refreshToken(): Promise<boolean> {
-    const refresh =
-      typeof window !== "undefined" ? localStorage.getItem("refresh_token") : null;
-    if (!refresh) return false;
-    try {
-      const res = await fetch(`${this.baseUrl}/auth/refresh/`, {
+  private async uploadRequest<T>(endpoint: string, formData: FormData): Promise<T> {
+    const doUpload = () =>
+      fetch(`${this.baseUrl}${endpoint}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh }),
+        credentials: "include",
+        body: formData,
       });
-      if (!res.ok) return false;
-      const data = (await res.json()) as { access: string };
-      localStorage.setItem("access_token", data.access);
-      return true;
-    } catch {
-      return false;
+
+    let response = await doUpload();
+
+    if (response.status === 401) {
+      const refreshed = await this.refreshSession();
+      if (!refreshed) {
+        await this.clearTokens();
+        if (typeof window !== "undefined") window.location.href = "/login";
+        throw new Error("Authentication failed");
+      }
+      response = await doUpload();
     }
+
+    const data = (await response.json().catch(() => ({}))) as T & { detail?: string };
+    if (!response.ok) {
+      throw new Error(String(data.detail ?? "Upload failed"));
+    }
+    return data;
   }
 
   async login(username: string, password: string): Promise<LoginResponse> {
     let res: Response;
     try {
-      res = await fetch(`${this.baseUrl}/auth/login/`, {
+      res = await fetch("/api/auth/login", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
     } catch {
-      throw new Error(
-        "Cannot reach the API at http://localhost:8001. Start the backend: cd backend && py -3 manage.py runserver 8001"
-      );
+      throw new Error("Cannot reach the API. Check that the backend is running.");
     }
 
     if (!res.ok) {
@@ -184,23 +186,20 @@ class ApiClient {
       throw new Error((detail as string) || "Invalid username or password");
     }
 
-    const data = (await res.json()) as LoginResponse;
-    this.setTokens(data.access, data.refresh);
-    return data;
+    return res.json() as Promise<LoginResponse>;
   }
 
   async loginWithGoogle(idToken: string): Promise<LoginResponse> {
     let res: Response;
     try {
-      res = await fetch(`${this.baseUrl}/auth/google/`, {
+      res = await fetch("/api/auth/google", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id_token: idToken }),
       });
     } catch {
-      throw new Error(
-        "Cannot reach the API at http://localhost:8001. Start the backend: cd backend && py -3 manage.py runserver 8001"
-      );
+      throw new Error("Cannot reach the API. Check that the backend is running.");
     }
 
     if (!res.ok) {
@@ -209,9 +208,7 @@ class ApiClient {
       throw new Error(detail || "Google sign-in failed");
     }
 
-    const data = (await res.json()) as LoginResponse;
-    this.setTokens(data.access, data.refresh);
-    return data;
+    return res.json() as Promise<LoginResponse>;
   }
 
   async sendEmailOtp(email: string): Promise<{ sent: boolean; email: string }> {
@@ -276,11 +273,19 @@ class ApiClient {
     password: string,
     full_name: string
   ): Promise<RegisterResponse> {
-    const data = await this.request<RegisterResponse>("/auth/register/", {
+    const res = await fetch("/api/auth/register", {
       method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password, full_name }),
     });
-    this.setTokens(data.tokens.access, data.tokens.refresh);
+
+    const data = (await res.json().catch(() => ({}))) as RegisterResponse & {
+      detail?: string;
+    };
+    if (!res.ok) {
+      throw new Error(String(data.detail ?? "Registration failed"));
+    }
     return data;
   }
 
@@ -302,20 +307,7 @@ class ApiClient {
   async uploadProfilePhoto(file: File): Promise<{ image_url: string }> {
     const formData = new FormData();
     formData.append("image", file);
-
-    const token = this.getToken();
-    const response = await fetch(`${this.baseUrl}/profiles/me/upload-photo/`, {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-      throw new Error(String(errorData.detail ?? "Failed to upload profile photo"));
-    }
-
-    return response.json() as Promise<{ image_url: string }>;
+    return this.uploadRequest<{ image_url: string }>("/profiles/me/upload-photo/", formData);
   }
 
   async uploadAndAnalyzePhoto(
@@ -328,12 +320,23 @@ class ApiClient {
       formData.append("is_primary", "true");
     }
 
-    const token = this.getToken();
-    const response = await fetch(`${this.baseUrl}/photos/upload/`, {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: formData,
-    });
+    const doUpload = () =>
+      fetch(`${this.baseUrl}/photos/upload/`, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+    let response = await doUpload();
+    if (response.status === 401) {
+      const refreshed = await this.refreshSession();
+      if (!refreshed) {
+        await this.clearTokens();
+        if (typeof window !== "undefined") window.location.href = "/login";
+        throw new Error("Authentication failed");
+      }
+      response = await doUpload();
+    }
 
     const data = (await response.json().catch(() => ({}))) as PhotoUploadAnalysisResponse & {
       detail?: string;
@@ -380,21 +383,7 @@ class ApiClient {
     formData.append("session_token", sessionToken);
     formData.append("step", step);
     formData.append("image", image);
-
-    const token = this.getToken();
-    const response = await fetch(`${this.baseUrl}/verification/liveness/`, {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: formData,
-    });
-
-    const data = (await response.json().catch(() => ({}))) as LivenessStepResponse & {
-      detail?: string;
-    };
-    if (!response.ok) {
-      throw new Error(String(data.detail ?? "Liveness step failed"));
-    }
-    return data;
+    return this.uploadRequest<LivenessStepResponse>("/verification/liveness/", formData);
   }
 
   async uploadVerificationSelfie(
@@ -405,10 +394,9 @@ class ApiClient {
     formData.append("session_token", sessionToken);
     formData.append("image", image);
 
-    const token = this.getToken();
     const response = await fetch(`${this.baseUrl}/verification/selfie/`, {
       method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: "include",
       body: formData,
     });
 
@@ -515,26 +503,18 @@ class ApiClient {
     });
   }
 
+  async getWsTicket(conversationId: number): Promise<string> {
+    const data = await this.request<{ ticket: string }>(
+      `/chat/conversations/${conversationId}/ws-ticket/`,
+      { method: "POST" }
+    );
+    return data.ticket;
+  }
+
   async uploadChatImage(file: File): Promise<{ image_url: string }> {
     const formData = new FormData();
     formData.append("image", file);
-
-    const accessToken =
-      typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-
-    const response = await fetch(`${API_BASE}/chat/upload/`, {
-      method: "POST",
-      headers: {
-        Authorization: accessToken ? `Bearer ${accessToken}` : "",
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to upload image");
-    }
-
-    return response.json() as Promise<{ image_url: string }>;
+    return this.uploadRequest<{ image_url: string }>("/chat/upload/", formData);
   }
 
   async reactToMessage(messageId: number, emoji: string): Promise<Message> {

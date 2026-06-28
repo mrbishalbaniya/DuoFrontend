@@ -31,10 +31,14 @@ jobs:
 
       - name: Lint
         run: npm run lint -- --max-warnings 999
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
         continue-on-error: true
 
       - name: Build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8001/api
           NEXT_PUBLIC_GOOGLE_CLIENT_ID: ci-placeholder.apps.googleusercontent.com
+          NEXT_PUBLIC_GOOGLE_REDIRECT_URI: http://localhost:3000/api/auth/google/callback
         run: npm run build
