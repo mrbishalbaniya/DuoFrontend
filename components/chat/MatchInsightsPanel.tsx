@@ -36,14 +36,29 @@ export function MatchInsightsPanel({
   otherProfile,
   onClose,
 }: MatchInsightsPanelProps) {
+  return (
+    <MatchInsightsPanelContent
+      key={matchId}
+      matchId={matchId}
+      myProfile={myProfile}
+      otherProfile={otherProfile}
+      onClose={onClose}
+    />
+  );
+}
+
+function MatchInsightsPanelContent({
+  matchId,
+  myProfile,
+  otherProfile,
+  onClose,
+}: MatchInsightsPanelProps) {
   const [match, setMatch] = useState<Match | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
 
     void api
       .getMatchInsights(matchId)

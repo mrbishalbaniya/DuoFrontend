@@ -184,13 +184,34 @@ export function ChatPromptDialog({
   onClose,
   onConfirm,
 }: ChatPromptDialogProps) {
-  const [value, setValue] = useState(initialValue);
-
-  useEffect(() => {
-    if (open) setValue(initialValue);
-  }, [open, initialValue]);
-
   if (!open) return null;
+
+  return (
+    <ChatPromptDialogContent
+      key={initialValue}
+      title={title}
+      description={description}
+      initialValue={initialValue}
+      placeholder={placeholder}
+      confirmLabel={confirmLabel}
+      multiline={multiline}
+      onClose={onClose}
+      onConfirm={onConfirm}
+    />
+  );
+}
+
+function ChatPromptDialogContent({
+  title,
+  description,
+  initialValue,
+  placeholder,
+  confirmLabel,
+  multiline = false,
+  onClose,
+  onConfirm,
+}: Omit<ChatPromptDialogProps, "open">) {
+  const [value, setValue] = useState(initialValue);
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
@@ -231,7 +252,7 @@ export function ChatPromptDialog({
           </button>
           <button
             type="button"
-            onClick={() => onConfirm(value.trim())}
+            onClick={() => onConfirm((value ?? "").trim())}
             className="ios-bar-btn-text min-h-0 px-3 py-2 font-semibold"
           >
             {confirmLabel}

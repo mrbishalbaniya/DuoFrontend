@@ -1,14 +1,11 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { HomePageSkeleton } from "@/components/skeletons/HomePageSkeleton";
+import { useIsClient } from "@/lib/useIsClient";
 
 export function HomePageShell({ children }: { children: ReactNode }) {
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    setReady(true);
-  }, []);
+  const ready = useIsClient();
 
   if (!ready) {
     return <HomePageSkeleton />;

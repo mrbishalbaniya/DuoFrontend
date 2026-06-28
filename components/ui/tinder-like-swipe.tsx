@@ -246,7 +246,7 @@ export const SwipeableCardStack = React.forwardRef<
 ) {
   const [cards, setCards] = React.useState<string[]>([...images]);
   const cardsRef = React.useRef(cards);
-  cardsRef.current = cards;
+  const [isExiting, setIsExiting] = React.useState(false);
   const exitingRef = React.useRef(false);
   const topFlyOffRef = React.useRef<((dir: SwipeDirection) => Promise<void>) | null>(
     null
@@ -255,8 +255,13 @@ export const SwipeableCardStack = React.forwardRef<
   const imagesKey = images.join("\0");
 
   React.useEffect(() => {
+    cardsRef.current = cards;
+  }, [cards]);
+
+  React.useEffect(() => {
     setCards([...images]);
     exitingRef.current = false;
+    setIsExiting(false);
   }, [imagesKey, images]);
 
   React.useEffect(() => {
@@ -275,6 +280,7 @@ export const SwipeableCardStack = React.forwardRef<
         return next;
       });
       exitingRef.current = false;
+      setIsExiting(false);
     },
     [onStackEmpty]
   );
@@ -283,10 +289,12 @@ export const SwipeableCardStack = React.forwardRef<
     (direction: SwipeDirection, index: number) => {
       if (exitingRef.current) return;
       exitingRef.current = true;
+      setIsExiting(true);
 
       const image = cardsRef.current[index];
       if (!image) {
         exitingRef.current = false;
+        setIsExiting(false);
         return;
       }
 
@@ -294,6 +302,7 @@ export const SwipeableCardStack = React.forwardRef<
         if (shouldRemove === false) {
           setCards([...images]);
           exitingRef.current = false;
+          setIsExiting(false);
           return;
         }
         removeCard(index);
@@ -351,7 +360,7 @@ export const SwipeableCardStack = React.forwardRef<
                 shadowBlur={shadowBlur}
                 rightIcon={rightIcon}
                 leftIcon={leftIcon}
-                disabled={disabled || exitingRef.current}
+                disabled={disabled || isExiting}
                 renderOverlay={renderOverlay}
                 onCommitSwipe={commitSwipe}
                 flyOffRef={topFlyOffRef}

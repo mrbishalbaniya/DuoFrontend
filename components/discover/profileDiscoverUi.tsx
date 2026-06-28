@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { Profile } from "@/types";
 import { resolveProfilePhotoUrls } from "@/lib/mediaUrl";
+import { useIsClient } from "@/lib/useIsClient";
 
 export function getProfilePhotos(profile: Profile): string[] {
   return resolveProfilePhotoUrls(profile, 3);
@@ -78,7 +79,7 @@ export function ProfileDetailSheet({
   onClose: () => void;
   footer?: ReactNode;
 }) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useIsClient();
   const tags = Array.isArray(profile?.lifestyle_tags) ? profile.lifestyle_tags : [];
 
   const detailItems = profile
@@ -89,10 +90,6 @@ export function ProfileDetailSheet({
         { label: "Work", value: profile.work_preference, icon: "business_center" },
       ].filter((item) => item.value)
     : [];
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!open) return;

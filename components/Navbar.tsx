@@ -26,7 +26,15 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [menuPathname, setMenuPathname] = useState(pathname);
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  if (menuPathname !== pathname) {
+    setMenuPathname(pathname);
+    if (userMenuOpen) {
+      setUserMenuOpen(false);
+    }
+  }
 
   useEffect(() => {
     if (!userMenuOpen) return;
@@ -40,10 +48,6 @@ export default function Navbar() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [userMenuOpen]);
-
-  useEffect(() => {
-    setUserMenuOpen(false);
-  }, [pathname]);
 
   const greetingName = getGreetingName(user?.profile?.full_name, user?.username);
 

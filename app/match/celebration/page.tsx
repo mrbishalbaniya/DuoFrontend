@@ -1,21 +1,25 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { resolveProfilePhotoUrl } from "@/lib/mediaUrl";
 import type { MatchSessionData } from "@/types";
 
+function readLatestMatch(): MatchSessionData | null {
+  if (typeof window === "undefined") return null;
+  const stored = sessionStorage.getItem("latest_match");
+  if (!stored) return null;
+  try {
+    return JSON.parse(stored) as MatchSessionData;
+  } catch {
+    return null;
+  }
+}
+
 export default function MatchCelebrationPage() {
   const { user } = useAuth();
-  const [matchData, setMatchData] = useState<MatchSessionData | null>(null);
-
-  useEffect(() => {
-    const stored = sessionStorage.getItem("latest_match");
-    if (stored) {
-      setMatchData(JSON.parse(stored));
-    }
-  }, []);
+  const [matchData] = useState<MatchSessionData | null>(readLatestMatch);
 
   const otherProfile = matchData?.other_user_profile;
   const myProfile = user?.profile;

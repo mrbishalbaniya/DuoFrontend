@@ -25,16 +25,20 @@ function formatRecordingTime(seconds: number): string {
   return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 }
 
+const WAVEFORM_BAR_HEIGHTS = [...Array(24)].map((_, i) => ({
+  height: [3, 4 + ((i * 7) % 14), 4 + ((i * 5) % 8), 3],
+}));
+
 function RecordingWaveform({ active, className }: { active: boolean; className?: string }) {
   return (
     <div className={cn("flex flex-1 items-center justify-center gap-0.5 min-w-0 px-1", className)}>
-      {[...Array(24)].map((_, i) => (
+      {WAVEFORM_BAR_HEIGHTS.map((animation, i) => (
         <motion.div
           key={i}
           className="w-0.5 shrink-0 rounded-full bg-primary"
           initial={{ height: 3 }}
           animate={{
-            height: active ? [3, 4 + Math.random() * 14, 4 + Math.random() * 8, 3] : 3,
+            height: active ? animation.height : 3,
           }}
           transition={{
             duration: active ? 1 : 0.3,

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { PricingInteraction, type PricingPlanOption } from "@/components/ui/pricing-interaction";
 import type { SubscriptionPlan } from "@/types";
+import { useIsClient } from "@/lib/useIsClient";
 
 interface PremiumUpgradeSheetProps {
   open: boolean;
@@ -22,7 +23,7 @@ export function PremiumUpgradeSheet({
   paying,
   onSubscribe,
 }: PremiumUpgradeSheetProps) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useIsClient();
 
   const pricingPlans = useMemo<PricingPlanOption[]>(
     () =>
@@ -35,10 +36,6 @@ export function PremiumUpgradeSheet({
       })),
     [plans]
   );
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!open) return;
