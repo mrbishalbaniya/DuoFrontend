@@ -4,6 +4,9 @@ import { useCallback, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhotoAnalysisResult } from "@/components/photos/PhotoAnalysisResult";
+import api from "@/lib/api";
+import { getPhotoUploadError } from "@/lib/photos/validatePhotoUpload";
 import {
   CASTE_OPTIONS,
   EDUCATION_LEVEL_OPTIONS,
@@ -78,6 +81,8 @@ export function ProfileEditForm({
   onDetectLocation,
 }: ProfileEditFormProps) {
   const [dragActive, setDragActive] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [analyzingPhotos, setAnalyzingPhotos] = useState(false);
 
   const patch = useCallback(
     (patchData: Partial<ProfileEditFormData>) => {
@@ -93,27 +98,44 @@ export function ProfileEditForm({
 
       const remaining = 9 - formData.photos.length;
       const selected = list.slice(0, remaining);
+      if (!selected.length) return;
 
-      const nextPhotos = await Promise.all(
-        selected.map(
-          (file) =>
-            new Promise<ProfileEditPhoto>((resolve) => {
-              const reader = new FileReader();
-              reader.onload = () => {
-                resolve({
-                  id: `${Date.now()}-${file.name}`,
-                  url: String(reader.result),
-                  fileName: file.name,
-                  isProfile: formData.photos.length === 0,
-                  file,
-                });
-              };
-              reader.readAsDataURL(file);
-            })
-        )
-      );
+      setPhotoError(null);
+      setAnalyzingPhotos(true);
 
-      patch({ photos: [...formData.photos, ...nextPhotos] });
+      try {
+        const uploaded: ProfileEditPhoto[] = [];
+        const isFirstPhoto = formData.photos.length === 0;
+
+        for (let index = 0; index < selected.length; index += 1) {
+          const file = selected[index];
+          const isPrimary = isFirstPhoto && index === 0;
+
+          const result = await api.uploadAndAnalyzePhoto(file, { isPrimary });
+
+          const uploadError = getPhotoUploadError(result, file.name);
+          if (uploadError) {
+            throw new Error(uploadError);
+          }
+          if (!result.image_url) {
+            throw new Error("Upload succeeded but no image URL was returned.");
+          }
+
+          uploaded.push({
+            id: `${Date.now()}-${file.name}-${index}`,
+            url: result.image_url,
+            fileName: file.name,
+            isProfile: isPrimary,
+            analysis: result.analysis,
+          });
+        }
+
+        patch({ photos: [...formData.photos, ...uploaded] });
+      } catch (error) {
+        setPhotoError(error instanceof Error ? error.message : "Photo verification failed.");
+      } finally {
+        setAnalyzingPhotos(false);
+      }
     },
     [formData.photos, patch]
   );
@@ -169,22 +191,46 @@ export function ProfileEditForm({
             void addPhotoFiles(event.dataTransfer.files);
           }}
         >
-          <p className="text-sm text-on-surface-variant">Drag photos here or browse (max 9)</p>
+          <p className="text-sm text-on-surface-variant">
+            {analyzingPhotos
+              ? "Analyzing photo quality and safety…"
+              : "Drag photos here or browse (max 9). Each photo is verified automatically."}
+          </p>
           <label className="mt-3 inline-flex cursor-pointer">
             <input
               type="file"
               accept="image/*"
               multiple
               className="hidden"
+              disabled={analyzingPhotos}
               onChange={(event) => {
                 if (event.target.files) void addPhotoFiles(event.target.files);
               }}
             />
-            <span className="rounded-full gradient-brand px-5 py-2 text-sm font-semibold text-white">
-              Browse files
+            <span
+              className={cn(
+                "rounded-full gradient-brand px-5 py-2 text-sm font-semibold text-white",
+                analyzingPhotos && "pointer-events-none opacity-60"
+              )}
+            >
+              {analyzingPhotos ? "Analyzing…" : "Browse files"}
             </span>
           </label>
         </div>
+
+        {photoError ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {photoError}
+          </div>
+        ) : null}
+
+        {formData.photos.some((photo) => photo.analysis) ? (
+          <PhotoAnalysisResult
+            analysis={
+              [...formData.photos].reverse().find((photo) => photo.analysis)?.analysis!
+            }
+          />
+        ) : null}
 
         {formData.photos.length ? (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

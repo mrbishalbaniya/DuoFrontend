@@ -1,3 +1,80 @@
+export type PhotoAnalysisStatus = "APPROVED" | "WARNING" | "REJECTED";
+
+export interface PhotoAnalysis {
+  id: number;
+  image_url: string;
+  face_detected: boolean;
+  face_count: number;
+  face_centered: boolean;
+  blur_score: number;
+  brightness_score: number;
+  resolution_passed: boolean;
+  image_width: number;
+  image_height: number;
+  quality_score: number;
+  ai_generated_probability: number;
+  duplicate_probability: number;
+  status: PhotoAnalysisStatus;
+  warnings: string[];
+  rejection_reasons: string[];
+  is_primary: boolean;
+  created_at: string;
+}
+
+export interface PhotoUploadAnalysisResponse {
+  success: boolean;
+  image_url?: string;
+  analysis: PhotoAnalysis;
+  detail?: string;
+}
+
+export type VerificationStatus = "PENDING" | "VERIFIED" | "REJECTED" | "UNDER_REVIEW";
+
+export type LivenessStep = "smile" | "blink" | "head_left" | "head_right";
+
+export interface VerificationStartResponse {
+  session_id: string;
+  session_token: string;
+  expires_at: string;
+  instructions: string[];
+  liveness_steps: LivenessStep[];
+}
+
+export interface LivenessStepResponse {
+  step: LivenessStep;
+  passed: boolean;
+  score: number;
+  detail: string;
+  liveness_steps_completed: LivenessStep[];
+}
+
+export interface VerificationStatusResponse {
+  status: VerificationStatus;
+  similarity_score: number;
+  liveness_score: number;
+  fraud_probability: number;
+  verified_badge: boolean;
+  rejection_reasons?: string[];
+  session?: UserVerificationSession;
+}
+
+export interface UserVerificationSession {
+  id: number;
+  session_token: string;
+  profile_photo_url: string;
+  selfie_photo_url: string;
+  similarity_score: number;
+  liveness_score: number;
+  fraud_probability: number;
+  verification_status: VerificationStatus;
+  liveness_steps_completed?: LivenessStep[];
+  rejection_reasons: string[];
+  verified_badge: boolean;
+  verified_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+}
+
 export interface Profile {
   id?: number;
   user_id?: number;
@@ -29,6 +106,9 @@ export interface Profile {
   pref_relationship_goal?: "everyone" | "serious" | "casual" | "dating";
   pref_verified_only?: boolean;
   relationship_goal?: "serious" | "casual" | "dating" | "";
+  is_premium?: boolean;
+  subscription_expires_at?: string | null;
+  preview_distance_km?: number;
 }
 
 export interface User {
@@ -52,7 +132,7 @@ export interface RegisterResponse {
   user?: User;
 }
 
-export type SwipeAction = "LIKE" | "SKIP";
+export type SwipeAction = "LIKE" | "SKIP" | "SUPERLIKE";
 
 export interface SwipeResponse {
   matched?: boolean;
@@ -62,9 +142,61 @@ export interface SwipeResponse {
   other_user_profile?: Profile;
 }
 
+export interface LikedProfile {
+  swipe_id?: number;
+  profile: Profile;
+  liked_at?: string;
+  action?: SwipeAction;
+  locked?: boolean;
+}
+
+export interface SubscriptionPlan {
+  plan_id: string;
+  name: string;
+  description: string;
+  currency: string;
+  amount: number;
+  duration_days: number;
+  badge?: string | null;
+}
+
+export interface SubscriptionStatus {
+  is_premium: boolean;
+  expires_at: string | null;
+  plan: SubscriptionPlan;
+}
+
+export interface EsewaPaymentForm {
+  amount: string;
+  tax_amount: string;
+  total_amount: string;
+  transaction_uuid: string;
+  product_code: string;
+  product_service_charge: string;
+  product_delivery_charge: string;
+  success_url: string;
+  failure_url: string;
+  signed_field_names: string;
+  signature: string;
+}
+
+export interface InitiateSubscriptionResponse {
+  payment_url: string;
+  transaction_uuid: string;
+  form: EsewaPaymentForm;
+}
+
+export interface LikesYouResponse {
+  is_premium: boolean;
+  premium_required: boolean;
+  count: number;
+  results: LikedProfile[];
+}
+
 export interface Match {
   id: number;
   other_user_profile: Profile;
+  matched_at?: string;
   compatibility_score?: number;
   shared_interests?: string[];
   insight_summary?: string;
@@ -90,6 +222,8 @@ export interface ChatMessage extends Message {
 
 export interface Conversation {
   id: number;
+  match_id?: number;
+  other_user_nickname?: string;
   other_user_profile?: Profile;
   last_message?: string | { content?: string; timestamp?: string; created_at?: string };
   last_message_at?: string;

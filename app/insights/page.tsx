@@ -8,6 +8,7 @@ import BottomNav from "@/components/BottomNav";
 import { InsightsPageSkeleton } from "@/components/skeletons/InsightsPageSkeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
+import { resolveProfilePhotoUrl } from "@/lib/mediaUrl";
 import type { Match } from "@/types";
 
 export default function InsightsPage() {
@@ -72,8 +73,8 @@ export default function InsightsPage() {
                 className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap ${selectedMatch?.id === match.id ? "bg-primary text-white shadow-lg" : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container"}`}
               >
                 <div className="w-6 h-6 rounded-full overflow-hidden bg-surface-container">
-                  {match.other_user_profile?.photo_url ? (
-                    <img className="w-full h-full object-cover" alt="" src={match.other_user_profile.photo_url} />
+                  {match.other_user_profile ? (
+                    <img className="w-full h-full object-cover" alt="" src={resolveProfilePhotoUrl(match.other_user_profile)} />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <span className="material-symbols-outlined text-xs">person</span>
@@ -107,10 +108,10 @@ export default function InsightsPage() {
                   <div className="flex items-center gap-4">
                     <div className="flex -space-x-4">
                       <div className="w-16 h-16 rounded-full border-4 border-surface overflow-hidden shadow-lg bg-surface-container">
-                        {myProfile?.photo_url ? <img className="w-full h-full object-cover" alt="" src={myProfile.photo_url} /> : <div className="w-full h-full flex items-center justify-center"><span className="material-symbols-outlined">person</span></div>}
+                        {myProfile ? <img className="w-full h-full object-cover" alt="" src={resolveProfilePhotoUrl(myProfile)} /> : <div className="w-full h-full flex items-center justify-center"><span className="material-symbols-outlined">person</span></div>}
                       </div>
                       <div className="w-16 h-16 rounded-full border-4 border-surface overflow-hidden shadow-lg bg-surface-container">
-                        {other?.photo_url ? <img className="w-full h-full object-cover" alt="" src={other.photo_url} /> : <div className="w-full h-full flex items-center justify-center"><span className="material-symbols-outlined">person</span></div>}
+                        {other ? <img className="w-full h-full object-cover" alt="" src={resolveProfilePhotoUrl(other)} /> : <div className="w-full h-full flex items-center justify-center"><span className="material-symbols-outlined">person</span></div>}
                       </div>
                     </div>
                     <div>

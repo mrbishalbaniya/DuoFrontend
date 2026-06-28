@@ -1,6 +1,8 @@
-import { Heart } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
+"use client";
 
+import { Heart } from "lucide-react";
+import { motion } from "motion/react";
+import { Separator } from "@/components/ui/separator";
 export function HeroSection03() {
   return (
     <section className="relative overflow-hidden pt-14 sm:pt-16">
@@ -10,19 +12,19 @@ export function HeroSection03() {
       />
 
       <div className="relative z-10 px-4 sm:px-8 md:px-12 pt-8 pb-8 sm:pt-10 md:pt-16 md:pb-10">
-        <div className="mx-auto flex w-full max-w-7xl flex-col justify-center gap-3 sm:gap-2 md:items-center">
+        <div className="mx-auto flex w-full max-w-7xl flex-col justify-center gap-0.5 sm:gap-0 md:items-center">
           <div className="flex w-full flex-col items-start gap-3 sm:gap-2 md:flex-row md:items-center md:gap-6">
             <p className="max-w-full text-start text-xs leading-5 text-muted-foreground sm:max-w-[220px] md:max-w-[200px] md:text-right md:text-sm">
               Duo blends deep-rooted tradition with intelligent matching for
               meaningful, lasting connections.
             </p>
-            <h1 className="text-4xl font-light leading-[0.95] tracking-wide text-on-surface sm:text-6xl sm:tracking-wider md:text-7xl xl:text-[9rem]">
+            <h1 className="text-4xl font-light leading-[0.9] tracking-wide text-on-surface sm:text-6xl sm:leading-[0.9] sm:tracking-wider md:text-7xl xl:text-[9rem]">
               FIND YOUR
             </h1>
           </div>
 
-          <div className="flex w-full flex-col items-start gap-3 sm:gap-2 md:flex-row md:items-center md:gap-6">
-            <h1 className="flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 text-4xl font-light leading-[0.95] tracking-wide text-on-surface sm:text-6xl sm:tracking-wider md:flex-nowrap md:text-7xl xl:text-[9rem]">
+          <div className="flex w-full flex-col items-start gap-3 sm:gap-2 md:flex-row md:items-center md:gap-6 md:-mt-1">
+            <h1 className="flex max-w-full flex-wrap items-center gap-x-2 gap-y-0 text-4xl font-light leading-[0.9] tracking-wide text-on-surface sm:text-6xl sm:leading-[0.9] sm:tracking-wider md:flex-nowrap md:text-7xl xl:text-[9rem]">
               <span>LIFE</span>
               <Heart
                 className="size-8 shrink-0 fill-primary text-primary sm:mx-1 sm:size-12 md:mx-2 md:size-20 lg:size-36 xl:size-40"
@@ -31,14 +33,23 @@ export function HeroSection03() {
               />
               <span>PARTNER</span>
             </h1>
-            <p className="max-w-full pt-1 text-xs leading-5 text-muted-foreground sm:max-w-[250px] md:max-w-[200px] md:pt-8 md:text-sm">
+            <motion.p
+              className="max-w-full pt-1 text-xs leading-5 text-muted-foreground sm:max-w-[250px] md:max-w-[200px] md:self-center md:pt-0 md:text-sm"
+              animate={{ y: [0, -10, 0] }}
+              transition={{
+                duration: 5.5,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 0.4,
+              }}
+            >
               Open to every story — whether you are searching for love, family,
               or a second chapter.
-            </p>
+            </motion.p>
           </div>
 
-          <div className="flex w-full flex-col items-start md:flex-row md:items-center md:gap-6">
-            <h1 className="flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 text-4xl font-light leading-[0.95] tracking-wide text-on-surface sm:text-6xl sm:tracking-wider md:text-7xl xl:text-[9rem]">
+          <div className="-mt-1 flex w-full flex-col items-start md:-mt-3 md:flex-row md:items-center md:gap-6">
+            <h1 className="flex max-w-full flex-wrap items-center gap-x-2 gap-y-0 text-4xl font-light leading-[0.9] tracking-wide text-on-surface sm:text-6xl sm:leading-[0.9] sm:tracking-wider md:text-7xl xl:text-[9rem]">
               <span>MATCH</span>
               <Heart
                 className="mx-1 hidden size-28 shrink-0 fill-primary text-primary lg:block xl:size-36"

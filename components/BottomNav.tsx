@@ -11,8 +11,8 @@ type NavItem = {
 };
 
 const navLeft: NavItem[] = [
-  { href: "/", icon: "home", label: "Home" },
-  { href: "/chat", icon: "chat_bubble", label: "Chats" },
+  { href: "/discover", icon: "group", label: "Discover" },
+  { href: "/chat", icon: "chat_bubble", label: "Chat" },
 ];
 
 const navCenter: NavItem = {
@@ -22,7 +22,6 @@ const navCenter: NavItem = {
 };
 
 const navRight: NavItem[] = [
-  { href: "/discover", icon: "group", label: "Discover" },
   { href: "/map", icon: "map", label: "Map" },
   { href: "/profile", icon: "person", label: "Profile" },
 ];
@@ -41,6 +40,12 @@ function isNavActive(pathname: string, href: string) {
   if (href === "/chat") {
     return pathname === "/chat" || pathname.startsWith("/chat/");
   }
+  if (href === "/map") {
+    return pathname === "/map";
+  }
+  if (href === "/profile") {
+    return pathname === "/profile";
+  }
   return pathname === href;
 }
 
@@ -54,7 +59,7 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
       href={item.href}
       aria-label={item.label}
       aria-current={isActive ? "page" : undefined}
-      className={`relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-1 py-2 transition-all duration-300 active:scale-95 sm:px-2 ${
+      className={`relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-0.5 py-2 transition-all duration-300 active:scale-95 sm:px-1 ${
         isActive
           ? "text-primary"
           : "text-on-surface-variant hover:bg-surface-variant/80 hover:text-on-surface"
@@ -112,7 +117,7 @@ export default function BottomNav() {
       className="md:hidden fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2"
       aria-label="Main navigation"
     >
-      <div className="flex w-full max-w-md items-end justify-between gap-1 rounded-[2.2rem] border border-outline-variant/35 bg-surface/92 px-2 py-2 shadow-[0_16px_40px] shadow-primary/12 backdrop-blur-xl">
+      <div className="flex w-full max-w-md items-end justify-between gap-0.5 rounded-[2.2rem] border border-outline-variant/35 bg-surface/92 px-1.5 py-2 shadow-[0_16px_40px] shadow-primary/12 backdrop-blur-xl">
         <div className="flex min-w-0 flex-1 items-end justify-around">
           {navLeft.map((item) => (
             <NavLink key={item.href} item={item} pathname={pathname} />

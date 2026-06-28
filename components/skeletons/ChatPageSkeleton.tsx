@@ -75,15 +75,18 @@ export function ChatThreadSkeleton() {
 export function ChatPageSkeleton() {
   return (
     <div
-      className="flex h-full min-h-0 flex-col overflow-hidden bg-surface"
+      className="flex h-full min-h-0 overflow-hidden bg-surface"
       aria-busy="true"
       aria-label="Loading chat"
     >
-      <div className="relative flex min-h-0 flex-1 overflow-hidden">
-        <aside className="flex w-full shrink-0 flex-col overflow-hidden border-r border-outline-variant bg-background lg:w-[320px]">
-          <ChatConversationListSkeleton />
-        </aside>
-        <ChatThreadSkeleton />
+      <div className="hidden w-[4.25rem] shrink-0 border-r border-outline-variant/30 bg-surface md:flex" />
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="relative flex min-h-0 flex-1 overflow-hidden">
+          <aside className="flex w-full shrink-0 flex-col overflow-hidden border-r border-outline-variant bg-background lg:w-[320px]">
+            <ChatConversationListSkeleton />
+          </aside>
+          <ChatThreadSkeleton />
+        </div>
       </div>
     </div>
   );

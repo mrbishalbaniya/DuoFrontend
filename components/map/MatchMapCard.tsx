@@ -1,6 +1,7 @@
 "use client";
 
 import { formatDistanceAway } from "@/lib/distance";
+import { resolveProfilePhotoUrl } from "@/lib/mediaUrl";
 import type { MapProfile } from "./types";
 
 function profileKey(profile: MapProfile): string {
@@ -8,12 +9,7 @@ function profileKey(profile: MapProfile): string {
 }
 
 export function profilePhotoUrl(profile: MapProfile): string {
-  const id = profileKey(profile);
-  return (
-    profile.photo_url ||
-    (Array.isArray(profile.photo_urls) && profile.photo_urls[0]) ||
-    `https://picsum.photos/seed/${id}/400/500`
-  );
+  return resolveProfilePhotoUrl(profile);
 }
 
 interface MatchMapCardProps {

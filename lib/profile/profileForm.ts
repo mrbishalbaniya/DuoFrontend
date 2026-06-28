@@ -1,6 +1,7 @@
 import api from "@/lib/api";
+import { getPhotoUploadError } from "@/lib/photos/validatePhotoUpload";
 import { parsePrefValues, type ParsedPrefValues } from "@/lib/profile/formatProfile";
-import type { Profile } from "@/types";
+import type { PhotoAnalysis, Profile } from "@/types";
 
 export type ProfileEditPhoto = {
   id: string;
@@ -8,6 +9,7 @@ export type ProfileEditPhoto = {
   fileName: string;
   isProfile: boolean;
   file?: File;
+  analysis?: PhotoAnalysis;
 };
 
 export type ProfileEditFormData = {
@@ -147,8 +149,13 @@ export async function resolveProfilePhotoUrls(photos: ProfileEditPhoto[]): Promi
   for (const photo of photos) {
     let url = photo.url;
     if (photo.file) {
-      const uploaded = await api.uploadProfilePhoto(photo.file);
-      url = uploaded.image_url;
+      const isPrimary = photo.id === profilePhoto.id;
+      const result = await api.uploadAndAnalyzePhoto(photo.file, { isPrimary });
+      const uploadError = getPhotoUploadError(result, photo.fileName);
+      if (uploadError) {
+        throw new Error(uploadError);
+      }
+      url = result.image_url!;
     }
     if (photo.id === profilePhoto.id) {
       photo_url = url;
@@ -180,7 +187,7 @@ export async function editFormToUpdatePayload(
     education: form.education.trim(),
     occupation: form.occupation.trim(),
     work_preference: form.work_preference,
-    relationship_goal: form.relationship_goal,
+    relationship_goal: form.relationship_goal as Profile["relationship_goal"],
     lifestyle_tags: form.lifestyleTagsText
       .split(",")
       .map((tag) => tag.trim())

@@ -1,4 +1,6 @@
 import api from "@/lib/api";
+import { getPhotoUploadError } from "@/lib/photos/validatePhotoUpload";
+import type { PhotoAnalysis } from "@/types";
 import type { RegistrationPhoto } from "@/types/registration";
 
 async function dataUrlToFile(dataUrl: string, fileName: string): Promise<File> {
@@ -10,6 +12,7 @@ async function dataUrlToFile(dataUrl: string, fileName: string): Promise<File> {
 export async function uploadRegistrationPhotos(photos: RegistrationPhoto[]): Promise<{
   profilePhotoUrl: string;
   galleryUrls: string[];
+  analyses?: PhotoAnalysis[];
 }> {
   if (!photos.length) {
     return { profilePhotoUrl: "", galleryUrls: [] };
@@ -18,17 +21,28 @@ export async function uploadRegistrationPhotos(photos: RegistrationPhoto[]): Pro
   const profilePhoto = photos.find((photo) => photo.isProfile) ?? photos[0];
   let profilePhotoUrl = "";
   const galleryUrls: string[] = [];
+  const analyses: PhotoAnalysis[] = [];
 
   for (const photo of photos) {
     const file = await dataUrlToFile(photo.previewUrl, photo.fileName);
-    const { image_url } = await api.uploadProfilePhoto(file);
+    const isPrimary = photo.id === profilePhoto.id;
 
-    if (photo.id === profilePhoto.id) {
-      profilePhotoUrl = image_url;
-    } else {
-      galleryUrls.push(image_url);
+    const result = await api.uploadAndAnalyzePhoto(file, { isPrimary });
+    if (result.analysis) analyses.push(result.analysis);
+
+    const uploadError = getPhotoUploadError(result, photo.fileName);
+    if (uploadError) {
+      throw new Error(uploadError);
+    }
+
+    if (result.image_url) {
+      if (isPrimary) {
+        profilePhotoUrl = result.image_url;
+      } else {
+        galleryUrls.push(result.image_url);
+      }
     }
   }
 
-  return { profilePhotoUrl, galleryUrls };
+  return { profilePhotoUrl, galleryUrls, analyses };
 }

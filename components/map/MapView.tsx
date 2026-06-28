@@ -206,7 +206,7 @@ function ProfileMarker({
               className="h-full w-full object-cover"
             />
           </div>
-          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-[#1c1c1e]/90 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-md backdrop-blur-sm">
+          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-surface-container-highest/90 px-1.5 py-0.5 text-[10px] font-semibold text-on-surface shadow-md backdrop-blur-sm">
             {formatDistanceCompact(profile.distanceMeters)}
           </div>
         </div>
@@ -243,7 +243,7 @@ export default function MapView({
   );
 
   return (
-    <div className="relative h-full min-h-[300px] w-full">
+    <div className="relative h-full min-h-[300px] w-full [&_.maplibregl-ctrl-attrib]:hidden">
       <Map
         center={DEFAULT_CENTER}
         zoom={11}

@@ -1,19 +1,52 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { getGoogleOAuthRedirectUri } from "@/lib/googleAuth";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center text-on-surface-variant">
+          Loading...
+        </div>
+      }
+    >
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageContent() {
   const { login, loginWithGoogle } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const googleRedirectUri = getGoogleOAuthRedirectUri();
+  const googleAuthError = searchParams.get("error") === "google_auth";
+  const passwordResetSuccess = searchParams.get("reset") === "success";
+
+  useEffect(() => {
+    if (passwordResetSuccess) {
+      setError("");
+    }
+  }, [passwordResetSuccess]);
+
+  useEffect(() => {
+    if (googleAuthError) {
+      setError(
+        "Google sign-in failed. Add the redirect URI below in Google Cloud Console, then try again."
+      );
+    }
+  }, [googleAuthError]);
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -72,9 +105,26 @@ export default function LoginPage() {
             </p>
           </div>
 
+          {passwordResetSuccess && (
+            <div className="mb-6 p-4 bg-primary-container text-on-primary-container rounded-xl text-sm font-medium">
+              Your password has been updated. Sign in with your new password.
+            </div>
+          )}
+
           {error && (
-            <div className="mb-6 p-4 bg-error-container text-on-error-container rounded-xl text-sm font-medium">
-              {error}
+            <div className="mb-6 p-4 bg-error-container text-on-error-container rounded-xl text-sm font-medium space-y-3">
+              <p>{error}</p>
+              {googleAuthError && (
+                <div className="rounded-lg bg-black/10 p-3 text-xs leading-relaxed">
+                  <p className="font-semibold mb-1">Google Cloud Console setup</p>
+                  <p className="mb-2">
+                    Credentials → your Web client → Authorized redirect URIs → add this exact URL:
+                  </p>
+                  <code className="block break-all rounded bg-black/10 px-2 py-1">
+                    {googleRedirectUri}
+                  </code>
+                </div>
+              )}
             </div>
           )}
 
@@ -103,6 +153,12 @@ export default function LoginPage() {
                 <label className="block text-sm font-semibold text-on-surface-variant" htmlFor="password">
                   Password
                 </label>
+                <Link
+                  href="/login/forgot-password"
+                  className="text-xs font-semibold text-accent hover:underline underline-offset-4"
+                >
+                  Forgot password?
+                </Link>
               </div>
               <div className="relative group">
                 <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">

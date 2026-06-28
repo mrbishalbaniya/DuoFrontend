@@ -42,8 +42,8 @@ export const basicInfoSchema = z
     lastName: z.string().min(2, "Last name is required"),
     gender: z.enum(["male", "female", "other"], { message: "Select gender" }),
     dateOfBirth: z.string().min(1, "Date of birth is required"),
-    heightFeet: z.coerce.number().min(4).max(7),
-    heightInches: z.coerce.number().min(0).max(11),
+    heightFeet: z.number().min(4).max(7),
+    heightInches: z.number().min(0).max(11),
     maritalStatus: z.enum(["never_married", "divorced", "widowed"], {
       message: "Select marital status",
     }),
@@ -125,8 +125,8 @@ export const preferencesSchema = z
     lookingFor: z.enum(["male", "female", "everyone"], {
       message: "Select who you are looking for",
     }),
-    prefAgeMin: z.coerce.number().min(18, "Minimum age is 18").max(80),
-    prefAgeMax: z.coerce.number().min(18, "Maximum age is 80").max(80),
+    prefAgeMin: z.number().min(18, "Minimum age is 18").max(80),
+    prefAgeMax: z.number().min(18, "Maximum age is 80").max(80),
     distancePreference: z.enum(["5", "10", "25", "50", "anywhere"], {
       message: "Select distance preference",
     }),

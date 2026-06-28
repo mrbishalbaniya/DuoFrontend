@@ -1,27 +1,12 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type { Profile } from "@/types";
+import { resolveProfilePhotoUrls } from "@/lib/mediaUrl";
 
 export function getProfilePhotos(profile: Profile): string[] {
-  const id = String(
-    profile.user_id ?? profile.id ?? `${profile.full_name}-${profile.age ?? "0"}`
-  );
-  const fallbacks = [
-    profile.photo_url || `https://picsum.photos/seed/${id}-1/600/800`,
-    `https://picsum.photos/seed/${id}-2/600/800`,
-    `https://picsum.photos/seed/${id}-3/600/800`,
-  ];
-
-  if (Array.isArray(profile.photo_urls) && profile.photo_urls.length > 0) {
-    const urls = profile.photo_urls.filter(Boolean).slice(0, 3);
-    for (let i = urls.length; i < 3; i++) {
-      urls.push(fallbacks[i]);
-    }
-    return urls;
-  }
-
-  return fallbacks;
+  return resolveProfilePhotoUrls(profile, 3);
 }
 
 export function ProfileCardOverlay({
@@ -39,40 +24,43 @@ export function ProfileCardOverlay({
 
   return (
     <>
-      {onInfoClick ? (
-        <button
-          type="button"
-          aria-label="View profile details"
-          disabled={infoDisabled}
-          onClick={(e) => {
-            e.stopPropagation();
-            onInfoClick();
-          }}
-          className="pointer-events-auto absolute top-4 right-4 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-black/35 text-white shadow-lg backdrop-blur-sm transition-all hover:bg-black/50 active:scale-95 disabled:opacity-50"
-        >
-          <span className="material-symbols-outlined text-[22px]">info</span>
-        </button>
-      ) : null}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20">
         <div
           className="absolute inset-x-0 bottom-0 h-[42%] min-h-[140px] bg-gradient-to-t from-black/90 via-black/55 to-transparent"
           aria-hidden
         />
-        <div className="relative p-6 pb-6">
-          <h2 className="font-[var(--font-headline)] text-2xl font-bold text-white drop-shadow-sm">
-            {profile.full_name}
-            {profile.age != null && (
-              <span className="font-semibold text-white/90">, {profile.age}</span>
-            )}
-          </h2>
-          <div className="mt-2 flex items-center gap-2 text-white/95">
-            <span className="material-symbols-outlined shrink-0 text-lg drop-shadow-sm">
-              location_on
-            </span>
-            <span className="text-sm font-medium drop-shadow-sm">
-              {profile.location || "—"}
-            </span>
+        <div className="relative flex items-end justify-between gap-3 p-6 pb-6 md:p-8 md:pb-8">
+          <div className="min-w-0 flex-1">
+            <h2 className="font-[var(--font-headline)] text-2xl font-bold text-white drop-shadow-sm md:text-3xl">
+              {profile.full_name}
+              {profile.age != null && (
+                <span className="font-semibold text-white/90">, {profile.age}</span>
+              )}
+            </h2>
+            <div className="mt-2 flex items-center gap-2 text-white/95">
+              <span className="material-symbols-outlined shrink-0 text-lg drop-shadow-sm">
+                location_on
+              </span>
+              <span className="text-sm font-medium drop-shadow-sm">
+                {profile.location || "—"}
+              </span>
+            </div>
           </div>
+
+          {onInfoClick ? (
+            <button
+              type="button"
+              aria-label="View profile details"
+              disabled={infoDisabled}
+              onClick={(e) => {
+                e.stopPropagation();
+                onInfoClick();
+              }}
+              className="pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/30 bg-black/35 text-white shadow-md backdrop-blur-sm transition-all hover:bg-black/50 active:scale-95 disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined text-[18px]">keyboard_arrow_down</span>
+            </button>
+          ) : null}
         </div>
       </div>
     </>
@@ -90,6 +78,7 @@ export function ProfileDetailSheet({
   onClose: () => void;
   footer?: ReactNode;
 }) {
+  const [mounted, setMounted] = useState(false);
   const tags = Array.isArray(profile?.lifestyle_tags) ? profile.lifestyle_tags : [];
 
   const detailItems = profile
@@ -102,6 +91,10 @@ export function ProfileDetailSheet({
     : [];
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -110,12 +103,12 @@ export function ProfileDetailSheet({
     };
   }, [open]);
 
-  if (!profile) return null;
+  if (!profile || !mounted) return null;
 
   const photos = getProfilePhotos(profile);
   const extraPhotos = photos.slice(1, 3);
 
-  return (
+  return createPortal(
     <div
       className={`fixed inset-0 z-[100] flex flex-col justify-end transition-opacity duration-300 ${
         open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
@@ -124,13 +117,13 @@ export function ProfileDetailSheet({
     >
       <button
         type="button"
-        className="absolute inset-0 bg-primary/30 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
         aria-label="Close profile"
         onClick={onClose}
       />
 
       <div
-        className={`relative z-[101] mx-auto flex h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-[1.75rem] border-t-4 border-primary/35 bg-background shadow-[0_-12px_48px] shadow-primary/20 transition-transform duration-300 ease-out ${
+        className={`relative z-[101] mx-auto flex h-[min(92dvh,820px)] min-h-0 w-full max-w-lg flex-col overflow-hidden rounded-t-[1.75rem] border-t border-white/10 bg-background shadow-[0_-12px_48px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-out ${
           open ? "translate-y-0" : "translate-y-full"
         }`}
         onClick={(e) => e.stopPropagation()}
@@ -139,25 +132,28 @@ export function ProfileDetailSheet({
           <button
             type="button"
             onClick={onClose}
-            className="h-1.5 w-12 rounded-full bg-primary/35 transition-colors hover:bg-primary/55"
+            className="h-1.5 w-12 rounded-full bg-white/20 transition-colors hover:bg-white/30"
             aria-label="Close profile"
           />
         </div>
 
-        <div className="flex-1 overflow-y-auto overscroll-contain bg-gradient-to-b from-secondary/30 to-background">
+        <div
+          data-lenis-prevent
+          className="ios-sheet-scroll min-h-0 flex-1 touch-pan-y bg-background"
+        >
           <div className="relative h-52 shrink-0 sm:h-56">
             {photos[0] ? (
               <img src={photos[0]} alt={profile.full_name} className="h-full w-full object-cover" />
             ) : (
-              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/20 to-accent/15">
-                <span className="material-symbols-outlined text-7xl text-primary/40">person</span>
+              <div className="flex h-full w-full items-center justify-center bg-surface-variant">
+                <span className="material-symbols-outlined text-7xl text-on-surface-variant/40">person</span>
               </div>
             )}
-            <div className="absolute inset-0 bg-gradient-to-b from-primary/35 via-transparent to-background" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-transparent to-background" />
             <button
               type="button"
               onClick={onClose}
-              className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/30 text-white shadow-lg shadow-primary/25 transition-all gradient-brand-br hover:opacity-90 active:scale-95"
+              className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-black/45 text-white shadow-lg backdrop-blur-sm transition-all hover:bg-black/60 active:scale-95"
               aria-label="Close"
             >
               <span className="material-symbols-outlined text-[22px]">close</span>
@@ -165,7 +161,7 @@ export function ProfileDetailSheet({
           </div>
 
           <div className="relative space-y-4 px-5 pb-10 pt-4">
-            <div className="rounded-2xl border border-primary/15 bg-background p-5 shadow-[0_8px_30px] shadow-primary/12">
+            <div className="rounded-2xl border border-white/10 bg-surface-variant/40 p-5">
               <h2 className="font-[var(--font-headline)] text-[1.65rem] font-bold leading-tight text-on-surface">
                 {profile.full_name}
                 {profile.age != null && (
@@ -190,7 +186,7 @@ export function ProfileDetailSheet({
             </div>
 
             {profile.bio ? (
-              <section className="rounded-2xl border border-outline-variant/40 bg-secondary/60 p-5 shadow-[0_4px_20px] shadow-primary/8">
+              <section className="rounded-2xl border border-white/10 bg-surface-variant/40 p-5">
                 <h3 className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-accent">
                   About
                 </h3>
@@ -203,7 +199,7 @@ export function ProfileDetailSheet({
                 {detailItems.map((item) => (
                   <div
                     key={item.label}
-                    className="rounded-2xl border border-primary/10 bg-background p-4 shadow-[0_4px_16px] shadow-primary/6"
+                    className="rounded-2xl border border-white/10 bg-surface-variant/40 p-4"
                   >
                     <div className="mb-2 flex items-center gap-1.5">
                       <span className="material-symbols-outlined text-base text-accent">
@@ -220,7 +216,7 @@ export function ProfileDetailSheet({
             ) : null}
 
             {tags.length > 0 ? (
-              <section className="rounded-2xl border border-outline-variant/40 bg-secondary/60 p-5 shadow-[0_4px_20px] shadow-primary/8">
+              <section className="rounded-2xl border border-white/10 bg-surface-variant/40 p-5">
                 <h3 className="mb-3 text-[11px] font-bold uppercase tracking-[0.12em] text-accent">
                   Lifestyle
                 </h3>
@@ -245,7 +241,7 @@ export function ProfileDetailSheet({
                 {extraPhotos.map((url, index) => (
                   <div
                     key={`${profile.user_id ?? profile.id}-detail-${index + 1}`}
-                    className="aspect-[3/4] overflow-hidden rounded-2xl border border-primary/15 bg-surface-variant shadow-[0_8px_24px] shadow-primary/12"
+                    className="aspect-[3/4] overflow-hidden rounded-2xl border border-white/10 bg-surface-variant"
                   >
                     <img
                       src={url}
@@ -258,10 +254,11 @@ export function ProfileDetailSheet({
             </section>
           </div>
           {footer ? (
-            <div className="shrink-0 border-t border-primary/10 bg-background px-5 py-4">{footer}</div>
+            <div className="shrink-0 border-t border-white/10 bg-background px-5 py-4">{footer}</div>
           ) : null}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

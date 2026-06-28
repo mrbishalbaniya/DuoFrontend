@@ -4,14 +4,12 @@ interface DashboardTopBarProps {
   onOpenMenu: () => void;
   onOpenFilters: () => void;
   disabled?: boolean;
-  profilesLeft?: number;
 }
 
 export function DashboardTopBar({
   onOpenMenu,
   onOpenFilters,
   disabled = false,
-  profilesLeft,
 }: DashboardTopBarProps) {
   return (
     <div className="mx-auto w-full max-w-md">
@@ -28,10 +26,6 @@ export function DashboardTopBar({
 
         <div className="min-w-0 flex-1 text-center">
           <p className="font-[var(--font-headline)] text-lg font-black text-gradient-brand">Duo</p>
-          <p className="text-xs font-medium text-on-surface-variant">
-            Discover
-            {typeof profilesLeft === "number" ? ` · ${profilesLeft} left` : ""}
-          </p>
         </div>
 
         <button

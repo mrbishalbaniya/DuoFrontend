@@ -1,36 +1,47 @@
-import BottomNav from "@/components/BottomNav";
+import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function DiscoverMatchesSkeleton() {
   return (
-    <>
+    <div className="flex h-[100dvh] overflow-hidden bg-background">
+      <ChatSidebarNav />
       <main
-        className="mobile-bottom-nav-offset min-h-screen bg-surface pb-28 pt-20"
+        className="ios-page flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto pb-4 md:pb-10"
         aria-busy="true"
-        aria-label="Loading matched profiles"
+        aria-label="Loading discover"
       >
-        <div className="mx-auto max-w-2xl px-5 sm:px-6">
-          <Skeleton className="mb-2 h-9 w-40" />
-          <Skeleton className="mb-8 h-4 w-56" />
-          <div className="space-y-3">
-            {Array.from({ length: 6 }).map((_, index) => (
+        <header className="ios-sticky-header top-0 md:top-0">          <div className="mx-auto w-full max-w-lg px-4 md:max-w-7xl md:px-6 lg:px-8">
+            <div className="md:hidden">
+              <div className="ios-nav-bar">
+                <Skeleton className="h-11 w-11 rounded-full" />
+                <Skeleton className="h-11 w-11 rounded-full" />
+              </div>
+            </div>
+            <div className="hidden md:flex md:items-center md:justify-between md:pb-4 md:pt-2">
+              <Skeleton className="h-10 w-40" />
+              <Skeleton className="h-10 w-28 rounded-full" />
+            </div>
+            <Skeleton className="mb-3 mt-1 h-9 w-36 md:hidden" />
+            <Skeleton className="mb-3 h-9 w-full rounded-[9px] md:max-w-2xl lg:max-w-3xl" />
+          </div>
+        </header>
+
+        <div className="mx-auto w-full max-w-lg flex-1 px-4 pt-2 pb-4 md:max-w-7xl md:px-6 md:pt-4 lg:px-8">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 md:gap-5 lg:grid-cols-4 xl:grid-cols-5">
+            {Array.from({ length: 10 }).map((_, index) => (
               <div
                 key={index}
-                className="flex items-center gap-4 rounded-2xl border border-primary/10 bg-background p-4"
+                className="flex flex-col overflow-hidden rounded-[1.25rem] bg-surface-container-high ring-1 ring-outline-variant/20 md:rounded-2xl"
               >
-                <Skeleton className="h-16 w-16 shrink-0 rounded-full" />
-                <div className="min-w-0 flex-1 space-y-2">
-                  <Skeleton className="h-5 w-36" />
-                  <Skeleton className="h-4 w-28" />
-                  <Skeleton className="h-3 w-full max-w-[200px]" />
+                <Skeleton className="aspect-[3/4] w-full rounded-none" />
+                <div className="p-2.5 md:p-3">
+                  <Skeleton className="h-9 w-full rounded-full md:h-10" />
                 </div>
-                <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
               </div>
             ))}
           </div>
         </div>
       </main>
-      <BottomNav />
-    </>
+    </div>
   );
 }

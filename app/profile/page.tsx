@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import Navbar from "@/components/Navbar";
+import { useLenis } from "lenis/react";
+import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
 import BottomNav from "@/components/BottomNav";
 import { ProfileEditForm } from "@/components/profile/ProfileEditForm";
 import { ProfileDataSection } from "@/components/profile/ProfileDataSection";
@@ -20,11 +21,13 @@ import {
   profileToEditForm,
   type ProfileEditFormData,
 } from "@/lib/profile/profileForm";
+import { resolveMediaUrl, resolveProfilePhotoUrl } from "@/lib/mediaUrl";
 import type { Profile, User } from "@/types";
 
 export default function ProfilePage() {
   const { user, loading: authLoading, fetchUser } = useAuth();
   const router = useRouter();
+  const lenis = useLenis();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileUser, setProfileUser] = useState<User | null>(null);
   const [editing, setEditing] = useState(false);
@@ -61,6 +64,13 @@ export default function ProfilePage() {
       router.push("/login");
     }
   }, [authLoading, user, router]);
+
+  useEffect(() => {
+    lenis?.stop();
+    return () => {
+      lenis?.start();
+    };
+  }, [lenis]);
 
   useEffect(() => {
     if (!user || profile) return;
@@ -159,10 +169,11 @@ export default function ProfilePage() {
   }
 
   return (
-    <>
-      <Navbar />
+    <div className="flex h-[100dvh] overflow-hidden bg-surface" data-lenis-prevent>
+      <ChatSidebarNav />
       <main
-        className="min-h-screen bg-surface pb-40 pt-16 md:pb-16"
+        className="mobile-bottom-nav-offset min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain md:pb-8"
+        data-lenis-prevent
         aria-busy={showContentSkeleton}
       >
         <div className="relative h-32 bg-gradient-to-br from-primary/30 via-secondary/50 to-accent/25 sm:h-40 md:h-48">
@@ -175,19 +186,11 @@ export default function ProfilePage() {
           ) : (
             <div className="flex flex-col items-start gap-4 md:flex-row md:items-end md:gap-6">
               <div className="h-28 w-28 shrink-0 overflow-hidden rounded-full border-4 border-background bg-surface-container shadow-[0_12px_32px] shadow-primary/25 sm:h-32 sm:w-32 md:h-40 md:w-40">
-                {profile.photo_url ? (
-                  <img
+                <img
                     className="h-full w-full object-cover"
                     alt="Profile"
-                    src={profile.photo_url}
+                    src={resolveProfilePhotoUrl(profile)}
                   />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/15 to-accent/10">
-                    <span className="material-symbols-outlined text-5xl text-primary/35 sm:text-6xl">
-                      person
-                    </span>
-                  </div>
-                )}
               </div>
 
               <div className="min-w-0 flex-1 pb-1 text-left md:pb-3">
@@ -254,7 +257,7 @@ export default function ProfilePage() {
                   </ul>
                 </div>
 
-                {profile.is_verified && (
+                {profile.is_verified ? (
                   <div className="flex items-center gap-4 rounded-2xl border border-primary/10 bg-secondary/70 p-5">
                     <div className="gradient-brand-br shrink-0 rounded-full p-3 text-white">
                       <span
@@ -265,12 +268,31 @@ export default function ProfilePage() {
                       </span>
                     </div>
                     <div>
-                      <p className="font-bold text-on-surface">Verified Identity</p>
+                      <p className="font-bold text-on-surface">Verified Profile</p>
                       <p className="text-xs text-on-surface-variant">
-                        Document verification completed
+                        Selfie verification completed
                       </p>
                     </div>
                   </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => router.push("/verify")}
+                    className="flex w-full items-center gap-4 rounded-2xl border border-primary/20 bg-primary/5 p-5 text-left transition-colors hover:bg-primary/10"
+                  >
+                    <div className="shrink-0 rounded-full bg-primary/10 p-3 text-primary">
+                      <span className="material-symbols-outlined">photo_camera_front</span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-on-surface">Verify your profile</p>
+                      <p className="text-xs text-on-surface-variant">
+                        Take a selfie to earn a verified badge
+                      </p>
+                    </div>
+                    <span className="material-symbols-outlined text-on-surface-variant">
+                      chevron_right
+                    </span>
+                  </button>
                 )}
 
                 <button
@@ -364,6 +386,6 @@ export default function ProfilePage() {
         </div>
       </main>
       <BottomNav />
-    </>
+    </div>
   );
 }

@@ -180,7 +180,7 @@ export default function MatchFriendsSidebar({
   }
 
   return (
-    <aside className="hidden h-full w-72 shrink-0 flex-col border-r border-white/[0.06] bg-[#1c1c1e] md:flex md:w-80">
+    <aside className="hidden h-full w-72 shrink-0 flex-col border-r border-outline-variant/20 bg-surface md:flex md:w-80">
       <div className="shrink-0 px-5 pb-3 pt-5">
         <h1 className="text-[22px] font-bold tracking-tight text-on-surface">Friends</h1>
         <p className="mt-0.5 text-[13px] text-on-surface-variant">

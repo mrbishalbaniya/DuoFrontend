@@ -1,104 +1,419 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
 import BottomNav from "@/components/BottomNav";
-import Navbar from "@/components/Navbar";
+import { DashboardMenuSheet } from "@/components/dashboard/DashboardMenuSheet";
+import { PremiumUpgradeSheet } from "@/components/subscription/PremiumUpgradeSheet";
 import { DiscoverMatchesSkeleton } from "@/components/skeletons/DiscoverMatchesSkeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
-import type { Match, Profile } from "@/types";
+import { submitEsewaPayment } from "@/lib/esewa";
+import { resolveProfilePhotoUrl } from "@/lib/mediaUrl";
+import type { LikedProfile, Match, Profile, SubscriptionPlan, SwipeAction } from "@/types";
 
-function matchPhotoUrl(profile: Profile): string {
-  const id = String(profile.user_id ?? profile.id ?? profile.full_name);
-  return (
-    profile.photo_url ||
-    (Array.isArray(profile.photo_urls) && profile.photo_urls[0]) ||
-    `https://picsum.photos/seed/${id}/400/500`
-  );
+type DiscoverTab = "matches" | "liked-by-you" | "likes-you";
+
+const TAB_CONFIG: { id: DiscoverTab; label: string }[] = [
+  { id: "matches", label: "Matches" },
+  { id: "liked-by-you", label: "Likes sent" },
+  { id: "likes-you", label: "Liked you" },
+];
+
+function profilePhotoUrl(profile: Profile): string {
+  return resolveProfilePhotoUrl(profile);
 }
 
-function MatchedProfileCard({ match }: { match: Match }) {
-  const profile = match.other_user_profile;
-  if (!profile) return null;
+function likedProfileKey(item: LikedProfile): string {
+  if (item.swipe_id != null) return `swipe-${item.swipe_id}`;
+  const profileId = item.profile.user_id ?? item.profile.id;
+  if (profileId != null) return String(profileId);
+  return `${item.liked_at ?? "unknown"}-${item.action ?? "like"}`;
+}
+
+function formatLikeTime(iso?: string): string {
+  if (!iso) return "Recently";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "Recently";
+
+  const diffMs = Date.now() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function interactionTimeLabel(
+  action: SwipeAction | undefined,
+  kind: "matched" | "sent" | "received",
+  time?: string
+): string {
+  const when = formatLikeTime(time);
+
+  if (kind === "matched") return `Matched · ${when}`;
+  if (kind === "sent") {
+    if (action === "SUPERLIKE") return `Super like sent · ${when}`;
+    return `Like sent · ${when}`;
+  }
+  if (action === "SUPERLIKE") return `Super like received · ${when}`;
+  return `Like received · ${when}`;
+}
+
+function DiscoverProfileCard({
+  profile,
+  timeLabel,
+  actions,
+  locked = false,
+  onLockedClick,
+}: {
+  profile: Profile;
+  timeLabel: string;
+  actions?: React.ReactNode;
+  locked?: boolean;
+  onLockedClick?: () => void;
+}) {
+  const name = profile.full_name || "Duo member";
+  const ageText = profile.age != null ? `, ${profile.age}` : "";
+  const photoUrl = profilePhotoUrl(profile);
+  const distanceLabel =
+    profile.preview_distance_km != null ? `${profile.preview_distance_km} km` : "Nearby";
+
+  const cardBody = (
+    <>
+      <div className="relative aspect-[3/4] w-full shrink-0 overflow-hidden">
+        {photoUrl ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={photoUrl}
+            alt=""
+            className={`h-full w-full object-cover ${locked ? "blur-sm" : ""}`}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#2a2a2e] to-[#17171a]">
+            <span className="material-symbols-outlined text-6xl text-white/15">person</span>
+          </div>
+        )}
+
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 p-3 md:p-4">
+          {locked ? (
+            <>
+              <h2 className="truncate text-[16px] font-semibold leading-tight md:text-[17px]">
+                <span className="inline-block select-none text-white blur-[5px]">{name}</span>
+                {ageText ? (
+                  <span className="font-semibold text-white">{ageText}</span>
+                ) : null}
+              </h2>
+              <p className="mt-1 text-[12px] font-medium text-white/75 md:text-[13px]">
+                {distanceLabel}
+              </p>
+            </>
+          ) : (
+            <>
+              <h2 className="truncate text-[16px] font-semibold leading-tight text-white md:text-[17px]">
+                {name}
+                {ageText}
+              </h2>
+              <p className="mt-1 truncate text-[12px] text-white/70 md:text-[13px]">{timeLabel}</p>
+            </>
+          )}
+        </div>
+      </div>
+
+      {actions ? (
+        <div className="flex min-h-[52px] items-center gap-2 p-2.5 md:min-h-[56px] md:p-3">
+          {actions}
+        </div>
+      ) : null}
+    </>
+  );
+
+  if (locked && onLockedClick) {
+    return (
+      <button
+        type="button"
+        onClick={onLockedClick}
+        className="flex w-full flex-col overflow-hidden rounded-[1.25rem] bg-surface-container-high text-left ring-1 ring-outline-variant/25 transition active:scale-[0.98] md:rounded-2xl md:hover:-translate-y-0.5 md:hover:ring-primary/15"
+      >
+        {cardBody}
+      </button>
+    );
+  }
 
   return (
-    <article className="rounded-2xl border border-primary/10 bg-background p-4 shadow-[0_4px_20px] shadow-primary/6 transition-colors hover:border-primary/20">
-      <div className="flex items-center gap-4">
-        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full border border-primary/15 bg-surface-container">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={matchPhotoUrl(profile)}
-            alt={profile.full_name || "Match"}
-            className="h-full w-full object-cover"
-          />
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <h2 className="truncate font-[var(--font-headline)] text-lg font-bold text-on-surface">
-            {profile.full_name || "Duo member"}
-            {profile.age != null ? (
-              <span className="font-semibold text-primary">, {profile.age}</span>
-            ) : null}
-          </h2>
-          <p className="mt-0.5 flex items-center gap-1 truncate text-sm text-on-surface-variant">
-            <span className="material-symbols-outlined text-base text-primary">location_on</span>
-            {profile.location || "Location not set"}
-          </p>
-          {match.compatibility_score != null ? (
-            <p className="mt-1 text-xs font-bold uppercase tracking-wide text-accent">
-              {match.compatibility_score}% compatible
-            </p>
-          ) : null}
-        </div>
-      </div>
-
-      {profile.bio ? (
-        <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-on-surface-variant">
-          {profile.bio}
-        </p>
-      ) : null}
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Link
-          href="/chat"
-          className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-white shadow-md shadow-primary/20 gradient-brand active:scale-95"
-        >
-          <span className="material-symbols-outlined text-[18px]">chat_bubble</span>
-          Message
-        </Link>
-        <Link
-          href="/insights"
-          className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-secondary px-4 py-2 text-sm font-semibold text-primary active:scale-95"
-        >
-          <span className="material-symbols-outlined text-[18px]">insights</span>
-          Insights
-        </Link>
-      </div>
+    <article className="flex flex-col overflow-hidden rounded-[1.25rem] bg-surface-container-high ring-1 ring-outline-variant/25 md:rounded-2xl md:transition-transform md:hover:-translate-y-0.5 md:hover:ring-primary/15">
+      {cardBody}
     </article>
   );
 }
 
-export function DiscoverMatchesPage() {
-  const { user, loading: authLoading } = useAuth();
-  const router = useRouter();
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+function CardButton({
+  href,
+  onClick,
+  icon,
+  label,
+  primary = false,
+  full = false,
+  disabled = false,
+  loading = false,
+}: {
+  href?: string;
+  onClick?: () => void;
+  icon: string;
+  label: string;
+  primary?: boolean;
+  full?: boolean;
+  disabled?: boolean;
+  loading?: boolean;
+}) {
+  const className = `inline-flex items-center justify-center gap-1 rounded-full px-2.5 py-2 text-[11px] font-semibold leading-none active:scale-[0.98] md:gap-1.5 md:px-3 md:py-2.5 md:text-xs ${
+    full ? "w-full" : "flex-1"
+  } ${
+    primary
+      ? "bg-primary text-white"
+      : "bg-secondary text-on-surface"
+  } ${disabled || loading ? "pointer-events-none opacity-60" : ""}`;
 
-  const loadMatches = useCallback(async () => {
-    setError(null);
+  const content = (
+    <>
+      <span className="material-symbols-outlined text-[15px]">{icon}</span>
+      {label}
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled || loading}
+        className={className}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <Link href={href ?? "#"} className={className}>
+      {content}
+    </Link>
+  );
+}
+
+function MatchCard({ match }: { match: Match }) {
+  const profile = match.other_user_profile;
+  if (!profile) return null;
+
+  return (
+    <DiscoverProfileCard
+      profile={profile}
+      timeLabel={interactionTimeLabel(undefined, "matched", match.matched_at)}
+      actions={
+        <>
+          <CardButton href="/chat" icon="chat_bubble" label="Message" primary />
+          <CardButton href="/insights" icon="insights" label="Insights" />
+        </>
+      }
+    />
+  );
+}
+
+function LikedByYouCard({ item }: { item: LikedProfile }) {
+  const profile = item.profile;
+  if (!profile) return null;
+
+  return (
+    <DiscoverProfileCard
+      profile={profile}
+      timeLabel={interactionTimeLabel(item.action, "sent", item.liked_at)}
+      actions={
+        <CardButton href="/match" icon="swipe" label="Keep swiping" full />
+      }
+    />
+  );
+}
+
+function LikesYouCard({
+  item,
+  onLockedClick,
+  onLikeBack,
+  likingBack,
+}: {
+  item: LikedProfile;
+  onLockedClick: () => void;
+  onLikeBack: (item: LikedProfile) => void;
+  likingBack?: boolean;
+}) {
+  const profile = item.profile;
+  if (!profile) return null;
+  const locked = item.locked ?? false;
+
+  return (
+    <DiscoverProfileCard
+      profile={profile}
+      locked={locked}
+      onLockedClick={locked ? onLockedClick : undefined}
+      timeLabel={interactionTimeLabel(item.action, "received", item.liked_at)}
+      actions={
+        locked ? undefined : (
+          <CardButton
+            onClick={() => onLikeBack(item)}
+            icon="favorite"
+            label={likingBack ? "Liking…" : "Like back"}
+            primary
+            full
+            disabled={likingBack}
+            loading={likingBack}
+          />
+        )
+      }
+    />
+  );
+}
+
+function EmptyState({ tab }: { tab: DiscoverTab }) {
+  const content = {
+    matches: {
+      icon: "heart_broken",
+      title: "No Matches",
+      description: "When you and someone both like each other, they'll show up here.",
+      cta: { href: "/match", label: "Start Swiping" },
+    },
+    "liked-by-you": {
+      icon: "thumb_up",
+      title: "No Likes Yet",
+      description: "Profiles you like will appear here until they like you back.",
+      cta: { href: "/match", label: "Discover Profiles" },
+    },
+    "likes-you": {
+      icon: "favorite",
+      title: "No Likes Yet",
+      description: "When someone likes you, they'll appear here so you can match back.",
+      cta: { href: "/match", label: "Update Profile" },
+    },
+  }[tab];
+
+  return (
+    <div className="ios-empty-state col-span-full">
+      <span className="material-symbols-outlined ios-empty-state-icon">{content.icon}</span>
+      <h2 className="ios-empty-state-title">{content.title}</h2>
+      <p className="ios-empty-state-body">{content.description}</p>
+      <Link href={content.cta.href} className="ios-text-btn">
+        {content.cta.label}
+      </Link>
+    </div>
+  );
+}
+
+function ProfileCardGrid({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 md:gap-5 lg:grid-cols-4 xl:grid-cols-5">
+      {children}
+    </div>
+  );
+}
+
+export function DiscoverMatchesPage() {
+  const { user, loading: authLoading, fetchUser } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<DiscoverTab>("matches");
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [likedByYou, setLikedByYou] = useState<LikedProfile[]>([]);
+  const [likesYou, setLikesYou] = useState<LikedProfile[]>([]);
+  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [premiumSheetOpen, setPremiumSheetOpen] = useState(false);
+  const [likingBackId, setLikingBackId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const loadData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setError(null);
+
     try {
-      const data = await api.getMatches();
-      setMatches(data);
+      const [matchesData, likedData, likesData, plansData] = await Promise.all([
+        api.getMatches(),
+        api.getLikedByYou(),
+        api.getLikesYou(),
+        api.getSubscriptionPlans().catch(() => []),
+      ]);
+      setMatches(matchesData);
+      setLikedByYou(likedData);
+      setLikesYou(likesData.results);
+      setSubscriptionPlans(plansData);
+      setError(null);
     } catch {
-      setError("Could not load your matches.");
+      setError("Could not load your discover lists.");
       setMatches([]);
+      setLikedByYou([]);
+      setLikesYou([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
+
+  const handleSubscribe = useCallback(async (planId: string) => {
+    setPaying(true);
+    setNotice(null);
+    try {
+      const payment = await api.initiateSubscription(planId);
+      submitEsewaPayment(payment.payment_url, payment.form);
+    } catch (err) {
+      setNotice(
+        err instanceof Error ? err.message : "Could not start eSewa payment. Please try again."
+      );
+      setPaying(false);
+    }
+  }, []);
+
+  const handleLikeBack = useCallback(
+    async (item: LikedProfile) => {
+      const toUserId = item.profile.user_id ?? item.profile.id;
+      if (!toUserId) {
+        setNotice("Could not like back — profile is missing a user id.");
+        return;
+      }
+
+      const key = likedProfileKey(item);
+      setLikingBackId(key);
+      setNotice(null);
+
+      try {
+        const res = await api.swipe(toUserId, "LIKE");
+        setLikesYou((prev) => prev.filter((entry) => likedProfileKey(entry) !== key));
+
+        if (res.is_match && res.match) {
+          sessionStorage.setItem("latest_match", JSON.stringify(res.match));
+          router.push("/match/celebration");
+          return;
+        }
+
+        setNotice("You liked them back!");
+        void loadData(true);
+      } catch (err) {
+        setNotice(err instanceof Error ? err.message : "Like back failed. Please try again.");
+      } finally {
+        setLikingBackId(null);
+      }
+    },
+    [loadData, router]
+  );
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -106,69 +421,182 @@ export function DiscoverMatchesPage() {
       return;
     }
     if (user) {
-      void loadMatches();
+      void loadData();
     }
-  }, [user, authLoading, router, loadMatches]);
+  }, [user, authLoading, router, loadData]);
+
+  useEffect(() => {
+    const subscriptionResult = searchParams.get("subscription");
+    const tab = searchParams.get("tab");
+
+    if (tab === "likes-you") {
+      setActiveTab("likes-you");
+    }
+
+    if (subscriptionResult === "success") {
+      setNotice("Payment successful. Duo Premium is now active.");
+      setActiveTab("likes-you");
+      void fetchUser();
+      void loadData(true);
+      router.replace("/discover");
+    } else if (subscriptionResult === "failed") {
+      setNotice("Payment was not completed. You can try again with eSewa.");
+      setActiveTab("likes-you");
+      router.replace("/discover");
+    }
+  }, [searchParams, fetchUser, loadData, router]);
 
   if (authLoading || loading) {
     return <DiscoverMatchesSkeleton />;
   }
 
+  const tabCounts: Record<DiscoverTab, number> = {
+    matches: matches.length,
+    "liked-by-you": likedByYou.length,
+    "likes-you": likesYou.length,
+  };
+
+  const renderContent = () => {
+    if (error) {
+      return (
+        <div className="ios-empty-state col-span-full">
+          <span className="material-symbols-outlined ios-empty-state-icon">cloud_off</span>
+          <h2 className="ios-empty-state-title">Unable to Load</h2>
+          <p className="ios-empty-state-body">{error}</p>
+          <button
+            type="button"
+            onClick={() => void loadData(true)}
+            className="ios-text-btn"
+          >
+            Try Again
+          </button>
+        </div>
+      );
+    }
+
+    if (activeTab === "matches") {
+      if (matches.length === 0) return <EmptyState tab="matches" />;
+      return matches.map((match) => <MatchCard key={match.id} match={match} />);
+    }
+
+    if (activeTab === "liked-by-you") {
+      if (likedByYou.length === 0) return <EmptyState tab="liked-by-you" />;
+      return likedByYou.map((item) => (
+        <LikedByYouCard key={likedProfileKey(item)} item={item} />
+      ));
+    }
+
+    if (likesYou.length === 0) return <EmptyState tab="likes-you" />;
+    return likesYou.map((item) => (
+      <LikesYouCard
+        key={likedProfileKey(item)}
+        item={item}
+        onLockedClick={() => setPremiumSheetOpen(true)}
+        onLikeBack={(entry) => void handleLikeBack(entry)}
+        likingBack={likingBackId === likedProfileKey(item)}
+      />
+    ));
+  };
+
   return (
     <>
-      <Navbar />
-      <main className="mobile-bottom-nav-offset min-h-screen bg-surface pb-28 pt-20">
-        <div className="mx-auto max-w-2xl px-5 sm:px-6">
-          <div className="mb-8">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Discover</p>
-            <h1 className="mt-1 font-[var(--font-headline)] text-3xl font-extrabold text-on-surface">
-              Your matches
-            </h1>
-            <p className="mt-2 text-sm text-on-surface-variant">
-              Profiles you have mutually matched with.
-            </p>
-          </div>
+      <div className="flex h-[100dvh] overflow-hidden bg-background">
+        <ChatSidebarNav />
+        <main className="ios-page mobile-bottom-nav-offset flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto md:pb-10">
+        <header className="ios-sticky-header top-0 md:top-0">
+          <div className="mx-auto w-full max-w-lg px-4 md:max-w-7xl md:px-6 lg:px-8">
+            <div className="md:hidden">
+              <div className="ios-nav-bar">
+                <button
+                  type="button"
+                  aria-label="Open menu"
+                  onClick={() => setMenuOpen(true)}
+                  className="ios-nav-btn -ml-2"
+                >
+                  <span className="material-symbols-outlined text-[26px]">line_weight</span>
+                </button>
+                <button
+                  type="button"
+                  aria-label="Refresh"
+                  disabled={refreshing}
+                  onClick={() => void loadData(true)}
+                  className="ios-nav-btn -mr-2 disabled:opacity-40"
+                >
+                  <span
+                    className={`material-symbols-outlined text-[22px] ${
+                      refreshing ? "animate-spin" : ""
+                    }`}
+                  >
+                    refresh
+                  </span>
+                </button>
+              </div>
+            </div>
 
-          {error ? (
-            <div className="rounded-2xl border border-error/20 bg-error-container/30 p-6 text-center">
-              <p className="text-sm font-medium text-on-error-container">{error}</p>
+            <div className="hidden md:flex md:items-center md:justify-between md:gap-4 md:pb-4 md:pt-2">
+              <h1 className="ios-large-title pb-0 pt-0 md:text-[2.5rem]">Discover</h1>
               <button
                 type="button"
-                onClick={() => {
-                  setLoading(true);
-                  void loadMatches();
-                }}
-                className="mt-4 rounded-full px-6 py-2.5 text-sm font-bold text-white gradient-brand"
+                aria-label="Refresh"
+                disabled={refreshing}
+                onClick={() => void loadData(true)}
+                className="inline-flex items-center gap-2 rounded-full border border-outline-variant/30 bg-surface-container px-4 py-2 text-sm font-semibold text-on-surface transition hover:bg-surface-container-high disabled:opacity-40"
               >
-                Try again
+                <span
+                  className={`material-symbols-outlined text-[20px] ${
+                    refreshing ? "animate-spin" : ""
+                  }`}
+                >
+                  refresh
+                </span>
+                Refresh
               </button>
             </div>
-          ) : matches.length === 0 ? (
-            <div className="rounded-[2rem] border border-primary/10 bg-background p-10 text-center shadow-[0_8px_30px] shadow-primary/8">
-              <span className="material-symbols-outlined text-6xl text-primary/25">favorite</span>
-              <h2 className="mt-4 font-[var(--font-headline)] text-2xl font-bold text-on-surface">
-                No matches yet
-              </h2>
-              <p className="mx-auto mt-2 max-w-sm text-on-surface-variant">
-                Swipe right on profiles you like. When they like you back, they will appear here.
-              </p>
-              <Link
-                href="/match"
-                className="mt-6 inline-flex rounded-full px-8 py-3 font-bold text-white shadow-lg shadow-primary/20 gradient-brand active:scale-95"
-              >
-                Start matching
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {matches.map((match) => (
-                <MatchedProfileCard key={match.id} match={match} />
+
+            <h1 className="ios-large-title pb-3 pt-1 md:hidden">Discover</h1>
+
+            <div className="ios-segmented pb-3 md:max-w-2xl lg:max-w-3xl">
+              {TAB_CONFIG.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  data-active={activeTab === tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className="ios-segmented-btn md:px-4 md:py-2.5 md:text-sm"
+                >
+                  {tab.label}
+                  {tabCounts[tab.id] > 0 ? (
+                    <span className="ml-0.5 tabular-nums opacity-75">{tabCounts[tab.id]}</span>
+                  ) : null}
+                </button>
               ))}
             </div>
-          )}
+          </div>
+        </header>
+
+        <div className="mx-auto w-full max-w-lg flex-1 px-4 pt-2 pb-4 md:max-w-7xl md:px-6 md:pt-4 lg:px-8">
+          {notice ? (
+            <div className="mb-4 rounded-xl border border-white/10 bg-surface-variant/50 px-4 py-3 text-sm text-on-surface">
+              {notice}
+            </div>
+          ) : null}
+          <ProfileCardGrid>{renderContent()}</ProfileCardGrid>
         </div>
       </main>
-      <BottomNav />
+      </div>
+
+      {!menuOpen && !premiumSheetOpen ? <BottomNav /> : null}
+
+      <DashboardMenuSheet open={menuOpen} onClose={() => setMenuOpen(false)} />
+
+      <PremiumUpgradeSheet
+        open={premiumSheetOpen}
+        onClose={() => setPremiumSheetOpen(false)}
+        plans={subscriptionPlans}
+        count={likesYou.length}
+        paying={paying}
+        onSubscribe={(planId) => void handleSubscribe(planId)}
+      />
     </>
   );
 }

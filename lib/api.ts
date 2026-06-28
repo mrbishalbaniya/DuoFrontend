@@ -3,14 +3,28 @@ import type {
   ConversationDetail,
   LoginResponse,
   Match,
+  LikedProfile,
+  LikesYouResponse,
+  InitiateSubscriptionResponse,
+  SubscriptionPlan,
+  SubscriptionStatus,
   Message,
+  PhotoAnalysis,
+  PhotoUploadAnalysisResponse,
   Profile,
+  LivenessStep,
+  LivenessStepResponse,
+  UserVerificationSession,
+  VerificationStartResponse,
+  VerificationStatusResponse,
   ProfileFormData,
   RegisterResponse,
   SwipeAction,
   SwipeResponse,
   User,
 } from "@/types";
+
+import { getPhotoUploadError } from "@/lib/photos/validatePhotoUpload";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:8001/api";
@@ -101,7 +115,12 @@ class ApiClient {
         try {
           errorData = JSON.parse(text) as Record<string, unknown>;
         } catch {
-          throw new Error(text.slice(0, 200) || `API Error: ${res.status}`);
+          const isHtml = text.trimStart().startsWith("<!");
+          throw new Error(
+            isHtml
+              ? `Server error (${res.status}). Please try again.`
+              : text.slice(0, 200) || `API Error: ${res.status}`
+          );
         }
       }
 
@@ -215,6 +234,43 @@ class ApiClient {
     });
   }
 
+  async requestPasswordReset(
+    email: string
+  ): Promise<{ sent: boolean; message: string }> {
+    return this.request<{ sent: boolean; message: string }>("/auth/password/forgot/", {
+      method: "POST",
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
+    });
+  }
+
+  async resetPassword(
+    email: string,
+    otp: string,
+    password: string
+  ): Promise<{ reset: boolean; message: string }> {
+    return this.request<{ reset: boolean; message: string }>("/auth/password/reset/", {
+      method: "POST",
+      body: JSON.stringify({
+        email: email.trim().toLowerCase(),
+        otp,
+        password,
+      }),
+    });
+  }
+
+  async changePassword(
+    currentPassword: string,
+    newPassword: string
+  ): Promise<{ changed: boolean; message: string }> {
+    return this.request<{ changed: boolean; message: string }>("/auth/password/change/", {
+      method: "POST",
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+    });
+  }
+
   async register(
     email: string,
     password: string,
@@ -236,7 +292,7 @@ class ApiClient {
     return this.request<Profile>("/profiles/me/");
   }
 
-  async updateProfile(data: Partial<ProfileFormData> & Partial<Profile>): Promise<Profile> {
+  async updateProfile(data: Partial<Profile>): Promise<Profile> {
     return this.request<Profile>("/profiles/me/", {
       method: "PUT",
       body: JSON.stringify(data),
@@ -262,6 +318,117 @@ class ApiClient {
     return response.json() as Promise<{ image_url: string }>;
   }
 
+  async uploadAndAnalyzePhoto(
+    file: File,
+    options?: { isPrimary?: boolean }
+  ): Promise<PhotoUploadAnalysisResponse> {
+    const formData = new FormData();
+    formData.append("image", file);
+    if (options?.isPrimary) {
+      formData.append("is_primary", "true");
+    }
+
+    const token = this.getToken();
+    const response = await fetch(`${this.baseUrl}/photos/upload/`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+
+    const data = (await response.json().catch(() => ({}))) as PhotoUploadAnalysisResponse & {
+      detail?: string;
+    };
+
+    if (!response.ok) {
+      if (data.analysis) {
+        const uploadError = getPhotoUploadError({ ...data, success: false });
+        if (uploadError) {
+          return { ...data, success: false, detail: uploadError };
+        }
+        return { ...data, success: false };
+      }
+      throw new Error(String(data.detail ?? "Failed to analyze profile photo"));
+    }
+
+    if (!data.analysis?.face_detected) {
+      return {
+        ...data,
+        success: false,
+        detail: "No human face detected. Please upload a clear photo showing your face.",
+      };
+    }
+
+    return data;
+  }
+
+  async getPhotoAnalysis(id: number): Promise<PhotoAnalysis> {
+    return this.request<PhotoAnalysis>(`/photos/analysis/${id}/`);
+  }
+
+  async startVerification(): Promise<VerificationStartResponse> {
+    return this.request<VerificationStartResponse>("/verification/start/", {
+      method: "POST",
+    });
+  }
+
+  async submitLivenessStep(
+    sessionToken: string,
+    step: LivenessStep,
+    image: File
+  ): Promise<LivenessStepResponse> {
+    const formData = new FormData();
+    formData.append("session_token", sessionToken);
+    formData.append("step", step);
+    formData.append("image", image);
+
+    const token = this.getToken();
+    const response = await fetch(`${this.baseUrl}/verification/liveness/`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+
+    const data = (await response.json().catch(() => ({}))) as LivenessStepResponse & {
+      detail?: string;
+    };
+    if (!response.ok) {
+      throw new Error(String(data.detail ?? "Liveness step failed"));
+    }
+    return data;
+  }
+
+  async uploadVerificationSelfie(
+    sessionToken: string,
+    image: File
+  ): Promise<VerificationStatusResponse> {
+    const formData = new FormData();
+    formData.append("session_token", sessionToken);
+    formData.append("image", image);
+
+    const token = this.getToken();
+    const response = await fetch(`${this.baseUrl}/verification/selfie/`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+
+    const data = (await response.json().catch(() => ({}))) as VerificationStatusResponse & {
+      detail?: string;
+    };
+    if (!response.ok && !data.status) {
+      throw new Error(String(data.detail ?? "Selfie verification failed"));
+    }
+    return data;
+  }
+
+  async getVerificationStatus(): Promise<VerificationStatusResponse> {
+    return this.request<VerificationStatusResponse>("/verification/status/");
+  }
+
+  async getVerificationHistory(): Promise<UserVerificationSession[]> {
+    return this.request<UserVerificationSession[]>("/verification/history/");
+  }
+
   async discoverProfiles(): Promise<Profile[]> {
     return this.request<Profile[]>("/profiles/discover/");
   }
@@ -279,6 +446,40 @@ class ApiClient {
 
   async getMatches(): Promise<Match[]> {
     return this.request<Match[]>("/matching/matches/");
+  }
+
+  async getLikedByYou(): Promise<LikedProfile[]> {
+    return this.request<LikedProfile[]>("/matching/liked-by-you/");
+  }
+
+  async getLikesYou(): Promise<LikesYouResponse> {
+    return this.request<LikesYouResponse>("/matching/likes-you/");
+  }
+
+  async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+    return this.request<SubscriptionPlan[]>("/subscriptions/plan/");
+  }
+
+  async getSubscriptionStatus(): Promise<SubscriptionStatus> {
+    return this.request<SubscriptionStatus>("/subscriptions/status/");
+  }
+
+  async initiateSubscription(planId: string): Promise<InitiateSubscriptionResponse> {
+    return this.request<InitiateSubscriptionResponse>("/subscriptions/initiate/", {
+      method: "POST",
+      body: JSON.stringify({ plan_id: planId }),
+    });
+  }
+
+  async verifySubscription(transactionUuid: string): Promise<{ status: string; is_premium: boolean }> {
+    return this.request<{ status: string; is_premium: boolean }>("/subscriptions/verify/", {
+      method: "POST",
+      body: JSON.stringify({ transaction_uuid: transactionUuid }),
+    });
+  }
+
+  async getSkippedByYou(): Promise<LikedProfile[]> {
+    return this.request<LikedProfile[]>("/matching/skipped-by-you/");
   }
 
   async getMatchInsights(matchId: number): Promise<Match> {
@@ -350,6 +551,38 @@ class ApiClient {
     await this.request(`/chat/messages/${messageId}/delete/`, {
       method: "POST",
       body: JSON.stringify({ delete_type: deleteType }),
+    });
+  }
+
+  async updateConversationNickname(
+    conversationId: number,
+    nickname: string
+  ): Promise<{ nickname: string }> {
+    return this.request<{ nickname: string }>(`/chat/conversations/${conversationId}/settings/`, {
+      method: "PATCH",
+      body: JSON.stringify({ nickname }),
+    });
+  }
+
+  async clearConversationHistory(conversationId: number): Promise<{ detail: string }> {
+    return this.request<{ detail: string }>(`/chat/conversations/${conversationId}/clear/`, {
+      method: "POST",
+    });
+  }
+
+  async unmatchConversation(conversationId: number): Promise<{ detail: string }> {
+    return this.request<{ detail: string }>(`/chat/conversations/${conversationId}/unmatch/`, {
+      method: "POST",
+    });
+  }
+
+  async reportConversation(
+    conversationId: number,
+    reason: string
+  ): Promise<{ detail: string }> {
+    return this.request<{ detail: string }>(`/chat/conversations/${conversationId}/report/`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
     });
   }
 }

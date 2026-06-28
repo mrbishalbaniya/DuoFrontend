@@ -15,18 +15,25 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import BottomNav from "@/components/BottomNav";
+import { MatchInsightsPanel } from "@/components/chat/MatchInsightsPanel";
+import {
+  ChatConfirmDialog,
+  ChatConversationMenu,
+  ChatPromptDialog,
+} from "@/components/chat/ChatConversationMenu";
+import { ProfileDetailSheet } from "@/components/discover/profileDiscoverUi";
 import {
   ChatMessagesSkeleton,
   ChatPageSkeleton,
 } from "@/components/skeletons/ChatPageSkeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
+import { closeChatSocket, getChatWebSocketUrl } from "@/lib/chatWebSocket";
+import { resolveMediaUrl, resolveProfilePhotoUrl } from "@/lib/mediaUrl";
 import { VoiceInput, VoiceRecordingBar } from "@/components/ui/voice-input";
 import VoiceMessageBubble from "@/components/ui/voice-message-bubble";
 import type { ChatMessage, Conversation } from "@/types";
 
-const MEDIA_BASE = "http://localhost:8001";
 const VOICE_MESSAGE_LABEL = "🎤 Voice message";
 const QUICK_REACTIONS = ["❤️", "😂", "😮", "😢", "😡", "👍"];
 const EMOJI_LIST = [
@@ -47,12 +54,6 @@ const EMOJI_LIST = [
   "💖",
   "🥰",
 ];
-
-function resolveMediaUrl(url?: string | null): string | undefined {
-  if (!url) return undefined;
-  if (url.startsWith("/media/")) return `${MEDIA_BASE}${url}`;
-  return url;
-}
 
 function isAudioMediaUrl(url?: string | null): boolean {
   if (!url) return false;
@@ -458,7 +459,7 @@ function UserAvatar({
       className={`${dim} rounded-full overflow-hidden bg-surface-container border border-primary/15 shrink-0 ${className}`}
     >
       {src ? (
-        <img className="w-full h-full object-cover" alt="" src={src} />
+        <img className="w-full h-full object-cover" alt="" src={resolveMediaUrl(src) ?? src} />
       ) : (
         <div className="w-full h-full flex items-center justify-center">
           <span className={`material-symbols-outlined ${iconSize} text-primary/30`}>person</span>
@@ -496,6 +497,16 @@ export default function MessagesSection() {
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(320);
   const [isMobile, setIsMobile] = useState(false);
+  const [insightsOpen, setInsightsOpen] = useState(false);
+  const [chatMenuOpen, setChatMenuOpen] = useState(false);
+  const [profileSheetOpen, setProfileSheetOpen] = useState(false);
+  const [nicknameDialogOpen, setNicknameDialogOpen] = useState(false);
+  const [unmatchDialogOpen, setUnmatchDialogOpen] = useState(false);
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [chatActionNotice, setChatActionNotice] = useState<string | null>(null);
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+  const [pendingImagePreview, setPendingImagePreview] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const messageListRef = useRef<HTMLDivElement>(null);
@@ -509,6 +520,28 @@ export default function MessagesSection() {
   const lastTypingSignalRef = useRef(0);
   const socketRef = useRef<WebSocket | null>(null);
   const isResizing = useRef(false);
+  const pendingImagePreviewRef = useRef<string | null>(null);
+
+  const clearPendingImage = useCallback(() => {
+    if (pendingImagePreviewRef.current) {
+      URL.revokeObjectURL(pendingImagePreviewRef.current);
+      pendingImagePreviewRef.current = null;
+    }
+    setPendingImageFile(null);
+    setPendingImagePreview(null);
+  }, []);
+
+  const queueImageForConfirm = useCallback(
+    (file: File) => {
+      if (!file.type.startsWith("image/")) return;
+      clearPendingImage();
+      const preview = URL.createObjectURL(file);
+      pendingImagePreviewRef.current = preview;
+      setPendingImageFile(file);
+      setPendingImagePreview(preview);
+    },
+    [clearPendingImage]
+  );
 
   const selected = useMemo(
     () => conversations.find((c) => c.id === selectedId) ?? null,
@@ -519,7 +552,10 @@ export default function MessagesSection() {
     const q = search.trim().toLowerCase();
     if (!q) return conversations;
     return conversations.filter((convo) => {
-      const name = convo.other_user_profile?.full_name?.toLowerCase() ?? "";
+      const name =
+        convo.other_user_nickname?.trim() ||
+        convo.other_user_profile?.full_name?.toLowerCase() ||
+        "";
       const preview = lastMessagePreview(convo).toLowerCase();
       return name.includes(q) || preview.includes(q);
     });
@@ -533,6 +569,8 @@ export default function MessagesSection() {
     [messages]
   );
   const otherProfile = selected?.other_user_profile;
+  const otherDisplayName =
+    selected?.other_user_nickname?.trim() || otherProfile?.full_name || "Match";
   const isTypingActive = isInputFocused || newMessage.length > 0;
   const attachmentSlideTransition = {
     type: "tween" as const,
@@ -550,6 +588,15 @@ export default function MessagesSection() {
     }
 
     messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
+  }, []);
+
+  const isNearBottomOfMessages = useCallback(() => {
+    const container = messageListRef.current;
+    if (!container) return true;
+    const threshold = 120;
+    return (
+      container.scrollHeight - container.scrollTop - container.clientHeight <= threshold
+    );
   }, []);
 
   const loadConversations = useCallback(async (options?: { silent?: boolean }) => {
@@ -634,6 +681,20 @@ export default function MessagesSection() {
   }, [selectedId, loadMessages]);
 
   useEffect(() => {
+    setInsightsOpen(false);
+    setChatMenuOpen(false);
+    setProfileSheetOpen(false);
+    setNicknameDialogOpen(false);
+    setUnmatchDialogOpen(false);
+    setClearDialogOpen(false);
+    setReportDialogOpen(false);
+    setChatActionNotice(null);
+    clearPendingImage();
+  }, [selectedId, clearPendingImage]);
+
+  useEffect(() => () => clearPendingImage(), [clearPendingImage]);
+
+  useEffect(() => {
     if (!selectedId || loadingMessages) return;
     if (visibleMessages.length === 0) return;
 
@@ -649,12 +710,14 @@ export default function MessagesSection() {
     if (!container || !selectedId || loadingMessages) return;
 
     const observer = new ResizeObserver(() => {
-      scrollToLatestMessage("auto");
+      if (isNearBottomOfMessages()) {
+        scrollToLatestMessage("auto");
+      }
     });
     observer.observe(container);
 
     return () => observer.disconnect();
-  }, [selectedId, loadingMessages, visibleMessages.length, scrollToLatestMessage]);
+  }, [selectedId, loadingMessages, visibleMessages.length, scrollToLatestMessage, isNearBottomOfMessages]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -676,10 +739,18 @@ export default function MessagesSection() {
   }, [loadingConversations, selectedId, filteredConversations, searchParams]);
 
   useEffect(() => {
-    if (!selectedId || !user) return;
+    if (!selectedId || !user?.id) return;
 
-    const socket = new WebSocket(`ws://localhost:8001/ws/chat/${selectedId}/`);
+    let cancelled = false;
+    const wsUrl = getChatWebSocketUrl(selectedId, api.getToken());
+    const socket = new WebSocket(wsUrl);
     socketRef.current = socket;
+
+    socket.onopen = () => {
+      if (cancelled) {
+        closeChatSocket(socket, "unmounted");
+      }
+    };
 
     socket.onmessage = (e) => {
       const data = JSON.parse(e.data as string) as Record<string, unknown>;
@@ -787,10 +858,13 @@ export default function MessagesSection() {
     };
 
     return () => {
-      socket.close();
-      socketRef.current = null;
+      cancelled = true;
+      closeChatSocket(socket, "conversation changed");
+      if (socketRef.current === socket) {
+        socketRef.current = null;
+      }
     };
-  }, [selectedId, user]);
+  }, [selectedId, user?.id, scrollToLatestMessage]);
 
   useEffect(() => {
     return () => {
@@ -902,8 +976,72 @@ export default function MessagesSection() {
   const handleBackToList = () => {
     setSelectedId(null);
     setReplyingTo(null);
+    setInsightsOpen(false);
+    setChatMenuOpen(false);
     router.replace("/chat", { scroll: false });
   };
+
+  const updateConversationNickname = useCallback(
+    async (nickname: string) => {
+      if (!selectedId) return;
+      try {
+        const result = await api.updateConversationNickname(selectedId, nickname);
+        setConversations((prev) =>
+          prev.map((convo) =>
+            convo.id === selectedId
+              ? { ...convo, other_user_nickname: result.nickname }
+              : convo
+          )
+        );
+        setChatActionNotice(nickname ? "Nickname updated." : "Nickname removed.");
+      } catch {
+        setChatActionNotice("Could not update nickname.");
+      } finally {
+        setNicknameDialogOpen(false);
+      }
+    },
+    [selectedId]
+  );
+
+  const handleClearChatHistory = useCallback(async () => {
+    if (!selectedId) return;
+    try {
+      await api.clearConversationHistory(selectedId);
+      setMessages([]);
+      setClearDialogOpen(false);
+      setChatActionNotice("Chat history cleared.");
+    } catch {
+      setChatActionNotice("Could not clear chat history.");
+    }
+  }, [selectedId]);
+
+  const handleUnmatchBlock = useCallback(async () => {
+    if (!selectedId) return;
+    try {
+      await api.unmatchConversation(selectedId);
+      setConversations((prev) => prev.filter((convo) => convo.id !== selectedId));
+      setUnmatchDialogOpen(false);
+      handleBackToList();
+    } catch {
+      setChatActionNotice("Could not unmatch. Please try again.");
+      setUnmatchDialogOpen(false);
+    }
+  }, [selectedId]);
+
+  const handleReportUser = useCallback(
+    async (reason: string) => {
+      if (!selectedId) return;
+      try {
+        await api.reportConversation(selectedId, reason);
+        setReportDialogOpen(false);
+        setChatActionNotice("Report submitted. Thank you.");
+      } catch {
+        setChatActionNotice("Could not submit report.");
+        setReportDialogOpen(false);
+      }
+    },
+    [selectedId]
+  );
 
   const selectConversation = (convo: Conversation) => {
     setActiveMessageMenu(null);
@@ -989,11 +1127,18 @@ export default function MessagesSection() {
     }
   };
 
-  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const confirmSendPendingImage = async () => {
+    if (!pendingImageFile || uploading || sending) return;
+    const file = pendingImageFile;
+    clearPendingImage();
     await uploadAndSendFile(file);
+  };
+
+  const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!file) return;
+    queueImageForConfirm(file);
   };
 
   const capturePhotoFromCamera = async () => {
@@ -1017,7 +1162,7 @@ export default function MessagesSection() {
 
     closeCameraCapture();
     const file = new File([blob], `photo-${Date.now()}.jpg`, { type: "image/jpeg" });
-    await uploadAndSendFile(file);
+    queueImageForConfirm(file);
   };
 
   const sendVoiceRecording = async () => {
@@ -1302,13 +1447,12 @@ export default function MessagesSection() {
             Find Matches
           </Link>
         </div>
-        <BottomNav />
       </>
     );
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <div ref={containerRef} className="relative flex min-h-0 flex-1 overflow-hidden bg-surface">
         <motion.aside
           style={{ ["--msg-sidebar-w" as string]: `${sidebarWidth}px` } as CSSProperties}
@@ -1359,7 +1503,10 @@ export default function MessagesSection() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto hide-scrollbar">
+          <div
+            data-lenis-prevent
+            className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain hide-scrollbar"
+          >
             {filteredConversations.length === 0 ? (
               <p className="p-6 text-center text-sm text-on-surface-variant">No matches for your search.</p>
             ) : (
@@ -1378,11 +1525,17 @@ export default function MessagesSection() {
                         : "hover:bg-surface-container-low border-transparent"
                     }`}
                   >
-                    <UserAvatar src={convo.other_user_profile?.photo_url} name={convo.other_user_profile?.full_name} />
+                    <UserAvatar
+                      src={
+                        resolveMediaUrl(convo.other_user_profile?.photo_url) ??
+                        resolveProfilePhotoUrl(convo.other_user_profile ?? {})
+                      }
+                      name={convo.other_user_nickname?.trim() || convo.other_user_profile?.full_name}
+                    />
                     <div className="flex min-w-0 flex-1 items-stretch gap-2">
                       <div className="min-w-0 flex-1">
                         <span className="mb-0.5 block truncate font-semibold text-sm text-on-surface">
-                          {convo.other_user_profile?.full_name}
+                          {convo.other_user_nickname?.trim() || convo.other_user_profile?.full_name}
                         </span>
                         <p className="truncate text-xs text-on-surface-variant">{preview}</p>
                       </div>
@@ -1414,10 +1567,12 @@ export default function MessagesSection() {
 
         <motion.main
           initial={false}
-          animate={{
-            x: isMobile ? (showMobileThread ? "0%" : "100%") : 0,
-          }}
-          transition={mobileSlideTransition}
+          {...(isMobile
+            ? {
+                animate: { x: showMobileThread ? "0%" : "100%" },
+                transition: mobileSlideTransition,
+              }
+            : {})}
           className={`flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background lg:relative max-lg:absolute max-lg:inset-0 max-lg:z-20 max-lg:w-full ${
             isMobile && !showMobileThread ? "pointer-events-none" : ""
           }`}
@@ -1428,42 +1583,85 @@ export default function MessagesSection() {
             </div>
           ) : (
             <div className="flex h-full min-h-0 flex-col">
-              <header className="shrink-0 border-b border-outline-variant px-3 py-2.5 sm:px-6 sm:py-3 bg-surface/60 backdrop-blur-xl">
-                <div className="flex items-center justify-between gap-2 sm:gap-3">
-                  <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+              {insightsOpen && selected?.match_id ? (
+                <MatchInsightsPanel
+                  matchId={selected.match_id}
+                  myProfile={user?.profile}
+                  otherProfile={otherProfile}
+                  onClose={() => setInsightsOpen(false)}
+                />
+              ) : (
+                <>
+              <header className="relative z-50 shrink-0 max-md:ios-sticky-header max-md:!top-0 max-md:px-1 md:border-b md:border-outline-variant md:bg-surface/60 md:px-6 md:py-3 md:backdrop-blur-xl">
+                <div className="max-md:ios-nav-bar flex items-center justify-between gap-2 md:gap-3">
+                  <div className="flex min-w-0 flex-1 items-center gap-0.5 md:gap-3">
                     <button
                       type="button"
                       onClick={handleBackToList}
-                      className="-ml-1 shrink-0 rounded-lg p-2 transition-colors hover:bg-surface-container-low lg:hidden"
+                      className="ios-nav-btn shrink-0 md:hidden"
                       aria-label="Back to conversations"
                     >
-                      <span className="material-symbols-outlined text-[22px] text-on-surface">chevron_left</span>
+                      <span className="material-symbols-outlined text-[28px]">chevron_left</span>
                     </button>
-                    <UserAvatar src={otherProfile?.photo_url} name={otherProfile?.full_name} size="md" />
-                    <div className="min-w-0">
-                      <h3 className="font-semibold font-[var(--font-headline)] text-on-surface leading-tight truncate">
-                        {otherProfile?.full_name}
+                    <UserAvatar
+                      src={
+                        resolveMediaUrl(otherProfile?.photo_url) ??
+                        resolveProfilePhotoUrl(otherProfile ?? {})
+                      }
+                      name={otherDisplayName}
+                      size="md"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate font-semibold font-[var(--font-headline)] text-[17px] leading-tight text-on-surface md:text-base">
+                        {otherDisplayName}
                       </h3>
                       {isOtherUserTyping ? (
-                        <p className="text-xs text-primary font-bold animate-pulse mt-0.5">Typing…</p>
+                        <p className="mt-0.5 text-[13px] font-medium text-primary animate-pulse md:text-xs md:font-bold">
+                          Typing…
+                        </p>
                       ) : (
-                        <p className="text-xs text-on-surface-variant mt-0.5">Active now</p>
+                        <p className="mt-0.5 text-[13px] text-on-surface-variant md:text-xs">
+                          Active now
+                        </p>
                       )}
                     </div>
                   </div>
-                  <Link
-                    href="/insights"
-                    className="shrink-0 rounded-full p-2 text-primary hover:bg-primary/10 transition-colors"
-                    aria-label="Match insights"
-                  >
-                    <span className="material-symbols-outlined text-[22px]">insights</span>
-                  </Link>
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setChatMenuOpen(false);
+                        setInsightsOpen(true);
+                      }}
+                      disabled={!selected?.match_id}
+                      className="shrink-0 max-md:ios-nav-btn md:rounded-full md:p-2 md:text-primary md:transition-colors md:hover:bg-primary/10 disabled:opacity-40 max-md:disabled:opacity-35"
+                      aria-label="Match insights"
+                    >
+                      <span className="material-symbols-outlined text-[24px] md:text-[22px]">insights</span>
+                    </button>
+                    <ChatConversationMenu
+                      open={chatMenuOpen}
+                      onOpenChange={setChatMenuOpen}
+                      onShowProfile={() => setProfileSheetOpen(true)}
+                      onEditNickname={() => setNicknameDialogOpen(true)}
+                      onUnmatchBlock={() => setUnmatchDialogOpen(true)}
+                      onClearHistory={() => setClearDialogOpen(true)}
+                      onReport={() => setReportDialogOpen(true)}
+                    />
+                  </div>
                 </div>
               </header>
 
+              {chatActionNotice ? (
+                <div className="shrink-0 border-b border-white/10 bg-surface-variant/40 px-4 py-2 text-center text-xs text-on-surface">
+                  {chatActionNotice}
+                </div>
+              ) : null}
+
               <div
                 ref={messageListRef}
-                className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden hide-scrollbar bg-surface-container-low px-3 py-4 sm:px-6 sm:py-6 space-y-4"
+                data-lenis-prevent
+                className="relative z-0 min-h-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-y-contain hide-scrollbar bg-surface-container-low px-3 py-4 sm:px-6 sm:py-6 space-y-4"
               >
                 <div className="flex justify-center">
                   <span className="bg-surface-container-high text-on-surface-variant px-4 py-1 rounded-full text-[10px] font-semibold tracking-wider uppercase">
@@ -1497,7 +1695,10 @@ export default function MessagesSection() {
                       >
                         {!msg.is_mine && (
                           <UserAvatar
-                            src={msg.sender_photo ?? otherProfile?.photo_url}
+                            src={
+                              resolveMediaUrl(msg.sender_photo ?? otherProfile?.photo_url) ??
+                              resolveProfilePhotoUrl(otherProfile ?? {})
+                            }
                             name={msg.sender_name ?? otherProfile?.full_name}
                             size="sm"
                           />
@@ -1985,12 +2186,116 @@ export default function MessagesSection() {
                   </div>
                 )}
               </footer>
+                </>
+              )}
             </div>
           )}
         </motion.main>
       </div>
 
-      {!showMobileThread && <BottomNav />}
+      <ProfileDetailSheet
+        profile={otherProfile ?? null}
+        open={profileSheetOpen}
+        onClose={() => setProfileSheetOpen(false)}
+      />
+
+      {pendingImageFile && pendingImagePreview ? (
+        <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center sm:p-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
+            aria-label="Cancel sending photo"
+            onClick={clearPendingImage}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="send-photo-title"
+            className="relative z-[121] w-full max-w-md overflow-hidden rounded-t-[1.5rem] border border-white/10 bg-background shadow-2xl sm:rounded-[1.5rem]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="border-b border-white/10 px-5 py-4">
+              <h3
+                id="send-photo-title"
+                className="font-[var(--font-headline)] text-lg font-bold text-on-surface"
+              >
+                Send this photo?
+              </h3>
+              <p className="mt-1 text-sm text-on-surface-variant">
+                Confirm before sending to {otherDisplayName}.
+              </p>
+            </div>
+            <div className="p-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={pendingImagePreview}
+                alt="Photo preview"
+                className="mx-auto max-h-[min(50vh,420px)] w-full rounded-xl bg-black/20 object-contain"
+              />
+            </div>
+            <div className="flex gap-2 border-t border-white/10 p-4">
+              <button
+                type="button"
+                onClick={clearPendingImage}
+                disabled={uploading}
+                className="flex-1 rounded-full border border-outline-variant/40 py-3 text-sm font-semibold text-on-surface transition-colors hover:bg-surface-container-low disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmSendPendingImage()}
+                disabled={uploading || sending}
+                className="flex-1 rounded-full py-3 text-sm font-semibold text-white gradient-brand transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                {uploading ? "Sending…" : "Send"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <ChatPromptDialog
+        open={nicknameDialogOpen}
+        title="Edit nickname"
+        description={`Choose a private nickname for ${otherProfile?.full_name || "this match"}. Only you will see it.`}
+        initialValue={selected?.other_user_nickname || ""}
+        placeholder="Enter nickname"
+        confirmLabel="Save"
+        onClose={() => setNicknameDialogOpen(false)}
+        onConfirm={(value) => void updateConversationNickname(value)}
+      />
+
+      <ChatPromptDialog
+        open={reportDialogOpen}
+        title="Report user"
+        description="Tell us what happened. Our team will review your report."
+        placeholder="Describe the issue…"
+        confirmLabel="Submit report"
+        multiline
+        onClose={() => setReportDialogOpen(false)}
+        onConfirm={(value) => void handleReportUser(value)}
+      />
+
+      <ChatConfirmDialog
+        open={clearDialogOpen}
+        title="Clear chat history?"
+        description="This removes all messages from this chat on your device. The other person will still see the conversation."
+        confirmLabel="Clear history"
+        destructive
+        onClose={() => setClearDialogOpen(false)}
+        onConfirm={() => void handleClearChatHistory()}
+      />
+
+      <ChatConfirmDialog
+        open={unmatchDialogOpen}
+        title="Unmatch & block?"
+        description={`You will unmatched with ${otherDisplayName}, block them, and delete this conversation.`}
+        confirmLabel="Unmatch & block"
+        destructive
+        onClose={() => setUnmatchDialogOpen(false)}
+        onConfirm={() => void handleUnmatchBlock()}
+      />
     </div>
   );
 }

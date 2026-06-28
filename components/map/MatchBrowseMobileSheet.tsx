@@ -147,7 +147,7 @@ export default function MatchBrowseMobileSheet({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(5.5rem,env(safe-area-inset-bottom))] pt-1 hide-scrollbar">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-1 hide-scrollbar">
           {children}
         </div>
       </motion.div>

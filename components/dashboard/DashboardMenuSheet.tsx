@@ -42,7 +42,6 @@ export function DashboardMenuSheet({ open, onClose, onOpenFilters }: DashboardMe
     { href: "/chat", icon: "chat_bubble", label: "Messages", description: "Chat with matches" },
     { href: "/map", icon: "map", label: "Map", description: "Find people nearby" },
     { href: "/profile", icon: "person", label: "My profile", description: "View and edit profile" },
-    { href: "/insights", icon: "insights", label: "Insights", description: "Compatibility tips" },
     {
       icon: "tune",
       label: "Discovery filters",
@@ -87,7 +86,7 @@ export function DashboardMenuSheet({ open, onClose, onOpenFilters }: DashboardMe
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain touch-pan-y">
+        <div data-lenis-prevent className="ios-sheet-scroll min-h-0 flex-1 touch-pan-y">
           <div className="space-y-4 px-4 py-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
             {user ? (
               <div className="rounded-2xl border border-primary/15 bg-primary/10 px-4 py-3">

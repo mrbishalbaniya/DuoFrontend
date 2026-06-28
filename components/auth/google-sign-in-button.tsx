@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
+import { useCallback } from "react";
+import { getGoogleOAuthRedirectUri } from "@/lib/googleAuth";
 
 interface GoogleSignInButtonProps {
   onSuccess: (credential: string) => void;
@@ -9,27 +9,54 @@ interface GoogleSignInButtonProps {
   disabled?: boolean;
 }
 
+function GoogleLogo() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
+      <path
+        fill="#EA4335"
+        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
+      />
+      <path
+        fill="#4285F4"
+        d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
+      />
+      <path
+        fill="#34A853"
+        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
+      />
+    </svg>
+  );
+}
+
 export function GoogleSignInButton({
-  onSuccess,
+  onSuccess: _onSuccess,
   onError,
   disabled = false,
 }: GoogleSignInButtonProps) {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-  const [buttonWidth, setButtonWidth] = useState(320);
+  const redirectUri = getGoogleOAuthRedirectUri();
 
-  useEffect(() => {
-    const updateWidth = () => {
-      const containerWidth = Math.min(
-        400,
-        Math.max(240, Math.floor(window.innerWidth - 48))
-      );
-      setButtonWidth(containerWidth);
-    };
+  const startGoogleSignIn = useCallback(() => {
+    if (!clientId) {
+      onError?.();
+      return;
+    }
 
-    updateWidth();
-    window.addEventListener("resize", updateWidth);
-    return () => window.removeEventListener("resize", updateWidth);
-  }, []);
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: "code",
+      scope: "openid email profile",
+      access_type: "online",
+      prompt: "select_account",
+    });
+
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+  }, [clientId, onError, redirectUri]);
 
   if (!clientId) {
     return (
@@ -41,21 +68,17 @@ export function GoogleSignInButton({
 
   return (
     <div className={disabled ? "pointer-events-none opacity-50" : "flex justify-center"}>
-      <GoogleLogin
-        onSuccess={(response: CredentialResponse) => {
-          if (response.credential) {
-            onSuccess(response.credential);
-            return;
-          }
-          onError?.();
-        }}
-        onError={() => onError?.()}
-        theme="filled_black"
-        size="large"
-        text="continue_with"
-        shape="pill"
-        width={buttonWidth}
-      />
+      <button
+        type="button"
+        onClick={startGoogleSignIn}
+        disabled={disabled}
+        className="flex h-10 w-full max-w-[400px] items-center justify-center gap-3 rounded-full border border-[#747775] bg-[#131314] px-3 text-sm font-medium text-[#e3e3e3] transition hover:bg-[#1f1f1f] disabled:opacity-50"
+      >
+        <GoogleLogo />
+        Continue with Google
+      </button>
     </div>
   );
 }
+
+export { getGoogleOAuthRedirectUri };

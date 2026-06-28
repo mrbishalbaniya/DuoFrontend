@@ -13,6 +13,7 @@
   "dependencies": {
     "@headlessui/react": "^2.2.10",
     "@hookform/resolvers": "^5.4.0",
+    "@number-flow/react": "^0.6.0",
     "@radix-ui/react-separator": "^1.1.10",
     "@radix-ui/react-slot": "^1.2.4",
     "@react-oauth/google": "^0.13.5",

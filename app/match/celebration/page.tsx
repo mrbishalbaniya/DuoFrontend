@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
+import { resolveProfilePhotoUrl } from "@/lib/mediaUrl";
 import type { MatchSessionData } from "@/types";
 
 export default function MatchCelebrationPage() {
@@ -47,8 +48,8 @@ export default function MatchCelebrationPage() {
             <div className="relative z-10 -mr-6 -rotate-3 transform transition-transform duration-500 hover:rotate-0">
               <div className="rounded-full bg-surface-bright p-1.5 shadow-xl">
                 <div className="h-32 w-32 overflow-hidden rounded-full border-4 border-surface-bright bg-surface-container shadow-inner md:h-40 md:w-40">
-                  {myProfile?.photo_url ? (
-                    <img alt="You" className="h-full w-full object-cover" src={myProfile.photo_url} />
+                  {myProfile ? (
+                    <img alt="You" className="h-full w-full object-cover" src={resolveProfilePhotoUrl(myProfile)} />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20">
                       <span className="material-symbols-outlined text-4xl text-primary/40">person</span>
@@ -68,11 +69,11 @@ export default function MatchCelebrationPage() {
             <div className="relative z-20 -ml-6 rotate-3 transform transition-transform duration-500 hover:rotate-0">
               <div className="rounded-full bg-surface-bright p-1.5 shadow-xl">
                 <div className="h-32 w-32 overflow-hidden rounded-full border-4 border-surface-bright bg-surface-container shadow-inner md:h-40 md:w-40">
-                  {otherProfile?.photo_url ? (
+                  {otherProfile ? (
                     <img
                       alt={otherProfile?.full_name}
                       className="h-full w-full object-cover"
-                      src={otherProfile.photo_url}
+                      src={resolveProfilePhotoUrl(otherProfile)}
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-love-container/20 to-love/20">

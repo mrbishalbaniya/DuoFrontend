@@ -1,4 +1,5 @@
 import type { Profile, User } from "@/types";
+import { resolveMediaUrl } from "@/lib/mediaUrl";
 
 export type ParsedPrefValues = {
   caste?: string;
@@ -87,9 +88,11 @@ export function formatPhone(profile: Profile): string {
 
 export function getProfilePhotos(profile: Profile): string[] {
   const photos = new Set<string>();
-  if (profile.photo_url) photos.add(profile.photo_url);
+  const primary = resolveMediaUrl(profile.photo_url);
+  if (primary) photos.add(primary);
   (profile.photo_urls ?? []).forEach((url) => {
-    if (url) photos.add(url);
+    const resolved = resolveMediaUrl(url);
+    if (resolved) photos.add(resolved);
   });
   return Array.from(photos);
 }

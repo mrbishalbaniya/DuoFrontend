@@ -4,10 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import Navbar from "@/components/Navbar";
+import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
 import BottomNav from "@/components/BottomNav";
-import MatchFriendsSidebar from "@/components/map/MatchFriendsSidebar";
-import { MapPageSkeleton } from "@/components/skeletons/MapPageSkeleton";
+import MatchFriendsSidebar from "@/components/map/MatchFriendsSidebar";import { MapPageSkeleton } from "@/components/skeletons/MapPageSkeleton";
 import { profilePhotoUrl } from "@/components/map/MatchMapCard";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
@@ -20,7 +19,7 @@ import type { Match, Profile } from "@/types";
 const MapView = dynamic(() => import("@/components/map/MapView"), {
   ssr: false,
   loading: () => (
-    <div className="h-full w-full bg-[#0f0f10]">
+    <div className="h-full w-full bg-background">
       <div className="flex h-full items-center justify-center p-8">
         <div className="h-full w-full max-w-none animate-pulse rounded-none bg-surface-container-high/40" />
       </div>
@@ -119,12 +118,9 @@ export default function MapPage() {
   const waitingForLocation = !userCoords;
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-[#1c1c1e]">
-      <div className="hidden md:block">
-        <Navbar />
-      </div>
-
-      <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden md:pt-16">
+    <div className="flex h-dvh overflow-hidden bg-surface">
+      <ChatSidebarNav />
+      <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <MatchFriendsSidebar
             layout="sidebar"
@@ -137,7 +133,7 @@ export default function MapPage() {
             onRetry={() => void loadMatches()}
           />
 
-          <div className="relative h-full min-h-0 min-w-0 flex-1 bg-[#0f0f10]">
+          <div className="relative h-full min-h-0 min-w-0 flex-1 bg-background">
             {/* iOS-style floating header (mobile) */}
             <div className="pointer-events-none absolute inset-x-0 top-0 z-[25] px-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:hidden">
               <div className="ios-glass pointer-events-auto flex items-center gap-3 rounded-2xl px-4 py-3 shadow-lg">
@@ -163,7 +159,7 @@ export default function MapPage() {
             </div>
 
             {loadingMatches ? (
-              <div className="h-full w-full bg-[#0f0f10]">
+              <div className="h-full w-full bg-background">
                 <div className="flex h-full items-center justify-center p-6 md:p-8">
                   <div className="h-full w-full animate-pulse rounded-none bg-surface-container-high/30" />
                 </div>
@@ -220,7 +216,7 @@ export default function MapPage() {
             />
 
             {focusedProfile && matches.length > 0 ? (
-              <div className="pointer-events-none absolute inset-x-0 bottom-[calc(8.5rem+env(safe-area-inset-bottom))] z-[30] flex justify-center px-3 md:bottom-6 md:px-4">
+              <div className="pointer-events-none absolute inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-[30] flex justify-center px-3 md:bottom-6 md:px-4">
                 <div className="ios-glass pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-2xl p-3 shadow-2xl">
                   <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full ring-2 ring-white/25">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -263,7 +259,6 @@ export default function MapPage() {
           </div>
         </div>
       </main>
-
       <BottomNav />
     </div>
   );

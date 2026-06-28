@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type { Profile } from "@/types";
-import { detectUserLocation, isDefaultLocation } from "@/lib/geolocation";
-import { NEPAL_CITY_NAMES } from "@/lib/locationCoords";
+import { detectUserLocation } from "@/lib/geolocation";
 
 export type DiscoveryFilters = {
   pref_age_min: number;
@@ -14,8 +14,6 @@ export type DiscoveryFilters = {
   pref_relationship_goal: "everyone" | "serious" | "casual" | "dating";
   pref_verified_only: boolean;
 };
-
-const NEPAL_CITIES = NEPAL_CITY_NAMES;
 
 const DEFAULT_FILTERS: DiscoveryFilters = {
   pref_age_min: 22,
@@ -31,19 +29,17 @@ function normalizeCityPref(location?: string): string {
   const value = location?.trim() ?? "";
   if (!value) return "";
 
-  const lower = value.toLowerCase();
-  for (const city of NEPAL_CITIES) {
-    if (lower.includes(city.toLowerCase())) {
-      return city;
-    }
-  }
-
-  return value.split(",")[0]?.trim() ?? "";
+  const first = value.split(",")[0]?.trim() ?? value;
+  return first
+    .replace(/\s+metropolitan city$/i, "")
+    .replace(/\s+metropolitan$/i, "")
+    .trim();
 }
 
-function isCitySelected(city: string, prefLocation: string): boolean {
-  if (!city) return prefLocation.trim() === "";
-  return prefLocation.trim().toLowerCase() === city.toLowerCase();
+function formatLocationLabel(location: string): string {
+  const normalized = normalizeCityPref(location);
+  if (normalized.length <= 28) return normalized;
+  return `${normalized.slice(0, 26).trimEnd()}…`;
 }
 
 function IosToggle({
@@ -74,12 +70,84 @@ function FilterSection({ title, children }: { title?: string; children: ReactNod
   return (
     <section className="space-y-2">
       {title ? (
-        <p className="px-1 text-[13px] font-semibold uppercase tracking-wide text-on-surface-variant">
+        <p className="px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-accent">
           {title}
         </p>
       ) : null}
-      <div className="ios-inset-group">{children}</div>
+      <div className="overflow-hidden rounded-2xl border border-white/10 bg-surface-variant/40">
+        {children}
+      </div>
     </section>
+  );
+}
+
+function FilterSectionHeader({ title, value }: { title: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
+      <span className="text-[15px] font-medium text-on-surface">{title}</span>
+      <span className="text-[17px] font-semibold tabular-nums text-primary">{value}</span>
+    </div>
+  );
+}
+
+function AgeRangeControl({
+  min,
+  max,
+  onChange,
+}: {
+  min: number;
+  max: number;
+  onChange: (min: number, max: number) => void;
+}) {
+  const trackMin = 18;
+  const trackMax = 60;
+  const ageMin = Math.min(min, max);
+  const ageMax = Math.max(min, max);
+  const minPercent = ((ageMin - trackMin) / (trackMax - trackMin)) * 100;
+  const maxPercent = ((ageMax - trackMin) / (trackMax - trackMin)) * 100;
+
+  return (
+    <>
+      <FilterSectionHeader title="Age" value={`${ageMin} – ${ageMax}`} />
+      <div className="px-4 py-4">
+        <div className="ios-dual-range">
+          <div className="ios-dual-range-track" aria-hidden />
+          <div
+            className="ios-dual-range-fill"
+            style={{ left: `${minPercent}%`, width: `${maxPercent - minPercent}%` }}
+            aria-hidden
+          />
+          <input
+            type="range"
+            min={trackMin}
+            max={trackMax}
+            value={ageMin}
+            onChange={(event) => {
+              const nextMin = Math.min(Number(event.target.value), ageMax);
+              onChange(nextMin, ageMax);
+            }}
+            className="ios-range ios-dual-range-input"
+            aria-label="Minimum age"
+          />
+          <input
+            type="range"
+            min={trackMin}
+            max={trackMax}
+            value={ageMax}
+            onChange={(event) => {
+              const nextMax = Math.max(Number(event.target.value), ageMin);
+              onChange(ageMin, nextMax);
+            }}
+            className="ios-range ios-dual-range-input"
+            aria-label="Maximum age"
+          />
+        </div>
+        <div className="mt-2 flex justify-between text-[11px] tabular-nums text-on-surface-variant/60">
+          <span>{trackMin}</span>
+          <span>{trackMax}</span>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -108,6 +176,11 @@ export default function DiscoveryFiltersSheet({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const loadFromProfile = useCallback((current: Profile) => {
     setPrefAgeMin(current.pref_age_min ?? DEFAULT_FILTERS.pref_age_min);
@@ -197,29 +270,43 @@ export default function DiscoveryFiltersSheet({
     }
   };
 
-  if (!open) return null;
+  if (!mounted) return null;
 
-  const ageMin = Math.min(prefAgeMin, prefAgeMax);
-  const ageMax = Math.max(prefAgeMin, prefAgeMax);
-
-  return (
-    <div className="fixed inset-0 z-[100]" role="presentation">
+  return createPortal(
+    <div
+      className={`fixed inset-0 z-[100] flex flex-col justify-end transition-opacity duration-300 ${
+        open ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+      }`}
+      aria-hidden={!open}
+      role="presentation"
+    >
       <button
         type="button"
         className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
         aria-label="Close filters"
         onClick={onClose}
+        tabIndex={open ? 0 : -1}
       />
 
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="discovery-filters-title"
-        className="ios-sheet absolute inset-x-0 bottom-0 z-[101] mx-auto flex h-[min(88dvh,760px)] w-full max-w-lg flex-col overflow-hidden rounded-t-[24px]"
+        className={`relative z-[101] mx-auto flex h-[min(92dvh,820px)] min-h-0 w-full max-w-lg flex-col overflow-hidden rounded-t-[1.75rem] border-t border-white/10 bg-background shadow-[0_-12px_48px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-out ${
+          open ? "translate-y-0" : "translate-y-full"
+        }`}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex shrink-0 flex-col items-center border-b border-white/[0.08] px-4 pb-3 pt-2">
-          <div className="mb-3 h-1 w-10 rounded-full bg-white/20" />
+        <div className="flex shrink-0 justify-center bg-background pb-2 pt-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-1.5 w-12 rounded-full bg-white/20 transition-colors hover:bg-white/30"
+            aria-label="Close filters"
+          />
+        </div>
+
+        <div className="flex shrink-0 bg-background px-4 pb-3">
           <div className="flex w-full items-center justify-between gap-3">
             <button
               type="button"
@@ -242,8 +329,11 @@ export default function DiscoveryFiltersSheet({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain touch-pan-y [scrollbar-gutter:stable]">
-          <div className="space-y-6 px-4 py-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
+        <div
+          data-lenis-prevent
+          className="ios-sheet-scroll min-h-0 flex-1 touch-pan-y bg-background"
+        >
+          <div className="space-y-4 px-5 pb-10 pt-2">
             {saveError ? (
               <div className="rounded-xl bg-error-container px-4 py-3 text-sm text-on-error-container">
                 {saveError}
@@ -255,116 +345,53 @@ export default function DiscoveryFiltersSheet({
                 type="button"
                 onClick={() => void runLocationDetect()}
                 disabled={detectingLocation}
-                className="ios-filter-row w-full border-b border-white/[0.06] text-left transition-colors active:bg-white/[0.04] disabled:opacity-60"
+                className="ios-filter-row w-full text-left transition-colors active:bg-white/[0.04] disabled:opacity-60"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
                   <span
-                    className={`material-symbols-outlined text-xl text-primary ${
+                    className={`material-symbols-outlined shrink-0 text-xl text-primary ${
                       detectingLocation ? "animate-pulse" : ""
                     }`}
                   >
                     my_location
                   </span>
-                  <div>
+                  <div className="min-w-0">
                     <p className="ios-filter-label">
                       {detectingLocation ? "Detecting location…" : "Use current location"}
                     </p>
-                    <p className="mt-0.5 text-[13px] text-on-surface-variant">
-                      Auto-fill city from GPS
+                    <p className="mt-0.5 truncate text-[13px] text-on-surface-variant">
+                      {prefLocation
+                        ? `Near ${formatLocationLabel(prefLocation)}`
+                        : "Auto-fill city from GPS"}
                     </p>
                   </div>
                 </div>
-                <span className="material-symbols-outlined text-lg text-on-surface-variant/50">
+                <span className="material-symbols-outlined shrink-0 text-lg text-on-surface-variant/50">
                   chevron_right
                 </span>
               </button>
 
               {locationError ? (
-                <p className="px-4 py-2 text-[13px] text-error">{locationError}</p>
+                <p className="border-t border-white/[0.06] px-4 py-3 text-[13px] text-error">
+                  {locationError}
+                </p>
               ) : null}
-
-              <div className="ios-filter-row border-b border-white/[0.06]">
-                <label htmlFor="filter-location" className="ios-filter-label shrink-0">
-                  City
-                </label>
-                <input
-                  id="filter-location"
-                  type="text"
-                  value={prefLocation}
-                  onChange={(event) => setPrefLocation(event.target.value)}
-                  placeholder="Anywhere in Nepal"
-                  className="min-w-0 flex-1 bg-transparent text-right text-[17px] text-on-surface outline-none placeholder:text-on-surface-variant/60"
-                />
-              </div>
-
-              <div className="flex flex-wrap gap-2 px-3 py-3">
-                {NEPAL_CITIES.map((city) => (
-                  <button
-                    key={city}
-                    type="button"
-                    data-active={isCitySelected(city, prefLocation)}
-                    onClick={() => setPrefLocation(city)}
-                    className="ios-chip"
-                  >
-                    {city}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  data-active={prefLocation.trim() === ""}
-                  onClick={() => setPrefLocation("")}
-                  className="ios-chip"
-                >
-                  Anywhere
-                </button>
-              </div>
             </FilterSection>
 
-            <FilterSection title="Age">
-              <div className="space-y-5 px-4 py-4">
-                <div>
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="text-[15px] text-on-surface-variant">Minimum</span>
-                    <span className="text-[17px] font-semibold tabular-nums text-on-surface">
-                      {ageMin}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={18}
-                    max={60}
-                    value={ageMin}
-                    onChange={(event) => setPrefAgeMin(Number(event.target.value))}
-                    className="ios-range"
-                  />
-                </div>
-                <div>
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="text-[15px] text-on-surface-variant">Maximum</span>
-                    <span className="text-[17px] font-semibold tabular-nums text-on-surface">
-                      {ageMax}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={18}
-                    max={60}
-                    value={ageMax}
-                    onChange={(event) => setPrefAgeMax(Number(event.target.value))}
-                    className="ios-range"
-                  />
-                </div>
-              </div>
+            <FilterSection>
+              <AgeRangeControl
+                min={prefAgeMin}
+                max={prefAgeMax}
+                onChange={(min, max) => {
+                  setPrefAgeMin(min);
+                  setPrefAgeMax(max);
+                }}
+              />
             </FilterSection>
 
-            <FilterSection title="Distance">
-              <div className="space-y-4 px-4 py-4">
-                <div className="flex items-center justify-between">
-                  <span className="ios-filter-label">Maximum distance</span>
-                  <span className="text-[17px] font-semibold tabular-nums text-primary">
-                    {prefMaxDistance} km
-                  </span>
-                </div>
+            <FilterSection>
+              <FilterSectionHeader title="Distance" value={`${prefMaxDistance} km`} />
+              <div className="px-4 py-4">
                 <input
                   type="range"
                   min={5}
@@ -374,19 +401,6 @@ export default function DiscoveryFiltersSheet({
                   onChange={(event) => setPrefMaxDistance(Number(event.target.value))}
                   className="ios-range"
                 />
-                <div className="flex flex-wrap gap-2">
-                  {[25, 50, 100, 200].map((km) => (
-                    <button
-                      key={km}
-                      type="button"
-                      data-active={prefMaxDistance === km}
-                      onClick={() => setPrefMaxDistance(km)}
-                      className="ios-chip"
-                    >
-                      {km} km
-                    </button>
-                  ))}
-                </div>
               </div>
             </FilterSection>
 
@@ -470,6 +484,7 @@ export default function DiscoveryFiltersSheet({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
