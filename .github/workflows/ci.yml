@@ -77,19 +77,15 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
-            echo "::error::Vercel GitHub secrets are not configured."
-            echo ""
-            echo "Add these repository secrets (Settings → Secrets and variables → Actions):"
-            echo "  VERCEL_TOKEN       — https://vercel.com/account/tokens"
-            echo "  VERCEL_ORG_ID      — Team ID from Vercel → Team Settings → General"
-            echo "  VERCEL_PROJECT_ID  — Project ID from Vercel → Project Settings → General"
-            echo ""
-            echo "Also set production env vars in the Vercel project (NEXT_PUBLIC_API_URL, etc.)."
-            echo "Alternatively, import the repo at https://vercel.com/new for native Git deploys."
-            exit 1
+            echo "::warning::Skipping GitHub Actions deploy — Vercel secrets are not configured."
+            echo "If the repo is connected at https://vercel.com, Vercel will deploy on push automatically."
+            echo "To deploy from GitHub Actions instead, add VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_PROJECT_ID."
+            echo "skip=true" >> "$GITHUB_ENV"
+            exit 0
           fi
 
       - name: Set up Node.js
+        if: env.skip != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -97,19 +93,23 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install dependencies
+        if: env.skip != 'true'
         run: npm ci
 
       - name: Pull Vercel environment
+        if: env.skip != 'true'
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: npx vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
 
       - name: Build for Vercel
+        if: env.skip != 'true'
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: npx vercel@latest build --prod --token="$VERCEL_TOKEN"
 
       - name: Deploy to Vercel
+        if: env.skip != 'true'
         id: deploy
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
