@@ -32,6 +32,7 @@ function LoginPageContent() {
   const [showPassword, setShowPassword] = useState(false);
   const googleRedirectUri = getGoogleOAuthRedirectUri();
   const googleAuthError = searchParams.get("error") === "google_auth";
+  const googleAuthReason = searchParams.get("reason") ?? "";
   const passwordResetSuccess = searchParams.get("reset") === "success";
 
   useEffect(() => {
@@ -41,12 +42,31 @@ function LoginPageContent() {
   }, [passwordResetSuccess]);
 
   useEffect(() => {
-    if (googleAuthError) {
+    if (!googleAuthError) return;
+
+    if (googleAuthReason.includes("invalid_client") || googleAuthReason.includes("client secret")) {
       setError(
-        "Google sign-in failed. Add the redirect URI below in Google Cloud Console, then try again."
+        "Google client secret is wrong on the backend. Reset it in Google Cloud Console, then update Render and Django Admin Integration settings."
       );
+      return;
     }
-  }, [googleAuthError]);
+
+    if (googleAuthReason.includes("Redirect URI is not allowed")) {
+      setError(
+        "Google redirect URI is not allowed on the backend. Add the URL below in Google Cloud Console, then try again."
+      );
+      return;
+    }
+
+    if (googleAuthReason) {
+      setError(googleAuthReason);
+      return;
+    }
+
+    setError(
+      "Google sign-in failed. Add the redirect URI below in Google Cloud Console, then try again."
+    );
+  }, [googleAuthError, googleAuthReason]);
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -116,13 +136,29 @@ function LoginPageContent() {
               <p>{error}</p>
               {googleAuthError && (
                 <div className="rounded-lg bg-black/10 p-3 text-xs leading-relaxed">
-                  <p className="font-semibold mb-1">Google Cloud Console setup</p>
-                  <p className="mb-2">
-                    Credentials → your Web client → Authorized redirect URIs → add this exact URL:
-                  </p>
-                  <code className="block break-all rounded bg-black/10 px-2 py-1">
-                    {googleRedirectUri}
-                  </code>
+                  {error.includes("client secret") ? (
+                    <>
+                      <p className="font-semibold mb-1">Fix backend Google credentials</p>
+                      <ol className="list-decimal space-y-1 pl-4">
+                        <li>Google Cloud Console → Credentials → your Web client → reset/copy Client secret</li>
+                        <li>Render → DuoBackend → Environment → set GOOGLE_OAUTH_CLIENT_SECRET</li>
+                        <li>
+                          Django Admin → Integration settings → paste the same secret (or clear admin fields to
+                          use Render env)
+                        </li>
+                      </ol>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-semibold mb-1">Google Cloud Console setup</p>
+                      <p className="mb-2">
+                        Credentials → your Web client → Authorized redirect URIs → add this exact URL:
+                      </p>
+                      <code className="block break-all rounded bg-black/10 px-2 py-1">
+                        {googleRedirectUri}
+                      </code>
+                    </>
+                  )}
                 </div>
               )}
             </div>

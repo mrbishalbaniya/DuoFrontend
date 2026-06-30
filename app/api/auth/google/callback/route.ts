@@ -20,7 +20,12 @@ async function completeGoogleAuth(
   });
 
   if (!backendRes.ok) {
-    return NextResponse.redirect(new URL("/login?error=google_auth", request.url));
+    const data = (await backendRes.json().catch(() => ({}))) as { detail?: string };
+    const reason = typeof data.detail === "string" ? data.detail : "google_auth";
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("error", "google_auth");
+    loginUrl.searchParams.set("reason", reason.slice(0, 300));
+    return NextResponse.redirect(loginUrl);
   }
 
   const data = (await backendRes.json()) as {
