@@ -26,6 +26,7 @@ import type {
 
 import { getPhotoUploadError } from "@/lib/photos/validatePhotoUpload";
 import { getClientApiBase } from "@/lib/backendUrl";
+import { shouldRedirectToLogin } from "@/lib/authPaths";
 
 type RequestOptions = RequestInit & {
   headers?: Record<string, string>;
@@ -94,7 +95,7 @@ class ApiClient {
         res = await fetch(`${this.baseUrl}${endpoint}`, fetchOptions);
       } else {
         await this.clearTokens();
-        if (typeof window !== "undefined") window.location.href = "/login";
+        if (shouldRedirectToLogin()) window.location.href = "/login";
         throw new Error("Authentication failed");
       }
     }
@@ -147,7 +148,7 @@ class ApiClient {
       const refreshed = await this.refreshSession();
       if (!refreshed) {
         await this.clearTokens();
-        if (typeof window !== "undefined") window.location.href = "/login";
+        if (shouldRedirectToLogin()) window.location.href = "/login";
         throw new Error("Authentication failed");
       }
       response = await doUpload();
@@ -332,7 +333,7 @@ class ApiClient {
       const refreshed = await this.refreshSession();
       if (!refreshed) {
         await this.clearTokens();
-        if (typeof window !== "undefined") window.location.href = "/login";
+        if (shouldRedirectToLogin()) window.location.href = "/login";
         throw new Error("Authentication failed");
       }
       response = await doUpload();

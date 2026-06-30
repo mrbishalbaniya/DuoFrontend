@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import api from "@/lib/api";
+import { isAuthPublicPath } from "@/lib/authPaths";
 import type { LoginResponse, RegisterResponse, User } from "@/types";
 
 interface AuthContextValue {
@@ -43,6 +44,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (typeof window !== "undefined" && isAuthPublicPath(window.location.pathname)) {
+      setLoading(false);
+      return;
+    }
     fetchUser();
   }, [fetchUser]);
 
