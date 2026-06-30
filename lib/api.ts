@@ -87,7 +87,15 @@ class ApiClient {
       headers,
     };
 
-    let res = await fetch(`${this.baseUrl}${endpoint}`, fetchOptions);
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}${endpoint}`, fetchOptions);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "TimeoutError") {
+        throw new Error("Request timed out. The server may be waking up — try again in a moment.");
+      }
+      throw new Error("Cannot reach the API. Check your connection and try again.");
+    }
 
     if (res.status === 401) {
       const refreshed = await this.refreshSession();
@@ -216,6 +224,7 @@ class ApiClient {
     return this.request<{ sent: boolean; email: string }>("/auth/email/send-otp/", {
       method: "POST",
       body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      signal: AbortSignal.timeout(30_000),
     });
   }
 

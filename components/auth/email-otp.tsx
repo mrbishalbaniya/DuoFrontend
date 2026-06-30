@@ -43,9 +43,7 @@ export function EmailOtp({ email, onVerified, onBack }: EmailOtpProps) {
           setError(err instanceof Error ? err.message : "Could not send verification email.");
         }
       } finally {
-        if (active) {
-          setSending(false);
-        }
+        setSending(false);
       }
     };
 
@@ -112,6 +110,13 @@ export function EmailOtp({ email, onVerified, onBack }: EmailOtpProps) {
               Log in
             </Link>{" "}
             with this email or go back and use a different address.
+          </p>
+        ) : null}
+        {error?.toLowerCase().includes("smtp") ||
+        error?.toLowerCase().includes("email server") ||
+        error?.toLowerCase().includes("timed out") ? (
+          <p className="text-xs text-on-surface-variant">
+            Email delivery is not configured on the server yet. Try again later or contact support.
           </p>
         ) : null}
         <p className="text-xs text-on-surface-variant">
