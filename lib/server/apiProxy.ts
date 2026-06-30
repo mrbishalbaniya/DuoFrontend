@@ -28,8 +28,11 @@ export async function proxyToBackend(
   const cookieStore = await cookies();
   let access = cookieStore.get(AUTH_COOKIE_ACCESS)?.value;
   const refresh = cookieStore.get(AUTH_COOKIE_REFRESH)?.value;
-  const path = pathSegments.join("/");
-  const url = new URL(`${getBackendApiUrl()}/${path}`);
+  const path = pathSegments.filter((segment) => segment.length > 0).join("/");
+  const base = getBackendApiUrl().replace(/\/$/, "");
+  // Django APPEND_SLASH: POST without trailing slash → 301 → fetch retries as GET → 405.
+  const backendUrl = path ? `${base}/${path}/` : `${base}/`;
+  const url = new URL(backendUrl);
 
   request.nextUrl.searchParams.forEach((value, key) => {
     url.searchParams.set(key, value);
