@@ -112,11 +112,12 @@ export function EmailOtp({ email, onVerified, onBack }: EmailOtpProps) {
             with this email or go back and use a different address.
           </p>
         ) : null}
-        {error?.toLowerCase().includes("smtp") ||
-        error?.toLowerCase().includes("email server") ||
-        error?.toLowerCase().includes("timed out") ? (
+        {error?.toLowerCase().includes("brevo") ||
+        error?.toLowerCase().includes("resend") ||
+        error?.toLowerCase().includes("render") ? (
           <p className="text-xs text-on-surface-variant">
-            Email delivery is not configured on the server yet. Try again later or contact support.
+            Production needs a Brevo or Resend API key in the backend admin. Gmail SMTP does not work on
+            Render free tier.
           </p>
         ) : null}
         <p className="text-xs text-on-surface-variant">
