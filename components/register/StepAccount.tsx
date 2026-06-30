@@ -34,8 +34,14 @@ function parseGoogleName(fullName?: string) {
   };
 }
 
+function isGoogleRegistrationEntry(): boolean {
+  if (typeof window === "undefined") return false;
+  if (new URLSearchParams(window.location.search).get("google") === "1") return true;
+  return sessionStorage.getItem("duo_register_via_google") === "1";
+}
+
 export function StepAccount({ onContinue, onBack }: StepAccountProps) {
-  const { loginWithGoogle } = useAuth();
+  const { loginWithGoogle, fetchUser, user, loading: authLoading } = useAuth();
   const {
     data,
     patchData,
@@ -43,7 +49,7 @@ export function StepAccount({ onContinue, onBack }: StepAccountProps) {
     setAccountSubStep,
     setAccountCreated,
   } = useRegistrationStore();
-  const { user, loading: authLoading } = useAuth();
+  const [googleHydrating, setGoogleHydrating] = useState(isGoogleRegistrationEntry);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -67,43 +73,80 @@ export function StepAccount({ onContinue, onBack }: StepAccountProps) {
   });
 
   useEffect(() => {
+    const fromGoogle = isGoogleRegistrationEntry();
+
+    if (!fromGoogle) {
+      setGoogleHydrating(false);
+      return;
+    }
+
     if (authLoading) return;
 
-    const fromGoogleLogin = sessionStorage.getItem("duo_register_via_google") === "1";
-    if (!fromGoogleLogin) return;
+    async function hydrateGoogleRegistration() {
+      try {
+        await fetchUser();
 
-    sessionStorage.removeItem("duo_register_via_google");
+        const meRes = await fetch("/api/backend/auth/me/", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!meRes.ok) return;
 
-    const email = (user?.email || "").trim().toLowerCase();
-    if (!email) return;
+        const me = (await meRes.json()) as {
+          email?: string;
+          profile?: { full_name?: string };
+        };
 
-    const { firstName, lastName } = parseGoogleName(user?.profile?.full_name);
-    patchData({
-      email,
-      signedUpWithGoogle: true,
-      otpVerified: true,
-      password: "",
-      confirmPassword: "",
-      firstName: data.firstName || firstName,
-      lastName: data.lastName || lastName,
-    });
-    setAccountCreated(true);
-    setAccountSubStep("phone");
+        const email = (me.email || "").trim().toLowerCase();
+        if (!email) return;
+
+        const { firstName, lastName } = parseGoogleName(me.profile?.full_name);
+        patchData({
+          email,
+          signedUpWithGoogle: true,
+          otpVerified: true,
+          password: "",
+          confirmPassword: "",
+          firstName: data.firstName || firstName,
+          lastName: data.lastName || lastName,
+        });
+        setAccountCreated(true);
+        setAccountSubStep("phone");
+      } finally {
+        sessionStorage.removeItem("duo_register_via_google");
+        setGoogleHydrating(false);
+      }
+    }
+
+    void hydrateGoogleRegistration();
   }, [
     authLoading,
     data.firstName,
     data.lastName,
+    fetchUser,
     patchData,
     setAccountCreated,
     setAccountSubStep,
-    user,
   ]);
 
   useEffect(() => {
     if (data.signedUpWithGoogle && accountSubStep === "form") {
       setAccountSubStep("phone");
     }
+    if (data.signedUpWithGoogle && accountSubStep === "otp") {
+      setAccountSubStep("phone");
+    }
   }, [accountSubStep, data.signedUpWithGoogle, setAccountSubStep]);
+
+  if (googleHydrating) {
+    return (
+      <StepCard title="Signing in with Google" subtitle="Preparing your registration…">
+        <p className="text-sm text-on-surface-variant">
+          Your Google email is already verified — no email code needed.
+        </p>
+      </StepCard>
+    );
+  }
 
   const password = accountForm.watch("password") ?? "";
   const strength = getPasswordStrength(password);
@@ -183,7 +226,7 @@ export function StepAccount({ onContinue, onBack }: StepAccountProps) {
     );
   }
 
-  if (accountSubStep === "otp") {
+  if (accountSubStep === "otp" && !data.signedUpWithGoogle && !data.otpVerified) {
     const otpEmail = data.email.trim().toLowerCase();
 
     return (

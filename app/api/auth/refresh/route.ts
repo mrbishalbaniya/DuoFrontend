@@ -25,6 +25,7 @@ export async function POST(_request: NextRequest) {
   }
 
   const response = NextResponse.json(data);
-  await setAuthCookies(response, data.access, refresh);
+  const nextRefresh = typeof data.refresh === "string" ? data.refresh : refresh;
+  await setAuthCookies(response, data.access, nextRefresh);
   return response;
 }

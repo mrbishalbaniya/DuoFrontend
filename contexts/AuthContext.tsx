@@ -44,11 +44,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && isAuthPublicPath(window.location.pathname)) {
+    if (typeof window === "undefined") return;
+
+    const path = window.location.pathname;
+    // OAuth callback sets cookies on the prior response; load the user before redirecting.
+    if (path === "/login/google/complete") {
+      void fetchUser();
+      return;
+    }
+
+    if (isAuthPublicPath(path)) {
       setLoading(false);
       return;
     }
-    fetchUser();
+    void fetchUser();
   }, [fetchUser]);
 
   const login = async (username: string, password: string) => {

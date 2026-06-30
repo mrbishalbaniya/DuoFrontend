@@ -112,12 +112,10 @@ export function EmailOtp({ email, onVerified, onBack }: EmailOtpProps) {
             with this email or go back and use a different address.
           </p>
         ) : null}
-        {error?.toLowerCase().includes("brevo") ||
-        error?.toLowerCase().includes("resend") ||
-        error?.toLowerCase().includes("render") ? (
+        {error?.toLowerCase().includes("email") && error?.toLowerCase().includes("settings") ? (
           <p className="text-xs text-on-surface-variant">
-            Production needs a Brevo or Resend API key in the backend admin. Gmail SMTP does not work on
-            Render free tier.
+            Ask an admin to verify Brevo SMTP or API settings under Integration settings in the backend
+            admin panel.
           </p>
         ) : null}
         <p className="text-xs text-on-surface-variant">

@@ -3,10 +3,10 @@ import { getBackendApiUrl } from "@/lib/backendUrl";
 import { setAuthCookies } from "@/lib/server/apiProxy";
 
 function getRedirectUri(request: NextRequest) {
-  return (
+  const uri =
     process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI ||
-    `${request.nextUrl.origin}/api/auth/google/callback`
-  );
+    `${request.nextUrl.origin}/api/auth/google/callback`;
+  return uri.replace(/\/$/, "");
 }
 
 async function completeGoogleAuth(

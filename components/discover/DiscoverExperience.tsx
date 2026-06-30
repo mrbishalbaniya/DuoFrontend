@@ -81,7 +81,7 @@ export function DiscoverExperience() {
       router.push("/login");
       return;
     }
-    if (user) {
+    if (!authLoading && user) {
       void fetchProfiles();
     }
   }, [user, authLoading, router, fetchProfiles]);
