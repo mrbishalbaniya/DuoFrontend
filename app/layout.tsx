@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { Viewport } from "next";
+import Script from "next/script";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { GoogleOAuthProviderWrapper } from "@/components/auth/google-oauth-provider";
@@ -41,7 +42,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -50,6 +50,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
       </head>
       <body className="antialiased text-on-surface">
+        <Script id="duo-theme-init" strategy="beforeInteractive">
+          {themeInitScript}
+        </Script>
         <LenisProvider>
           <div className="app-background" aria-hidden="true" />
           <GoogleOAuthProviderWrapper>

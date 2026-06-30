@@ -159,10 +159,17 @@ export const photosSchema = z.object({
         fileName: z.string(),
         previewUrl: z.string(),
         isProfile: z.boolean(),
+        imageUrl: z.string().optional(),
+        status: z.enum(["analyzing", "approved", "rejected"]).optional(),
+        error: z.string().optional(),
       })
     )
-    .min(2, "Upload at least 2 photos")
-    .max(9, "Maximum 9 photos allowed"),
+    .min(2, "Upload at least 2 verified photos")
+    .max(9, "Maximum 9 photos allowed")
+    .refine(
+      (photos) => photos.every((photo) => photo.status === "approved" && Boolean(photo.imageUrl)),
+      "Each photo must pass AI verification before continuing"
+    ),
 });
 
 export type AccountFormValues = z.infer<typeof accountSchema>;

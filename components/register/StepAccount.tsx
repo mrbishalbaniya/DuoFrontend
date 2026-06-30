@@ -49,7 +49,7 @@ export function StepAccount({ onContinue, onBack }: StepAccountProps) {
     setAccountSubStep,
     setAccountCreated,
   } = useRegistrationStore();
-  const [googleHydrating, setGoogleHydrating] = useState(isGoogleRegistrationEntry);
+  const [googleHydrating, setGoogleHydrating] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -76,9 +76,10 @@ export function StepAccount({ onContinue, onBack }: StepAccountProps) {
     const fromGoogle = isGoogleRegistrationEntry();
 
     if (!fromGoogle) {
-      setGoogleHydrating(false);
       return;
     }
+
+    setGoogleHydrating(true);
 
     if (authLoading) return;
 

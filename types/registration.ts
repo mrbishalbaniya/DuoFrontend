@@ -73,11 +73,20 @@ export type DistancePreference =
   | "anywhere";
 export type MarriagePreference = "yes" | "no" | "depends";
 
+import type { PhotoAnalysis } from "@/types";
+
+export type RegistrationPhotoStatus = "analyzing" | "approved" | "rejected";
+
 export interface RegistrationPhoto {
   id: string;
   fileName: string;
   previewUrl: string;
   isProfile: boolean;
+  /** Cloudinary URL after AI verification passes */
+  imageUrl?: string;
+  analysis?: PhotoAnalysis;
+  status?: RegistrationPhotoStatus;
+  error?: string;
 }
 
 export interface RegistrationData {

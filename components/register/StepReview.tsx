@@ -145,7 +145,10 @@ export function StepReview({ onSubmit, onBack, onEditStep, loading }: StepReview
         </ReviewSection>
 
         <ReviewSection title={REGISTRATION_STEP_LABELS[10]} step={10} onEdit={onEditStep}>
-          <ReviewRow label="Photos uploaded" value={`${data.photos.length} photo(s)`} />
+          <ReviewRow
+            label="Verified photos"
+            value={`${data.photos.filter((photo) => photo.status === "approved").length} photo(s)`}
+          />
         </ReviewSection>
       </div>
 
