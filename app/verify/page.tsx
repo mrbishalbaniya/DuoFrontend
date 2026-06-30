@@ -27,7 +27,7 @@ export default function VerifyPage() {
   }
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-surface">
+    <div className="flex h-[100dvh] overflow-hidden overscroll-none bg-surface" data-lenis-prevent>
       <ChatSidebarNav />
       <div className="mobile-bottom-nav-offset flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:pb-0">
         <header className="flex shrink-0 items-center gap-3 border-b border-primary/10 px-4 py-3 md:px-6">
@@ -42,7 +42,9 @@ export default function VerifyPage() {
             Identity Verification
           </h1>
         </header>
-        <VerificationFlow />
+        <div className="min-h-0 flex-1 overflow-hidden" data-lenis-prevent>
+          <VerificationFlow />
+        </div>
       </div>
       <BottomNav />
     </div>

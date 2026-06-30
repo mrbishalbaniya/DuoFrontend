@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
+import { CrossDeviceVerification } from "@/components/verification/CrossDeviceVerification";
+import { useAuth } from "@/contexts/AuthContext";
 import type {
   LivenessStep,
   LivenessStepResponse,
@@ -12,10 +14,16 @@ import type {
 
 type FlowStep =
   | "instructions"
+  | "cross_device"
   | "liveness"
   | "selfie"
   | "processing"
   | "result";
+
+interface VerificationFlowProps {
+  mode?: "default" | "device";
+  initialSessionToken?: string;
+}
 
 const LIVENESS_LABELS: Record<LivenessStep, { title: string; hint: string; icon: string }> = {
   smile: {
@@ -62,13 +70,20 @@ function captureFrame(video: HTMLVideoElement): Promise<File | null> {
   });
 }
 
-export function VerificationFlow() {
+export function VerificationFlow({
+  mode = "default",
+  initialSessionToken,
+}: VerificationFlowProps = {}) {
   const router = useRouter();
+  const { user } = useAuth();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const [flowStep, setFlowStep] = useState<FlowStep>("instructions");
+  const [flowStep, setFlowStep] = useState<FlowStep>(
+    mode === "device" ? "liveness" : "instructions"
+  );
   const [session, setSession] = useState<VerificationStartResponse | null>(null);
+  const [deviceLoading, setDeviceLoading] = useState(mode === "device");
   const [livenessIndex, setLivenessIndex] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<LivenessStep[]>([]);
   const [cameraReady, setCameraReady] = useState(false);
@@ -115,6 +130,60 @@ export function VerificationFlow() {
   }, [stopCamera]);
 
   useEffect(() => {
+    if (mode !== "device" || !initialSessionToken) return;
+
+    const sessionToken = initialSessionToken;
+    let cancelled = false;
+
+    async function loadDeviceSession() {
+      setDeviceLoading(true);
+      setError(null);
+      try {
+        const detail = await api.getVerificationSession(sessionToken, { handoff: mode === "device" });
+        if (cancelled) return;
+
+        if (detail.status !== "PENDING") {
+          setResult(detail);
+          setFlowStep("result");
+          return;
+        }
+
+        const startPayload: VerificationStartResponse = {
+          session_id: sessionToken,
+          session_token: sessionToken,
+          expires_at: detail.expires_at,
+          instructions: [],
+          liveness_steps: detail.liveness_steps,
+          handoff_url: detail.handoff_url,
+        };
+        setSession(startPayload);
+
+        const completed = detail.session?.liveness_steps_completed ?? [];
+        setCompletedSteps(completed);
+        const nextIndex = completed.length;
+        if (nextIndex >= detail.liveness_steps.length) {
+          setFlowStep("selfie");
+        } else {
+          setLivenessIndex(nextIndex);
+          setFlowStep("liveness");
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Could not load verification session.");
+          setFlowStep("instructions");
+        }
+      } finally {
+        if (!cancelled) setDeviceLoading(false);
+      }
+    }
+
+    void loadDeviceSession();
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, initialSessionToken]);
+
+  useEffect(() => {
     if (flowStep !== "liveness" && flowStep !== "selfie") {
       stopCamera();
       return;
@@ -139,6 +208,29 @@ export function VerificationFlow() {
     }
   };
 
+  const handleStartOtherDevice = async () => {
+    setError(null);
+    setSubmitting(true);
+    try {
+      const data = session ?? (await api.startVerification());
+      setSession(data);
+      setFlowStep("cross_device");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start verification.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRemoteComplete = useCallback(
+    (remoteResult: VerificationStatusResponse) => {
+      stopCamera();
+      setResult(remoteResult);
+      setFlowStep("result");
+    },
+    [stopCamera]
+  );
+
   const handleCaptureLiveness = async () => {
     if (!session || !currentLivenessStep || !videoRef.current) return;
     setSubmitting(true);
@@ -151,7 +243,8 @@ export function VerificationFlow() {
       const response = await api.submitLivenessStep(
         session.session_token,
         currentLivenessStep,
-        file
+        file,
+        { handoff: mode === "device" }
       );
       setStepFeedback(response);
       setCompletedSteps(response.liveness_steps_completed);
@@ -185,7 +278,9 @@ export function VerificationFlow() {
       stopCamera();
       setFlowStep("processing");
 
-      const response = await api.uploadVerificationSelfie(session.session_token, file);
+      const response = await api.uploadVerificationSelfie(session.session_token, file, {
+        handoff: mode === "device",
+      });
       setResult(response);
       setFlowStep("result");
     } catch (err) {
@@ -198,7 +293,9 @@ export function VerificationFlow() {
   };
 
   const progress =
-    session && flowStep === "liveness"
+    flowStep === "cross_device"
+      ? 15
+      : session && flowStep === "liveness"
       ? Math.round((completedSteps.length / session.liveness_steps.length) * 100)
       : flowStep === "selfie"
         ? 85
@@ -208,10 +305,13 @@ export function VerificationFlow() {
             ? 100
             : 0;
 
+  const scrollableStep =
+    flowStep === "instructions" || flowStep === "cross_device" || flowStep === "result";
+
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-lg flex-col px-4 py-3 sm:px-5 sm:py-4">
-      <div className="mb-3 shrink-0 sm:mb-4">
-        <div className="mb-2 flex items-center justify-between text-sm text-on-surface-variant">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-lg flex-col overflow-hidden px-4 py-3 sm:px-5 sm:py-4">
+      <div className="mb-2 shrink-0 sm:mb-3">
+        <div className="mb-1.5 flex items-center justify-between text-sm text-on-surface-variant">
           <span>Profile verification</span>
           <span>{progress}%</span>
         </div>
@@ -223,20 +323,28 @@ export function VerificationFlow() {
         </div>
       </div>
 
+      <div
+        className={
+          scrollableStep
+            ? "min-h-0 flex-1 overflow-y-auto overscroll-y-contain hide-scrollbar"
+            : "flex min-h-0 flex-1 flex-col overflow-hidden"
+        }
+        data-lenis-prevent
+      >
       {flowStep === "instructions" && (
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <div className="mb-4 rounded-2xl border border-primary/10 bg-secondary/50 p-5 sm:p-6">
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full gradient-brand text-white">
-              <span className="material-symbols-outlined text-3xl">verified_user</span>
+        <div className="flex flex-col pb-2">
+          <div className="mb-3 rounded-2xl border border-primary/10 bg-secondary/50 p-4 sm:p-5">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full gradient-brand text-white">
+              <span className="material-symbols-outlined text-2xl">verified_user</span>
             </div>
-            <h1 className="font-[var(--font-headline)] text-2xl font-bold text-on-surface">
+            <h1 className="font-[var(--font-headline)] text-xl font-bold text-on-surface sm:text-2xl">
               Verify your profile
             </h1>
-            <p className="mt-2 text-sm text-on-surface-variant">
+            <p className="mt-1.5 text-sm text-on-surface-variant">
               Confirm you are the person in your profile photos. You will complete a short liveness
               check and take a selfie.
             </p>
-            <ul className="mt-5 space-y-3">
+            <ul className="mt-4 space-y-2">
               {[
                 "Use good lighting and face the front camera",
                 "Complete smile, blink, and head-turn steps",
@@ -261,14 +369,64 @@ export function VerificationFlow() {
             type="button"
             onClick={() => void handleStart()}
             disabled={submitting}
-            className="mt-4 w-full shrink-0 rounded-xl py-4 font-bold text-white shadow-lg shadow-primary/20 gradient-brand disabled:opacity-60 sm:mt-6"
+            className="mt-3 w-full shrink-0 rounded-xl py-3.5 font-bold text-white shadow-lg shadow-primary/20 gradient-brand disabled:opacity-60"
           >
-            {submitting ? "Starting…" : "Start Verification"}
+            {submitting ? "Starting…" : "Start on this device"}
           </button>
+
+          <div className="relative my-4 shrink-0">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-primary/10" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase tracking-wide">
+              <span className="bg-surface px-3 text-on-surface-variant">or</span>
+            </div>
+          </div>
+
+          <div className="shrink-0 rounded-2xl border border-primary/10 bg-background p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary">devices</span>
+              <h2 className="font-[var(--font-headline)] text-lg font-bold text-on-surface">
+                Verify on another device
+              </h2>
+            </div>
+            <p className="mb-4 text-sm text-on-surface-variant">
+              No camera on this computer? Scan a QR code, copy a link, or email it to yourself.
+              The link opens verification directly — no login on your phone.
+            </p>
+            <button
+              type="button"
+              onClick={() => void handleStartOtherDevice()}
+              disabled={submitting}
+              className="w-full rounded-xl border border-primary/20 py-3.5 text-sm font-bold text-primary transition-colors hover:bg-primary/5 disabled:opacity-60"
+            >
+              {submitting ? "Preparing link…" : "Get QR code, link & email"}
+            </button>
+          </div>
         </div>
       )}
 
-      {(flowStep === "liveness" || flowStep === "selfie") && (
+      {flowStep === "cross_device" && session && (
+        <CrossDeviceVerification
+          session={session}
+          userEmail={user?.email}
+          onComplete={handleRemoteComplete}
+          onUseThisDevice={() => {
+            setLivenessIndex(0);
+            setCompletedSteps([]);
+            setFlowStep("liveness");
+          }}
+        />
+      )}
+
+      {deviceLoading && (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
+          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+          <p className="text-sm text-on-surface-variant">Loading verification session…</p>
+        </div>
+      )}
+
+      {!deviceLoading && (flowStep === "liveness" || flowStep === "selfie") && (
         <div className="flex min-h-0 flex-1 flex-col gap-3">
           <div className="shrink-0 text-center">
             {flowStep === "liveness" && livenessInfo ? (
@@ -358,7 +516,7 @@ export function VerificationFlow() {
       )}
 
       {flowStep === "result" && result && (
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <div className="flex flex-col pb-2">
           <div
             className={`mb-6 rounded-2xl border p-6 text-center ${
               result.status === "VERIFIED"
@@ -392,11 +550,13 @@ export function VerificationFlow() {
                   : "Verification Failed"}
             </h2>
             <p className="mt-2 text-sm text-on-surface-variant">
-              {result.status === "VERIFIED"
-                ? "Your profile now shows a verified badge."
-                : result.status === "UNDER_REVIEW"
-                  ? "Our team will review your submission shortly."
-                  : "Please try again with better lighting and a clear front-facing photo."}
+              {mode === "device" && result.status === "VERIFIED"
+                ? "You can close this tab and return to your other device."
+                : result.status === "VERIFIED"
+                  ? "Your profile now shows a verified badge."
+                  : result.status === "UNDER_REVIEW"
+                    ? "Our team will review your submission shortly."
+                    : "Please try again with better lighting and a clear front-facing photo."}
             </p>
           </div>
 
@@ -449,14 +609,15 @@ export function VerificationFlow() {
             )}
             <button
               type="button"
-              onClick={() => router.push("/profile")}
+              onClick={() => router.push(mode === "device" ? "/verify" : "/profile")}
               className="w-full rounded-xl py-3.5 font-bold text-white gradient-brand"
             >
-              Back to Profile
+              {mode === "device" ? "Done" : "Back to Profile"}
             </button>
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

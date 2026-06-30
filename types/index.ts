@@ -38,6 +38,7 @@ export interface VerificationStartResponse {
   expires_at: string;
   instructions: string[];
   liveness_steps: LivenessStep[];
+  handoff_url?: string;
 }
 
 export interface LivenessStepResponse {
@@ -56,6 +57,20 @@ export interface VerificationStatusResponse {
   verified_badge: boolean;
   rejection_reasons?: string[];
   session?: UserVerificationSession;
+}
+
+export interface VerificationSessionDetail extends VerificationStatusResponse {
+  liveness_steps: LivenessStep[];
+  handoff_url: string;
+  expires_at: string;
+}
+
+export interface VerificationHandoffEmailResponse {
+  sent: boolean;
+  email: string;
+  handoff_url: string;
+  session_token: string;
+  expires_at: string;
 }
 
 export interface UserVerificationSession {

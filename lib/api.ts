@@ -17,6 +17,8 @@ import type {
   UserVerificationSession,
   VerificationStartResponse,
   VerificationStatusResponse,
+  VerificationSessionDetail,
+  VerificationHandoffEmailResponse,
   ProfileFormData,
   RegisterResponse,
   SwipeAction,
@@ -30,6 +32,7 @@ import { shouldRedirectToLogin } from "@/lib/authPaths";
 
 type RequestOptions = RequestInit & {
   headers?: Record<string, string>;
+  skipAuthRedirect?: boolean;
 };
 
 class ApiClient {
@@ -97,7 +100,7 @@ class ApiClient {
       throw new Error("Cannot reach the API. Check your connection and try again.");
     }
 
-    if (res.status === 401) {
+    if (res.status === 401 && !options.skipAuthRedirect) {
       const refreshed = await this.refreshSession();
       if (refreshed) {
         res = await fetch(`${this.baseUrl}${endpoint}`, fetchOptions);
@@ -142,7 +145,11 @@ class ApiClient {
     return res.json() as Promise<T>;
   }
 
-  private async uploadRequest<T>(endpoint: string, formData: FormData): Promise<T> {
+  private async uploadRequest<T>(
+    endpoint: string,
+    formData: FormData,
+    options: { skipAuthRedirect?: boolean } = {}
+  ): Promise<T> {
     const doUpload = () =>
       fetch(`${this.baseUrl}${endpoint}`, {
         method: "POST",
@@ -152,7 +159,7 @@ class ApiClient {
 
     let response = await doUpload();
 
-    if (response.status === 401) {
+    if (response.status === 401 && !options.skipAuthRedirect) {
       const refreshed = await this.refreshSession();
       if (!refreshed) {
         await this.clearTokens();
@@ -387,18 +394,22 @@ class ApiClient {
   async submitLivenessStep(
     sessionToken: string,
     step: LivenessStep,
-    image: File
+    image: File,
+    options: { handoff?: boolean } = {}
   ): Promise<LivenessStepResponse> {
     const formData = new FormData();
     formData.append("session_token", sessionToken);
     formData.append("step", step);
     formData.append("image", image);
-    return this.uploadRequest<LivenessStepResponse>("/verification/liveness/", formData);
+    return this.uploadRequest<LivenessStepResponse>("/verification/liveness/", formData, {
+      skipAuthRedirect: options.handoff,
+    });
   }
 
   async uploadVerificationSelfie(
     sessionToken: string,
-    image: File
+    image: File,
+    options: { handoff?: boolean } = {}
   ): Promise<VerificationStatusResponse> {
     const formData = new FormData();
     formData.append("session_token", sessionToken);
@@ -417,6 +428,25 @@ class ApiClient {
       throw new Error(String(data.detail ?? "Selfie verification failed"));
     }
     return data;
+  }
+
+  async getVerificationSession(
+    sessionToken: string,
+    options: { handoff?: boolean } = {}
+  ): Promise<VerificationSessionDetail> {
+    const params = new URLSearchParams({ session_token: sessionToken });
+    return this.request<VerificationSessionDetail>(`/verification/session/?${params.toString()}`, {
+      skipAuthRedirect: options.handoff,
+    });
+  }
+
+  async sendVerificationHandoffEmail(
+    sessionToken?: string
+  ): Promise<VerificationHandoffEmailResponse> {
+    return this.request<VerificationHandoffEmailResponse>("/verification/handoff/email/", {
+      method: "POST",
+      body: JSON.stringify(sessionToken ? { session_token: sessionToken } : {}),
+    });
   }
 
   async getVerificationStatus(): Promise<VerificationStatusResponse> {

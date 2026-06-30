@@ -4,6 +4,7 @@ const AUTH_PUBLIC_PREFIXES = [
   "/register",
   "/registration",
   "/onboarding",
+  "/verify/device",
 ];
 
 export function isAuthPublicPath(pathname: string): boolean {

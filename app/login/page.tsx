@@ -25,6 +25,9 @@ function LoginPageContent() {
   const { login, loginWithGoogle } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const nextPath = searchParams.get("next");
+  const safeNext =
+    nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : null;
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -74,7 +77,7 @@ function LoginPageContent() {
     setLoading(true);
     try {
       await login(username, password);
-      router.push("/match");
+      router.push(safeNext ?? "/match");
     } catch (err: unknown) {
       setError(
         err instanceof Error
@@ -95,7 +98,11 @@ function LoginPageContent() {
       if (!onboarded) {
         sessionStorage.setItem("duo_register_via_google", "1");
       }
-      router.push(onboarded ? "/match" : "/register");
+      if (safeNext) {
+        router.push(safeNext);
+      } else {
+        router.push(onboarded ? "/match" : "/register");
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Google sign-in failed.");
     } finally {
