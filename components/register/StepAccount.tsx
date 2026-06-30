@@ -46,7 +46,6 @@ export function StepAccount({ onContinue, onBack }: StepAccountProps) {
   const { user, loading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [verifiedEmail, setVerifiedEmail] = useState(data.email);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleError, setGoogleError] = useState("");
 
@@ -110,8 +109,8 @@ export function StepAccount({ onContinue, onBack }: StepAccountProps) {
   const strength = getPasswordStrength(password);
 
   const submitAccount = accountForm.handleSubmit((values) => {
-    patchData({ ...values, signedUpWithGoogle: false });
-    setVerifiedEmail(values.email.trim().toLowerCase());
+    const email = values.email.trim().toLowerCase();
+    patchData({ ...values, email, signedUpWithGoogle: false });
     setAccountSubStep("otp");
   });
 
@@ -185,16 +184,22 @@ export function StepAccount({ onContinue, onBack }: StepAccountProps) {
   }
 
   if (accountSubStep === "otp") {
+    const otpEmail = data.email.trim().toLowerCase();
+
     return (
       <StepCard
         title="Verify your email"
-        subtitle={`We sent a 6-digit code to ${verifiedEmail}. Check your inbox and spam folder.`}
+        subtitle={
+          otpEmail
+            ? `We sent a 6-digit code to ${otpEmail}. Check your inbox and spam folder.`
+            : "Enter the email you used to sign up, then verify with the code we send."
+        }
       >
         <EmailOtp
-          email={verifiedEmail}
+          email={otpEmail}
           onBack={() => setAccountSubStep("form")}
           onVerified={() => {
-            patchData({ otpVerified: true, email: verifiedEmail, signedUpWithGoogle: false });
+            patchData({ otpVerified: true, signedUpWithGoogle: false });
             onContinue();
           }}
         />

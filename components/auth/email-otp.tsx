@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,13 +22,19 @@ export function EmailOtp({ email, onVerified, onBack }: EmailOtpProps) {
   const [codeSent, setCodeSent] = useState(false);
 
   useEffect(() => {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized) {
+      setError("Email is missing. Go back and enter your email address.");
+      return;
+    }
+
     let active = true;
 
     const sendCode = async () => {
       setSending(true);
       setError(null);
       try {
-        await api.sendEmailOtp(email);
+        await api.sendEmailOtp(normalized);
         if (active) {
           setCodeSent(true);
         }
@@ -68,10 +75,16 @@ export function EmailOtp({ email, onVerified, onBack }: EmailOtpProps) {
   };
 
   const handleResend = async () => {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized) {
+      setError("Email is missing. Go back and enter your email address.");
+      return;
+    }
+
     setSending(true);
     setError(null);
     try {
-      await api.sendEmailOtp(email);
+      await api.sendEmailOtp(normalized);
       setCodeSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not resend verification email.");
@@ -93,6 +106,14 @@ export function EmailOtp({ email, onVerified, onBack }: EmailOtpProps) {
           onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}
         />
         <FieldError message={error ?? undefined} />
+        {error?.toLowerCase().includes("already exists") ? (
+          <p className="text-xs text-on-surface-variant">
+            <Link href="/login" className="font-semibold text-primary hover:underline">
+              Log in
+            </Link>{" "}
+            with this email or go back and use a different address.
+          </p>
+        ) : null}
         <p className="text-xs text-on-surface-variant">
           {sending
             ? "Sending verification email..."
