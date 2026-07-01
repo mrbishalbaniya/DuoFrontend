@@ -1,6 +1,22 @@
 import { z } from "zod";
 import { isValidPhoneNumber } from "@/components/ui/phone-input";
 import { calculateAgeFromDob } from "@/lib/age";
+import type { PhotoAnalysis } from "@/types";
+
+const registrationPhotoAnalysisSchema = z.custom<PhotoAnalysis>(
+  (value) => typeof value === "object" && value !== null && "status" in value
+);
+
+export const registrationPhotoSchema = z.object({
+  id: z.string(),
+  fileName: z.string(),
+  previewUrl: z.string(),
+  isProfile: z.boolean(),
+  imageUrl: z.string().optional(),
+  status: z.enum(["analyzing", "approved", "rejected"]).optional(),
+  error: z.string().optional(),
+  analysis: registrationPhotoAnalysisSchema.optional(),
+});
 
 const phoneSchema = z
   .string()
@@ -153,17 +169,7 @@ export const aboutSchema = z.object({
 
 export const photosSchema = z.object({
   photos: z
-    .array(
-      z.object({
-        id: z.string(),
-        fileName: z.string(),
-        previewUrl: z.string(),
-        isProfile: z.boolean(),
-        imageUrl: z.string().optional(),
-        status: z.enum(["analyzing", "approved", "rejected"]).optional(),
-        error: z.string().optional(),
-      })
-    )
+    .array(registrationPhotoSchema)
     .min(2, "Upload at least 2 verified photos")
     .max(9, "Maximum 9 photos allowed")
     .refine(
