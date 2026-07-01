@@ -395,7 +395,7 @@ export default function DiscoveryFiltersSheet({
                 <input
                   type="range"
                   min={5}
-                  max={200}
+                  max={500}
                   step={5}
                   value={prefMaxDistance}
                   onChange={(event) => setPrefMaxDistance(Number(event.target.value))}
