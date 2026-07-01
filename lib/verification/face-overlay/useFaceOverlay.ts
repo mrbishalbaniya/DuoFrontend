@@ -218,8 +218,10 @@ export function useFaceOverlay({
       if (displayW < 1 || displayH < 1) return;
 
       const dpr = window.devicePixelRatio || 1;
-      const analysisW = Math.round(displayW * dpr);
-      const analysisH = Math.round(displayH * dpr);
+      const maxAnalysis = 480;
+      const scale = Math.min(1, maxAnalysis / Math.max(displayW, displayH));
+      const analysisW = Math.max(1, Math.round(displayW * dpr * scale));
+      const analysisH = Math.max(1, Math.round(displayH * dpr * scale));
 
       if (analysisCanvas.width !== analysisW || analysisCanvas.height !== analysisH) {
         analysisCanvas.width = analysisW;

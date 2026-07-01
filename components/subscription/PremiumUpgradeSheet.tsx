@@ -11,6 +11,7 @@ interface PremiumUpgradeSheetProps {
   onClose: () => void;
   plans: SubscriptionPlan[];
   count: number;
+  variant?: "likes" | "visitors";
   paying: boolean;
   onSubscribe: (planId: string) => void;
 }
@@ -20,6 +21,7 @@ export function PremiumUpgradeSheet({
   onClose,
   plans,
   count,
+  variant = "likes",
   paying,
   onSubscribe,
 }: PremiumUpgradeSheetProps) {
@@ -90,7 +92,9 @@ export function PremiumUpgradeSheet({
               <PricingInteraction
                 key={open ? "premium-open" : "premium-closed"}
                 plans={pricingPlans}
-                likesCount={count}
+                likesCount={variant === "likes" ? count : 0}
+                visitorsCount={variant === "visitors" ? count : 0}
+                variant={variant}
                 paying={paying}
                 onSubscribe={onSubscribe}
               />

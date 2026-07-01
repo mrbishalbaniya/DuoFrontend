@@ -266,7 +266,7 @@ export function analyzeFaceQuality(
   let guidance = computeGuidance(base);
   if (previousCenter) {
     const jitter = Math.hypot(cx - previousCenter.x, cy - previousCenter.y);
-    if (jitter > 0.025 && aligned) guidance = "Hold still";
+    if (jitter > 0.04 && aligned) guidance = "Hold still";
   }
   if (verificationReady) guidance = "Verification ready";
 

@@ -18,16 +18,57 @@ export interface AutoCaptureInput {
   actionBaseline: ActionBaseline | null;
 }
 
-const NEUTRAL_HOLD_MS = 1200;
-const SELFIE_HOLD_MS = 1500;
-const ACTION_HOLD_MS = 700;
-const BLINK_HOLD_MS = 350;
+const NEUTRAL_HOLD_MS = 700;
+const SELFIE_HOLD_MS = 1200;
+const ACTION_HOLD_MS = 300;
+const BLINK_HOLD_MS = 120;
+
+/** Aligned with backend liveness_detection.py (slightly earlier for responsiveness). */
+const SMILE_DELTA_MIN = 0.07;
+const SMILE_RATIO_MIN = 1.2;
+const SMILE_HAPPY_MIN = 0.55;
+
+const BLINK_DROP_MIN = 0.03;
+const BLINK_RATIO_MAX = 0.82;
 
 export function getAutoCaptureHoldMs(input: AutoCaptureInput): number {
   if (input.flowStep === "selfie") return SELFIE_HOLD_MS;
   if (!input.awaitingAction) return NEUTRAL_HOLD_MS;
   if (input.step === "blink") return BLINK_HOLD_MS;
   return ACTION_HOLD_MS;
+}
+
+function neutralBaselineReady(
+  step: LivenessStep,
+  metrics: FaceQualityMetrics
+): boolean {
+  if (!metrics.faceDetected || !metrics.faceCentered || !metrics.faceSizeOk) {
+    return false;
+  }
+
+  if (step === "blink") {
+    return metrics.eyesOpen;
+  }
+
+  if (step === "smile") {
+    return metrics.eyesOpen && metrics.angleOk;
+  }
+
+  return metrics.verificationReady && metrics.eyesOpen && metrics.angleOk;
+}
+
+function blinkActionReady(metrics: FaceQualityMetrics, baseline: ActionBaseline): boolean {
+  const drop = baseline.eyeEar - metrics.eyeEar;
+  const ratio = metrics.eyeEar / (baseline.eyeEar + 1e-6);
+  return drop >= BLINK_DROP_MIN || ratio <= BLINK_RATIO_MAX;
+}
+
+function smileActionReady(metrics: FaceQualityMetrics, baseline: ActionBaseline): boolean {
+  const delta = metrics.mouthOpen - baseline.mouthOpen;
+  const ratio = metrics.mouthOpen / (baseline.mouthOpen + 1e-6);
+
+  if (metrics.expressionHappy >= SMILE_HAPPY_MIN && delta >= 0.04) return true;
+  return delta >= SMILE_DELTA_MIN && ratio >= SMILE_RATIO_MIN;
 }
 
 /** Returns true when the current frame satisfies auto-capture for this phase. */
@@ -44,19 +85,16 @@ export function isAutoCaptureReady(input: AutoCaptureInput): boolean {
   if (!step) return false;
 
   if (!awaitingAction) {
-    return metrics.verificationReady && metrics.eyesOpen && metrics.angleOk;
+    return neutralBaselineReady(step, metrics);
   }
+
+  if (!actionBaseline) return false;
 
   switch (step) {
     case "blink":
-      return metrics.eyeEar < 0.14;
-    case "smile": {
-      if (!actionBaseline) return false;
-      if (metrics.expressionHappy >= 0.55) return true;
-      const delta = metrics.mouthOpen - actionBaseline.mouthOpen;
-      const ratio = metrics.mouthOpen / (actionBaseline.mouthOpen + 1e-6);
-      return delta >= 0.025 || ratio >= 1.28;
-    }
+      return blinkActionReady(metrics, actionBaseline);
+    case "smile":
+      return smileActionReady(metrics, actionBaseline);
     case "head_left":
       return metrics.yaw <= -11;
     case "head_right":
@@ -77,7 +115,8 @@ export function autoCaptureStatusMessage(input: AutoCaptureInput): string {
   }
 
   if (!input.awaitingAction) {
-    return input.metrics.verificationReady
+    return input.metrics.faceDetected &&
+      neutralBaselineReady(input.step!, input.metrics)
       ? "Hold still — saving neutral pose…"
       : input.metrics.guidance;
   }

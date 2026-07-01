@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { Profile } from "@/types";
+import api from "@/lib/api";
 import { resolveProfilePhotoUrls } from "@/lib/mediaUrl";
 import { useIsClient } from "@/lib/useIsClient";
 
@@ -99,6 +100,11 @@ export function ProfileDetailSheet({
       document.body.style.overflow = previous;
     };
   }, [open]);
+
+  useEffect(() => {
+    if (!open || !profile?.id) return;
+    void api.recordProfileVisit(profile.id).catch(() => undefined);
+  }, [open, profile?.id]);
 
   if (!profile || !mounted) return null;
 

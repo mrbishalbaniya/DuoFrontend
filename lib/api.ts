@@ -5,6 +5,7 @@ import type {
   Match,
   LikedProfile,
   LikesYouResponse,
+  ProfileVisitorsResponse,
   InitiateSubscriptionResponse,
   SubscriptionPlan,
   SubscriptionStatus,
@@ -482,6 +483,14 @@ class ApiClient {
 
   async getLikesYou(): Promise<LikesYouResponse> {
     return this.request<LikesYouResponse>("/matching/likes-you/");
+  }
+
+  async getProfileVisitors(): Promise<ProfileVisitorsResponse> {
+    return this.request<ProfileVisitorsResponse>("/matching/profile-visitors/");
+  }
+
+  async recordProfileVisit(profileId: number | string): Promise<void> {
+    await this.request(`/profiles/${profileId}/visit/`, { method: "POST" });
   }
 
   async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {

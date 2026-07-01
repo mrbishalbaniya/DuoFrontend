@@ -202,6 +202,20 @@ export interface InitiateSubscriptionResponse {
   form: EsewaPaymentForm;
 }
 
+export interface VisitedProfile {
+  visit_id?: number;
+  profile: Profile;
+  visited_at?: string;
+  locked?: boolean;
+}
+
+export interface ProfileVisitorsResponse {
+  is_premium: boolean;
+  premium_required: boolean;
+  count: number;
+  results: VisitedProfile[];
+}
+
 export interface LikesYouResponse {
   is_premium: boolean;
   premium_required: boolean;

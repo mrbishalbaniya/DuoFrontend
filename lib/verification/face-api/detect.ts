@@ -12,8 +12,8 @@ export async function detectFacesOnCanvas(
 ): Promise<FaceApiDetectionResult[]> {
   const faceapi = await getFaceApi();
   const options = new faceapi.TinyFaceDetectorOptions({
-    inputSize: 320,
-    scoreThreshold: 0.5,
+    inputSize: 224,
+    scoreThreshold: 0.45,
   });
 
   const results = await faceapi

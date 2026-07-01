@@ -38,7 +38,7 @@ export function DashboardMenuSheet({ open, onClose, onOpenFilters }: DashboardMe
   const items: MenuItem[] = [
     { href: "/", icon: "home", label: "Home", description: "Landing page" },
     { href: "/match", icon: "favorite", label: "Match", description: "Swipe and like profiles" },
-    { href: "/discover", icon: "group", label: "Discover", description: "Your matched profiles" },
+    { href: "/discover", icon: "group", label: "Discover", description: "Profile visitors and likes" },
     { href: "/chat", icon: "chat_bubble", label: "Messages", description: "Chat with matches" },
     { href: "/map", icon: "map", label: "Map", description: "Find people nearby" },
     { href: "/profile", icon: "person", label: "My profile", description: "View and edit profile" },

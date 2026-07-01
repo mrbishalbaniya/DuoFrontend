@@ -15,6 +15,8 @@ export type PricingPlanOption = {
 type PricingInteractionProps = {
   plans: PricingPlanOption[];
   likesCount?: number;
+  visitorsCount?: number;
+  variant?: "likes" | "visitors";
   paying?: boolean;
   onSubscribe: (planId: string) => void;
 };
@@ -22,6 +24,8 @@ type PricingInteractionProps = {
 export function PricingInteraction({
   plans,
   likesCount = 0,
+  visitorsCount = 0,
+  variant = "likes",
   paying = false,
   onSubscribe,
 }: PricingInteractionProps) {
@@ -36,6 +40,18 @@ export function PricingInteraction({
   const selected = plans[active] ?? plans[0];
   if (!selected) return null;
 
+  const isVisitors = variant === "visitors";
+  const headline = isVisitors ? "See who viewed you" : "See who liked you";
+  const count = isVisitors ? visitorsCount : likesCount;
+  const subtitle =
+    count > 0
+      ? isVisitors
+        ? `${count} ${count === 1 ? "person has" : "people have"} viewed your profile. Unlock blurred profiles and connect.`
+        : `${count} ${count === 1 ? "person has" : "people have"} liked you. Unlock blurred profiles and match instantly.`
+      : isVisitors
+        ? "Upgrade to see who has been checking out your profile."
+        : "Upgrade to unlock blurred profiles when someone likes you.";
+
   return (
     <div className="flex w-full max-w-sm flex-col items-center gap-4">
       <div className="w-full text-left">
@@ -44,17 +60,19 @@ export function PricingInteraction({
           Duo Premium
         </div>
         <h2 className="font-[var(--font-headline)] text-xl font-bold text-on-surface">
-          See who liked you
+          {headline}
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-on-surface-variant">
-          {likesCount > 0
-            ? `${likesCount} ${likesCount === 1 ? "person has" : "people have"} liked you. Unlock blurred profiles and match instantly.`
-            : "Upgrade to unlock blurred profiles when someone likes you."}
+          {subtitle}
         </p>
         <ul className="mt-3 space-y-1.5 text-sm text-on-surface-variant">
           <li className="flex items-center gap-2">
             <span className="material-symbols-outlined text-base text-primary">check_circle</span>
-            Reveal names and photos on Liked you
+            {isVisitors ? "Reveal names and photos on Visited you" : "Reveal names and photos on Liked you"}
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-base text-primary">check_circle</span>
+            {isVisitors ? "See who liked you too" : "See who viewed your profile"}
           </li>
           <li className="flex items-center gap-2">
             <span className="material-symbols-outlined text-base text-primary">check_circle</span>

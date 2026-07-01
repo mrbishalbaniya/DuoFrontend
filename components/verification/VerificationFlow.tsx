@@ -36,12 +36,12 @@ interface VerificationFlowProps {
 const LIVENESS_LABELS: Record<LivenessStep, { title: string; hint: string; icon: string }> = {
   smile: {
     title: "Smile",
-    hint: "Hold still, then smile — we capture automatically.",
+    hint: "Hold still with a neutral face, then smile clearly — we capture automatically.",
     icon: "sentiment_satisfied",
   },
   blink: {
     title: "Blink",
-    hint: "Hold still with eyes open, then close your eyes — we capture automatically.",
+    hint: "Hold still with eyes open, then close your eyes briefly — we capture automatically.",
     icon: "visibility",
   },
   head_left: {
@@ -56,7 +56,8 @@ const LIVENESS_LABELS: Record<LivenessStep, { title: string; hint: string; icon:
   },
 };
 
-const AUTO_CAPTURE_COOLDOWN_MS = 2000;
+const AUTO_CAPTURE_COOLDOWN_MS = 900;
+const AUTO_CAPTURE_RETRY_COOLDOWN_MS = 350;
 
 function captureFrame(video: HTMLVideoElement): Promise<File | null> {
   const canvas = document.createElement("canvas");
@@ -301,8 +302,12 @@ export function VerificationFlow({
             setStepFeedback(null);
           }, 500);
         }
+      } else if (response.baseline_captured) {
+        setError(null);
+        lastCaptureRef.current = 0;
       } else if (!response.baseline_captured) {
         setError(null);
+        lastCaptureRef.current = Date.now() - (AUTO_CAPTURE_COOLDOWN_MS - AUTO_CAPTURE_RETRY_COOLDOWN_MS);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Liveness check failed.");

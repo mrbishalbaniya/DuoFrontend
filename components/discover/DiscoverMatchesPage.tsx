@@ -12,18 +12,25 @@ import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
 import { submitEsewaPayment } from "@/lib/esewa";
 import { resolveProfilePhotoUrl } from "@/lib/mediaUrl";
-import type { LikedProfile, Match, Profile, SubscriptionPlan, SwipeAction } from "@/types";
+import type { LikedProfile, Profile, SubscriptionPlan, SwipeAction, VisitedProfile } from "@/types";
 
-type DiscoverTab = "matches" | "liked-by-you" | "likes-you";
+type DiscoverTab = "visited-you" | "liked-by-you" | "likes-you";
 
 const TAB_CONFIG: { id: DiscoverTab; label: string }[] = [
-  { id: "matches", label: "Matches" },
+  { id: "visited-you", label: "Visited you" },
   { id: "liked-by-you", label: "Likes sent" },
   { id: "likes-you", label: "Liked you" },
 ];
 
 function profilePhotoUrl(profile: Profile): string {
   return resolveProfilePhotoUrl(profile);
+}
+
+function visitedProfileKey(item: VisitedProfile): string {
+  if (item.visit_id != null) return `visit-${item.visit_id}`;
+  const profileId = item.profile.user_id ?? item.profile.id;
+  if (profileId != null) return String(profileId);
+  return `${item.visited_at ?? "unknown"}`;
 }
 
 function likedProfileKey(item: LikedProfile): string {
@@ -54,12 +61,13 @@ function formatLikeTime(iso?: string): string {
 
 function interactionTimeLabel(
   action: SwipeAction | undefined,
-  kind: "matched" | "sent" | "received",
+  kind: "matched" | "sent" | "received" | "visited",
   time?: string
 ): string {
   const when = formatLikeTime(time);
 
   if (kind === "matched") return `Matched · ${when}`;
+  if (kind === "visited") return `Viewed your profile · ${when}`;
   if (kind === "sent") {
     if (action === "SUPERLIKE") return `Super like sent · ${when}`;
     return `Like sent · ${when}`;
@@ -210,19 +218,27 @@ function CardButton({
   );
 }
 
-function MatchCard({ match }: { match: Match }) {
-  const profile = match.other_user_profile;
+function VisitedYouCard({
+  item,
+  onLockedClick,
+}: {
+  item: VisitedProfile;
+  onLockedClick: () => void;
+}) {
+  const profile = item.profile;
   if (!profile) return null;
+  const locked = item.locked ?? false;
 
   return (
     <DiscoverProfileCard
       profile={profile}
-      timeLabel={interactionTimeLabel(undefined, "matched", match.matched_at)}
+      locked={locked}
+      onLockedClick={locked ? onLockedClick : undefined}
+      timeLabel={interactionTimeLabel(undefined, "visited", item.visited_at)}
       actions={
-        <>
-          <CardButton href="/chat" icon="chat_bubble" label="Message" primary />
-          <CardButton href="/insights" icon="insights" label="Insights" />
-        </>
+        locked ? undefined : (
+          <CardButton href="/match" icon="favorite" label="Like on Match" primary full />
+        )
       }
     />
   );
@@ -283,11 +299,11 @@ function LikesYouCard({
 
 function EmptyState({ tab }: { tab: DiscoverTab }) {
   const content = {
-    matches: {
-      icon: "heart_broken",
-      title: "No Matches",
-      description: "When you and someone both like each other, they'll show up here.",
-      cta: { href: "/match", label: "Start Swiping" },
+    "visited-you": {
+      icon: "visibility",
+      title: "No profile visits yet",
+      description: "When someone views your profile, they'll appear here.",
+      cta: { href: "/match", label: "Update your profile" },
     },
     "liked-by-you": {
       icon: "thumb_up",
@@ -328,10 +344,11 @@ export function DiscoverMatchesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<DiscoverTab>("matches");
-  const [matches, setMatches] = useState<Match[]>([]);
+  const [activeTab, setActiveTab] = useState<DiscoverTab>("visited-you");
+  const [profileVisitors, setProfileVisitors] = useState<VisitedProfile[]>([]);
   const [likedByYou, setLikedByYou] = useState<LikedProfile[]>([]);
   const [likesYou, setLikesYou] = useState<LikedProfile[]>([]);
+  const [premiumVariant, setPremiumVariant] = useState<"likes" | "visitors">("likes");
   const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -346,20 +363,20 @@ export function DiscoverMatchesPage() {
     else setError(null);
 
     try {
-      const [matchesData, likedData, likesData, plansData] = await Promise.all([
-        api.getMatches(),
+      const [visitorsData, likedData, likesData, plansData] = await Promise.all([
+        api.getProfileVisitors(),
         api.getLikedByYou(),
         api.getLikesYou(),
         api.getSubscriptionPlans().catch(() => []),
       ]);
-      setMatches(matchesData);
+      setProfileVisitors(visitorsData.results);
       setLikedByYou(likedData);
       setLikesYou(likesData.results);
       setSubscriptionPlans(plansData);
       setError(null);
     } catch {
       setError("Could not load your discover lists.");
-      setMatches([]);
+      setProfileVisitors([]);
       setLikedByYou([]);
       setLikesYou([]);
     } finally {
@@ -431,6 +448,8 @@ export function DiscoverMatchesPage() {
 
     if (tab === "likes-you") {
       setActiveTab("likes-you");
+    } else if (tab === "visited-you") {
+      setActiveTab("visited-you");
     }
 
     if (subscriptionResult === "success") {
@@ -451,9 +470,17 @@ export function DiscoverMatchesPage() {
   }
 
   const tabCounts: Record<DiscoverTab, number> = {
-    matches: matches.length,
+    "visited-you": profileVisitors.length,
     "liked-by-you": likedByYou.length,
     "likes-you": likesYou.length,
+  };
+
+  const premiumCount =
+    premiumVariant === "visitors" ? profileVisitors.length : likesYou.length;
+
+  const openPremiumSheet = (variant: "likes" | "visitors") => {
+    setPremiumVariant(variant);
+    setPremiumSheetOpen(true);
   };
 
   const renderContent = () => {
@@ -474,9 +501,15 @@ export function DiscoverMatchesPage() {
       );
     }
 
-    if (activeTab === "matches") {
-      if (matches.length === 0) return <EmptyState tab="matches" />;
-      return matches.map((match) => <MatchCard key={match.id} match={match} />);
+    if (activeTab === "visited-you") {
+      if (profileVisitors.length === 0) return <EmptyState tab="visited-you" />;
+      return profileVisitors.map((item) => (
+        <VisitedYouCard
+          key={visitedProfileKey(item)}
+          item={item}
+          onLockedClick={() => openPremiumSheet("visitors")}
+        />
+      ));
     }
 
     if (activeTab === "liked-by-you") {
@@ -491,7 +524,7 @@ export function DiscoverMatchesPage() {
       <LikesYouCard
         key={likedProfileKey(item)}
         item={item}
-        onLockedClick={() => setPremiumSheetOpen(true)}
+        onLockedClick={() => openPremiumSheet("likes")}
         onLikeBack={(entry) => void handleLikeBack(entry)}
         likingBack={likingBackId === likedProfileKey(item)}
       />
@@ -593,7 +626,8 @@ export function DiscoverMatchesPage() {
         open={premiumSheetOpen}
         onClose={() => setPremiumSheetOpen(false)}
         plans={subscriptionPlans}
-        count={likesYou.length}
+        count={premiumCount}
+        variant={premiumVariant}
         paying={paying}
         onSubscribe={(planId) => void handleSubscribe(planId)}
       />
