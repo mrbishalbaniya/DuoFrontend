@@ -4,6 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { CrossDeviceVerification } from "@/components/verification/CrossDeviceVerification";
+import { FaceVerificationOverlay } from "@/components/verification/FaceVerificationOverlay";
+import {
+  autoCaptureStatusMessage,
+  getAutoCaptureHoldMs,
+  isAutoCaptureReady,
+  type ActionBaseline,
+} from "@/lib/verification/autoCapture";
+import type { FaceOverlayState } from "@/lib/verification/face-overlay/useFaceOverlay";
 import { useAuth } from "@/contexts/AuthContext";
 import type {
   LivenessStep,
@@ -28,25 +36,27 @@ interface VerificationFlowProps {
 const LIVENESS_LABELS: Record<LivenessStep, { title: string; hint: string; icon: string }> = {
   smile: {
     title: "Smile",
-    hint: "Look straight at the camera, then smile naturally for your second capture.",
+    hint: "Hold still, then smile — we capture automatically.",
     icon: "sentiment_satisfied",
   },
   blink: {
     title: "Blink",
-    hint: "Close your eyes briefly, then tap Capture.",
+    hint: "Hold still with eyes open, then close your eyes — we capture automatically.",
     icon: "visibility",
   },
   head_left: {
     title: "Turn Left",
-    hint: "Turn your head toward your left shoulder.",
+    hint: "Hold still, then turn your head left — we capture automatically.",
     icon: "arrow_back",
   },
   head_right: {
     title: "Turn Right",
-    hint: "Turn your head toward your right shoulder.",
+    hint: "Hold still, then turn your head right — we capture automatically.",
     icon: "arrow_forward",
   },
 };
+
+const AUTO_CAPTURE_COOLDOWN_MS = 2000;
 
 function captureFrame(video: HTMLVideoElement): Promise<File | null> {
   const canvas = document.createElement("canvas");
@@ -54,6 +64,8 @@ function captureFrame(video: HTMLVideoElement): Promise<File | null> {
   canvas.height = video.videoHeight;
   const ctx = canvas.getContext("2d");
   if (!ctx) return Promise.resolve(null);
+  ctx.translate(canvas.width, 0);
+  ctx.scale(-1, 1);
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
   return new Promise((resolve) => {
     canvas.toBlob(
@@ -90,11 +102,28 @@ export function VerificationFlow({
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [stepFeedback, setStepFeedback] = useState<LivenessStepResponse | null>(null);
+  const [stepActionReady, setStepActionReady] = useState(false);
+  const [autoStatus, setAutoStatus] = useState<string | null>(null);
   const [result, setResult] = useState<VerificationStatusResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const overlayStateRef = useRef<FaceOverlayState | null>(null);
+  const actionBaselineRef = useRef<ActionBaseline | null>(null);
+  const holdStartRef = useRef<number | null>(null);
+  const lastCaptureRef = useRef(0);
+  const captureLivenessRef = useRef<() => Promise<void>>(async () => {});
+  const captureSelfieRef = useRef<() => Promise<void>>(async () => {});
+
   const currentLivenessStep = session?.liveness_steps[livenessIndex] ?? null;
   const livenessInfo = currentLivenessStep ? LIVENESS_LABELS[currentLivenessStep] : null;
+
+  useEffect(() => {
+    setStepActionReady(false);
+    setStepFeedback(null);
+    setAutoStatus(null);
+    actionBaselineRef.current = null;
+    holdStartRef.current = null;
+  }, [livenessIndex, currentLivenessStep]);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -231,10 +260,9 @@ export function VerificationFlow({
     [stopCamera]
   );
 
-  const handleCaptureLiveness = async () => {
+  const handleCaptureLiveness = useCallback(async () => {
     if (!session || !currentLivenessStep || !videoRef.current) return;
     setSubmitting(true);
-    setStepFeedback(null);
     setError(null);
     try {
       const file = await captureFrame(videoRef.current);
@@ -248,8 +276,22 @@ export function VerificationFlow({
       );
       setStepFeedback(response);
       setCompletedSteps(response.liveness_steps_completed);
+      if (response.baseline_captured) {
+        setStepActionReady(true);
+        const m = overlayStateRef.current?.metrics;
+        if (m) {
+          actionBaselineRef.current = {
+            eyeEar: m.eyeEar,
+            mouthOpen: m.mouthOpen,
+            yaw: m.yaw,
+            expressionHappy: m.expressionHappy,
+          };
+        }
+      }
 
       if (response.passed) {
+        holdStartRef.current = null;
+        lastCaptureRef.current = Date.now();
         const nextIndex = livenessIndex + 1;
         if (nextIndex >= session.liveness_steps.length) {
           setFlowStep("selfie");
@@ -257,17 +299,19 @@ export function VerificationFlow({
           setTimeout(() => {
             setLivenessIndex(nextIndex);
             setStepFeedback(null);
-          }, 800);
+          }, 500);
         }
+      } else if (!response.baseline_captured) {
+        setError(null);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Liveness check failed.");
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [session, currentLivenessStep, mode, livenessIndex]);
 
-  const handleCaptureSelfie = async () => {
+  const handleCaptureSelfie = useCallback(async () => {
     if (!session || !videoRef.current) return;
     setSubmitting(true);
     setError(null);
@@ -290,7 +334,65 @@ export function VerificationFlow({
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [session, mode, stopCamera, startCamera]);
+
+  captureLivenessRef.current = handleCaptureLiveness;
+  captureSelfieRef.current = handleCaptureSelfie;
+
+  const tryAutoCapture = useCallback(
+    (state: FaceOverlayState) => {
+      if (submitting || !cameraReady) return;
+      if (flowStep !== "liveness" && flowStep !== "selfie") return;
+
+      const now = Date.now();
+      if (now - lastCaptureRef.current < AUTO_CAPTURE_COOLDOWN_MS) return;
+
+      const input = {
+        flowStep: flowStep as "liveness" | "selfie",
+        step: currentLivenessStep,
+        awaitingAction: stepActionReady,
+        metrics: state.metrics,
+        manyFaces: state.manyFaces,
+        modelLoading: state.modelLoading,
+        actionBaseline: actionBaselineRef.current,
+      };
+
+      setAutoStatus(autoCaptureStatusMessage(input));
+
+      if (!isAutoCaptureReady(input)) {
+        holdStartRef.current = null;
+        return;
+      }
+
+      const requiredMs = getAutoCaptureHoldMs(input);
+      if (holdStartRef.current === null) {
+        holdStartRef.current = now;
+        return;
+      }
+      if (now - holdStartRef.current < requiredMs) return;
+
+      holdStartRef.current = null;
+      lastCaptureRef.current = now;
+      void (flowStep === "selfie"
+        ? captureSelfieRef.current()
+        : captureLivenessRef.current());
+    },
+    [
+      submitting,
+      cameraReady,
+      flowStep,
+      currentLivenessStep,
+      stepActionReady,
+    ]
+  );
+
+  const handleOverlayState = useCallback(
+    (state: FaceOverlayState) => {
+      overlayStateRef.current = state;
+      tryAutoCapture(state);
+    },
+    [tryAutoCapture]
+  );
 
   const progress =
     flowStep === "cross_device"
@@ -333,6 +435,14 @@ export function VerificationFlow({
       >
       {flowStep === "instructions" && (
         <div className="flex flex-col pb-2">
+          {submitting && (
+            <div className="mb-4 flex flex-col items-center justify-center py-8 text-center">
+              <div className="mb-3 h-10 w-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+              <p className="text-sm text-on-surface-variant">Starting verification…</p>
+            </div>
+          )}
+          {!submitting && (
+          <>
           <div className="mb-3 rounded-2xl border border-primary/10 bg-secondary/50 p-4 sm:p-5">
             <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full gradient-brand text-white">
               <span className="material-symbols-outlined text-2xl">verified_user</span>
@@ -403,6 +513,8 @@ export function VerificationFlow({
               {submitting ? "Preparing link…" : "Get QR code, link & email"}
             </button>
           </div>
+          </>
+          )}
         </div>
       )}
 
@@ -448,7 +560,7 @@ export function VerificationFlow({
                   Take your selfie
                 </h2>
                 <p className="mt-0.5 text-sm text-on-surface-variant">
-                  Look straight at the camera with good lighting.
+                  Look straight at the camera — we capture automatically.
                 </p>
               </>
             )}
@@ -461,6 +573,19 @@ export function VerificationFlow({
               muted
               className="h-full w-full object-cover [transform:scaleX(-1)]"
             />
+            <FaceVerificationOverlay
+              videoRef={videoRef}
+              active={cameraReady && !cameraError}
+              flowProgress={
+                session
+                  ? flowStep === "selfie"
+                    ? 0.85
+                    : completedSteps.length / session.liveness_steps.length
+                  : 0
+              }
+              onStateChange={handleOverlayState}
+              statusMessage={autoStatus}
+            />
             {!cameraReady && !cameraError && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-sm text-white">
                 Starting camera…
@@ -471,7 +596,6 @@ export function VerificationFlow({
                 {cameraError}
               </div>
             )}
-            <div className="pointer-events-none absolute inset-6 rounded-[40%] border-2 border-white/40 sm:inset-8" />
           </div>
 
           {stepFeedback && !stepFeedback.passed && (
@@ -501,13 +625,11 @@ export function VerificationFlow({
               void (flowStep === "selfie" ? handleCaptureSelfie() : handleCaptureLiveness())
             }
             disabled={submitting || !cameraReady}
-            className="w-full shrink-0 rounded-xl py-3.5 font-bold text-white shadow-lg shadow-primary/20 gradient-brand disabled:opacity-60 sm:py-4"
+            className="w-full shrink-0 rounded-xl border border-primary/25 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/5 disabled:opacity-50 sm:py-3.5"
           >
             {submitting
               ? "Processing…"
-              : flowStep === "selfie"
-                ? "Capture Selfie & Verify"
-                : "Capture"}
+              : "Capture manually"}
           </button>
         </div>
       )}
