@@ -28,12 +28,12 @@ interface VerificationFlowProps {
 const LIVENESS_LABELS: Record<LivenessStep, { title: string; hint: string; icon: string }> = {
   smile: {
     title: "Smile",
-    hint: "Give a natural smile at the camera.",
+    hint: "Look straight at the camera, then smile naturally for your second capture.",
     icon: "sentiment_satisfied",
   },
   blink: {
     title: "Blink",
-    hint: "Blink your eyes clearly once or twice.",
+    hint: "Close your eyes briefly, then tap Capture.",
     icon: "visibility",
   },
   head_left: {
@@ -475,8 +475,17 @@ export function VerificationFlow({
           </div>
 
           {stepFeedback && !stepFeedback.passed && (
-            <p className="shrink-0 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
-              {stepFeedback.detail || "Try again — adjust your pose and lighting."}
+            <p
+              className={`shrink-0 rounded-xl px-4 py-2.5 text-sm ${
+                stepFeedback.baseline_captured
+                  ? "border border-primary/20 bg-primary/5 text-on-surface"
+                  : "border border-amber-200 bg-amber-50 text-amber-800"
+              }`}
+            >
+              {stepFeedback.detail ||
+                (stepFeedback.baseline_captured
+                  ? "Neutral pose saved. Perform the action and capture again."
+                  : "Try again — adjust your pose and lighting.")}
             </p>
           )}
 

@@ -47,6 +47,7 @@ export interface LivenessStepResponse {
   score: number;
   detail: string;
   liveness_steps_completed: LivenessStep[];
+  baseline_captured?: boolean;
 }
 
 export interface VerificationStatusResponse {
