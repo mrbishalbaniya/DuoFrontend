@@ -28,8 +28,8 @@ import {
 } from "@/components/skeletons/ChatPageSkeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
-import { closeChatSocket, getChatWebSocketUrl } from "@/lib/chatWebSocket";
 import { resolveMediaUrl, resolveProfilePhotoUrl } from "@/lib/mediaUrl";
+import { useChatWebSocket } from "@/lib/useChatWebSocket";
 import { VoiceInput, VoiceRecordingBar } from "@/components/ui/voice-input";
 import VoiceMessageBubble from "@/components/ui/voice-message-bubble";
 import type { ChatMessage, Conversation } from "@/types";
@@ -518,7 +518,6 @@ export default function MessagesSection() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
   const lastTypingSignalRef = useRef(0);
-  const socketRef = useRef<WebSocket | null>(null);
   const isResizing = useRef(false);
   const pendingImagePreviewRef = useRef<string | null>(null);
 
@@ -738,29 +737,9 @@ export default function MessagesSection() {
     if (first) setSelectedId(first.id);
   }, [loadingConversations, selectedId, filteredConversations, searchParams]);
 
-  useEffect(() => {
-    if (!selectedId || !user?.id) return;
-
-    let cancelled = false;
-    let socket: WebSocket | null = null;
-
-    void (async () => {
-      try {
-        const ticket = await api.getWsTicket(Number(selectedId));
-        if (cancelled) return;
-
-        const wsUrl = getChatWebSocketUrl(selectedId, ticket);
-        socket = new WebSocket(wsUrl);
-        socketRef.current = socket;
-
-    socket.onopen = () => {
-      if (cancelled) {
-        closeChatSocket(socket, "unmounted");
-      }
-    };
-
-    socket.onmessage = (e) => {
-      const data = JSON.parse(e.data as string) as Record<string, unknown>;
+  const handleWsMessage = useCallback(
+    (data: Record<string, unknown>) => {
+      if (!user?.id || !selectedId) return;
 
       if (data.type === "chat_message") {
         const newMsg: ChatMessage = {
@@ -832,7 +811,6 @@ export default function MessagesSection() {
               return m;
             }
 
-            // Own reaction is already applied optimistically; re-applying toggles it off.
             if (eventUserId === Number(user.id)) {
               return m;
             }
@@ -862,21 +840,40 @@ export default function MessagesSection() {
           })
         );
       }
+    },
+    [user?.id, selectedId, scrollToLatestMessage]
+  );
+
+  const { connected: wsConnected, send: sendWs } = useChatWebSocket(
+    selectedId,
+    user?.id,
+    handleWsMessage
+  );
+
+  useEffect(() => {
+    if (!selectedId || wsConnected) return;
+
+    const pollMessages = async () => {
+      try {
+        const data = await api.getMessages(selectedId);
+        const normalized = normalizeMessages(data as ChatMessage[]);
+        setMessages((prev) => {
+          if (normalized.length === 0) return prev;
+          const knownIds = new Set(prev.map((m) => m.id));
+          const incoming = normalized.filter((m) => !knownIds.has(m.id));
+          if (incoming.length === 0) return prev;
+          return [...prev, ...incoming];
+        });
+        void loadConversations({ silent: true });
+      } catch {
+        /* ignore polling errors */
+      }
     };
 
-      } catch (err) {
-        console.error("WebSocket connection failed:", err);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      closeChatSocket(socket, "conversation changed");
-      if (socketRef.current === socket) {
-        socketRef.current = null;
-      }
-    };
-  }, [selectedId, user?.id, scrollToLatestMessage]);
+    void pollMessages();
+    const interval = window.setInterval(() => void pollMessages(), 4000);
+    return () => window.clearInterval(interval);
+  }, [selectedId, wsConnected, loadConversations]);
 
   useEffect(() => {
     return () => {
@@ -1083,14 +1080,7 @@ export default function MessagesSection() {
     if (!content && !imageUrl) return;
     if (!selectedId || sending) return;
 
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(
-        JSON.stringify({
-          type: "chat_message",
-          content,
-          image_url: imageUrl || "",
-        })
-      );
+    if (sendWs({ type: "chat_message", content, image_url: imageUrl || "" })) {
       setNewMessage("");
       setReplyingTo(null);
       setShowEmojiPicker(false);
@@ -1343,35 +1333,26 @@ export default function MessagesSection() {
     );
     setActiveMessageMenu(null);
 
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(
-        JSON.stringify({
-          type: "message_reaction",
-          id: messageId,
-          user_id: user.id,
-          emoji,
-        })
-      );
-    } else {
-      void api.reactToMessage(messageId, emoji).catch(() => undefined);
+    if (sendWs({ type: "message_reaction", id: messageId, user_id: user.id, emoji })) {
+      return;
     }
+    void api.reactToMessage(messageId, emoji).catch(() => undefined);
   };
 
   const handleDelete = (messageId: number, deleteType: "for_me" | "for_everyone") => {
     setActiveMessageMenu(null);
     if (replyingTo?.id === messageId) setReplyingTo(null);
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(
-        JSON.stringify({
-          type: "delete_message",
-          id: messageId,
-          user_id: user?.id,
-          delete_type: deleteType,
-        })
-      );
-    } else {
-      void api.deleteMessage(messageId, deleteType).catch(() => undefined);
+    if (
+      sendWs({
+        type: "delete_message",
+        id: messageId,
+        user_id: user?.id,
+        delete_type: deleteType,
+      })
+    ) {
+      return;
     }
+    void api.deleteMessage(messageId, deleteType).catch(() => undefined);
   };
 
   const handleCopyMessage = async (msg: ChatMessage) => {
@@ -1398,17 +1379,10 @@ export default function MessagesSection() {
     const now = Date.now();
     if (now - lastTypingSignalRef.current > 2000) {
       lastTypingSignalRef.current = now;
-      if (socketRef.current?.readyState === WebSocket.OPEN) {
-        socketRef.current.send(
-          JSON.stringify({
-            type: "typing",
-            user_id: user?.id,
-            is_typing: true,
-          })
-        );
-      } else {
-        void api.sendTypingHeartbeat(selectedId).catch(() => undefined);
+      if (sendWs({ type: "typing", user_id: user?.id, is_typing: true })) {
+        return;
       }
+      void api.sendTypingHeartbeat(selectedId).catch(() => undefined);
     }
   };
 
