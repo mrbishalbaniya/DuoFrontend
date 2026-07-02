@@ -14,7 +14,8 @@ export function useChatWebSocket(
   userId: number | undefined,
   onMessage: (data: ChatWsPayload) => void
 ) {
-  const [connected, setConnected] = useState(false);
+  const canConnect = Boolean(conversationId && userId);
+  const [socketConnected, setSocketConnected] = useState(false);
   const socketRef = useRef<WebSocket | null>(null);
   const onMessageRef = useRef(onMessage);
   const reconnectAttemptRef = useRef(0);
@@ -26,7 +27,6 @@ export function useChatWebSocket(
 
   useEffect(() => {
     if (!conversationId || !userId) {
-      setConnected(false);
       return;
     }
 
@@ -69,7 +69,7 @@ export function useChatWebSocket(
             return;
           }
           reconnectAttemptRef.current = 0;
-          setConnected(true);
+          setSocketConnected(true);
         };
 
         socket.onmessage = (event) => {
@@ -85,16 +85,16 @@ export function useChatWebSocket(
           if (socketRef.current === socket) {
             socketRef.current = null;
           }
-          setConnected(false);
+          setSocketConnected(false);
           if (!cancelled) scheduleReconnect();
         };
 
         socket.onerror = () => {
-          setConnected(false);
+          setSocketConnected(false);
         };
       } catch (error) {
         console.error("WebSocket connection failed:", error);
-        setConnected(false);
+        setSocketConnected(false);
         if (!cancelled) scheduleReconnect();
       }
     };
@@ -107,7 +107,6 @@ export function useChatWebSocket(
       clearReconnectTimer();
       closeChatSocket(socketRef.current, "conversation changed");
       socketRef.current = null;
-      setConnected(false);
     };
   }, [conversationId, userId]);
 
@@ -118,5 +117,5 @@ export function useChatWebSocket(
     return true;
   }, []);
 
-  return { connected, send };
+  return { connected: canConnect && socketConnected, send };
 }
