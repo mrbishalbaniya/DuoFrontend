@@ -27,11 +27,10 @@ export default function MatchMapCard({
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-white/[0.06] ${
-        isActive ? "bg-primary/15" : "bg-transparent"
-      }`}
+      data-active={isActive || undefined}
+      className="map-list-row flex w-full items-center gap-3 px-4 py-3 text-left"
     >
-      <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-surface-dim ring-[2px] ring-white/20">
+      <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-surface-dim ring-2 ring-outline-variant/30">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={profilePhotoUrl(profile)} alt="" className="h-full w-full object-cover" />
         {isActive ? (
@@ -56,3 +55,5 @@ export default function MatchMapCard({
     </button>
   );
 }
+
+export { profileKey };

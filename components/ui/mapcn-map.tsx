@@ -404,6 +404,7 @@ function MapMarker({
   const marker = useMemo(() => {
     const markerInstance = new MapLibreGL.Marker({
       ...markerOptions,
+      opacityWhenCovered: markerOptions.opacityWhenCovered ?? 0,
       element: document.createElement("div"),
       draggable,
     }).setLngLat([longitude, latitude]);

@@ -23,6 +23,8 @@ interface MatchFriendsSidebarProps {
   onProfileFocus: (id: string) => void;
   onRetry: () => void;
   layout?: "sidebar" | "sheet";
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 function FriendsSubtitle({
@@ -105,7 +107,7 @@ function FriendsListBody({
   if (matches.length > 0) {
     return (
       <div className="ios-inset-group">
-        <ul className="divide-y divide-white/[0.06]">
+        <ul className="divide-y divide-[var(--map-divider)]">
           {matches.map((profile) => {
             const key = profileKey(profile);
             return (
@@ -136,7 +138,7 @@ function FriendsListBody({
         Match with someone to see them here.
       </p>
       <Link
-            href="/match"
+        href="/match"
         className="rounded-full bg-primary px-6 py-2.5 text-[15px] font-semibold text-white active:scale-[0.98]"
       >
         Go to Discover
@@ -154,6 +156,8 @@ export default function MatchFriendsSidebar({
   onProfileFocus,
   onRetry,
   layout = "sidebar",
+  open = true,
+  onOpenChange,
 }: MatchFriendsSidebarProps) {
   const [sheetSnap, setSheetSnap] = useState<MatchBrowseSheetSnap>("map");
 
@@ -179,28 +183,32 @@ export default function MatchFriendsSidebar({
     );
   }
 
+  if (!open && layout === "sidebar") {
+    return null;
+  }
+
   return (
-    <aside className="hidden h-full w-72 shrink-0 flex-col border-r border-outline-variant/20 bg-surface md:flex md:w-80">
-      <div className="shrink-0 px-5 pb-3 pt-5">
-        <h1 className="text-[22px] font-bold tracking-tight text-on-surface">Friends</h1>
-        <p className="mt-0.5 text-[13px] text-on-surface-variant">
-          <FriendsSubtitle
+    <aside className="map-friends-sidebar hidden h-full w-72 shrink-0 flex-col border-r border-outline-variant/20 bg-surface md:flex md:w-80">
+        <div className="shrink-0 px-5 pb-3 pt-5">
+          <h1 className="text-[22px] font-bold tracking-tight text-on-surface">Friends</h1>
+          <p className="mt-0.5 text-[13px] text-on-surface-variant">
+            <FriendsSubtitle
+              loading={loading}
+              waitingForLocation={waitingForLocation}
+              matchCount={matches.length}
+            />
+          </p>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
+          <FriendsListBody
+            matches={matches}
             loading={loading}
             waitingForLocation={waitingForLocation}
-            matchCount={matches.length}
-          />
-        </p>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
-        <FriendsListBody
-          matches={matches}
-          loading={loading}
-          waitingForLocation={waitingForLocation}
-          error={error}
-          focusProfileId={focusProfileId}
-          onProfileFocus={onProfileFocus}
-          onRetry={onRetry}
+            error={error}
+            focusProfileId={focusProfileId}
+            onProfileFocus={onProfileFocus}
+            onRetry={onRetry}
         />
       </div>
     </aside>

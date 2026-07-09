@@ -29,7 +29,7 @@ export function MapPageSkeleton() {
       <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <aside className="hidden w-[min(100%,360px)] shrink-0 flex-col border-r border-outline-variant/20 bg-surface md:flex">
-            <div className="border-b border-white/10 p-4">
+            <div className="border-b border-border p-4">
               <Skeleton className="mb-2 h-6 w-32" />
               <Skeleton className="h-4 w-24" />
             </div>

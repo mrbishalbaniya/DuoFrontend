@@ -6,7 +6,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
 import BottomNav from "@/components/BottomNav";
-import MatchFriendsSidebar from "@/components/map/MatchFriendsSidebar";import { MapPageSkeleton } from "@/components/skeletons/MapPageSkeleton";
+import MatchFriendsSidebar from "@/components/map/MatchFriendsSidebar";
+import { MapPageSkeleton } from "@/components/skeletons/MapPageSkeleton";
 import { profilePhotoUrl } from "@/components/map/MatchMapCard";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
@@ -60,6 +61,7 @@ export default function MapPage() {
   const [loadingMatches, setLoadingMatches] = useState(true);
   const [focusProfileId, setFocusProfileId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [friendsPanelOpen, setFriendsPanelOpen] = useState(true);
 
   const userCoords = useUserCoordinates(user?.profile?.location, user?.id);
 
@@ -111,6 +113,11 @@ export default function MapPage() {
     setFocusProfileId(id);
   }, []);
 
+  useEffect(() => {
+    const t = window.setTimeout(() => window.dispatchEvent(new Event("resize")), 280);
+    return () => window.clearTimeout(t);
+  }, [friendsPanelOpen]);
+
   if (authLoading || !user) {
     return <MapPageSkeleton />;
   }
@@ -121,19 +128,33 @@ export default function MapPage() {
     <div className="flex h-dvh overflow-hidden bg-surface">
       <ChatSidebarNav />
       <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="flex min-h-0 flex-1 overflow-hidden">
-          <MatchFriendsSidebar
-            layout="sidebar"
-            matches={matches}
-            loading={loadingMatches}
-            waitingForLocation={waitingForLocation}
-            error={error}
-            focusProfileId={focusProfileId}
-            onProfileFocus={handleProfileFocus}
-            onRetry={() => void loadMatches()}
-          />
+        <div className="relative flex min-h-0 flex-1 overflow-hidden">
+          {friendsPanelOpen ? (
+            <MatchFriendsSidebar
+              layout="sidebar"
+              open={friendsPanelOpen}
+              onOpenChange={setFriendsPanelOpen}
+              matches={matches}
+              loading={loadingMatches}
+              waitingForLocation={waitingForLocation}
+              error={error}
+              focusProfileId={focusProfileId}
+              onProfileFocus={handleProfileFocus}
+              onRetry={() => void loadMatches()}
+            />
+          ) : null}
 
-          <div className="relative h-full min-h-0 min-w-0 flex-1 bg-background">
+          <button
+            type="button"
+            aria-label={friendsPanelOpen ? "Hide friends panel" : "Show friends panel"}
+            aria-expanded={friendsPanelOpen}
+            className={`map-friends-edge-handle ${friendsPanelOpen ? "map-friends-edge-handle--open" : ""}`}
+            onClick={() => setFriendsPanelOpen((open) => !open)}
+          >
+            <span className="material-symbols-outlined text-xl">chevron_right</span>
+          </button>
+
+          <div className="relative h-full min-h-0 min-w-0 flex-1 bg-black">
             {/* iOS-style floating header (mobile) */}
             <div className="pointer-events-none absolute inset-x-0 top-0 z-[25] px-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:hidden">
               <div className="ios-glass pointer-events-auto flex items-center gap-3 rounded-2xl px-4 py-3 shadow-lg">
@@ -179,21 +200,6 @@ export default function MapPage() {
                   Try again
                 </button>
               </div>
-            ) : matches.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-container-high">
-                  <span className="material-symbols-outlined text-4xl text-primary/50">map</span>
-                </div>
-                <p className="max-w-[260px] text-[15px] leading-snug text-on-surface-variant">
-                  Match with someone to see them on the map.
-                </p>
-                <Link
-                  href="/match"
-                  className="mt-5 rounded-full bg-primary px-6 py-2.5 text-[15px] font-semibold text-white active:scale-[0.98]"
-                >
-                  Start matching
-                </Link>
-              </div>
             ) : (
               <MapView
                 profiles={matches}
@@ -203,6 +209,22 @@ export default function MapPage() {
                 onProfileFocus={handleProfileFocus}
               />
             )}
+
+            {matches.length === 0 && !error && !waitingForLocation && !loadingMatches ? (
+              <div className="pointer-events-none absolute inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-[20] flex justify-center px-6 md:bottom-8">
+                <div className="ios-glass pointer-events-auto max-w-sm rounded-2xl px-5 py-4 text-center shadow-lg">
+                  <p className="text-[15px] leading-snug text-on-surface-variant">
+                    Match with someone to see them on the map.
+                  </p>
+                  <Link
+                    href="/match"
+                    className="mt-3 inline-flex rounded-full bg-primary px-6 py-2.5 text-[15px] font-semibold text-white active:scale-[0.98]"
+                  >
+                    Start matching
+                  </Link>
+                </div>
+              </div>
+            ) : null}
 
             <MatchFriendsSidebar
               layout="sheet"
@@ -217,8 +239,8 @@ export default function MapPage() {
 
             {focusedProfile && matches.length > 0 ? (
               <div className="pointer-events-none absolute inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-[30] flex justify-center px-3 md:bottom-6 md:px-4">
-                <div className="ios-glass pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-2xl p-3 shadow-2xl">
-                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full ring-2 ring-white/25">
+                <div className="ios-glass map-focus-card pointer-events-auto flex w-full max-w-sm items-center gap-3 p-3">
+                  <div className="map-focus-card__avatar h-12 w-12 shrink-0 overflow-hidden">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={profilePhotoUrl(focusedProfile)}
@@ -240,7 +262,7 @@ export default function MapPage() {
                   </div>
                   <Link
                       href="/chat"
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-primary/25 active:scale-95"
+                      className="map-focus-card__action shrink-0"
                       aria-label="Open chat"
                     >
                       <span className="material-symbols-outlined text-xl">chat_bubble</span>
@@ -249,7 +271,7 @@ export default function MapPage() {
                     type="button"
                     aria-label="Close preview"
                     onClick={() => setFocusProfileId(null)}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-on-surface-variant active:scale-95"
+                    className="map-focus-card__close shrink-0"
                   >
                     <span className="material-symbols-outlined text-lg">close</span>
                   </button>

@@ -1,17 +1,35 @@
 "use client";
 
 import MapLibreGL from "maplibre-gl";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   Map,
-  MapControls,
   MapMarker,
   MarkerContent,
   useMap,
 } from "@/components/ui/mapcn-map";
+import { useTheme } from "@/contexts/ThemeContext";
 import { formatDistanceCompact } from "@/lib/distance";
 import { profilePhotoUrl } from "@/components/map/MatchMapCard";
+import { MapFloatingControls } from "./MapFloatingControls";
+import SpaceStarfieldBridge from "./SpaceStarfieldBridge";
+import SpaceAtmosphereBridge from "./SpaceAtmosphereBridge";
+import MapLayersBridge from "./layers/MapLayersBridge";
+import MapLayersPanel from "./layers/MapLayersPanel";
+import MapDebugHud from "./layers/MapDebugHud";
+import WeatherBridge from "./weather/WeatherBridge";
+import { isDuoLayerVisible } from "@/lib/mapLayers/layerEngine";
+import { useMapLayersStore } from "@/lib/mapLayers/store";
 import type { MapProfile } from "./types";
+import {
+  DEFAULT_CENTER,
+  isValidCoord,
+  lngLatBoundsForRadiusKm,
+  MAP_INITIAL_RADIUS_KM,
+  profileKey,
+  toLngLat,
+  zoomForRadiusKm,
+} from "./utils";
 
 interface MapViewProps {
   profiles: MapProfile[];
@@ -22,27 +40,12 @@ interface MapViewProps {
 }
 
 const MARKER_FOCUS_ZOOM = 15;
-const FLY_DURATION_MS = 850;
-const DEFAULT_CENTER: [number, number] = [85.324, 27.7172];
+const FLY_DURATION_MS = 1200;
+const AUTO_ROTATE_IDLE_MS = 14000;
+const AUTO_ROTATE_MAX_ZOOM = 3.8;
 
-function isValidCoord(c: unknown): c is [number, number] {
-  return (
-    Array.isArray(c) &&
-    c.length === 2 &&
-    Number.isFinite(c[0]) &&
-    Number.isFinite(c[1]) &&
-    !(c[0] === 0 && c[1] === 0)
-  );
-}
-
-function profileKey(profile: MapProfile): string {
-  return String(profile.user_id ?? profile.id ?? profile.full_name);
-}
-
-/** Project stores [latitude, longitude]; MapLibre expects [longitude, latitude]. */
-function toLngLat([lat, lng]: [number, number]): { longitude: number; latitude: number } {
-  return { longitude: lng, latitude: lat };
-}
+const FLY_EASE = (t: number) => 1 - (1 - t) ** 3;
+const GLOBE_PROJECTION: MapLibreGL.ProjectionSpecification = { type: "globe" };
 
 function MapResizeHandler() {
   const { map } = useMap();
@@ -52,11 +55,9 @@ function MapResizeHandler() {
 
     const refresh = () => {
       try {
-        if (map.getContainer()?.isConnected) {
-          map.resize();
-        }
+        if (map.getContainer()?.isConnected) map.resize();
       } catch {
-        /* map already destroyed */
+        /* map destroyed */
       }
     };
 
@@ -71,31 +72,106 @@ function MapResizeHandler() {
   return null;
 }
 
-function MapFitBounds({
-  profiles,
-  userCoordinates,
-}: {
-  profiles: MapProfile[];
-  userCoordinates?: [number, number] | null;
-}) {
+/** Keeps globe projection and cinematic interactions on one map instance. */
+function GlobeExperience() {
   const { map, isLoaded } = useMap();
+  const idleSinceRef = useRef(0);
+  const rotatingRef = useRef(false);
 
-  const profilePointsKey = useMemo(
-    () =>
-      [
-        userCoordinates ? `you:${userCoordinates.join(",")}` : "",
-        ...profiles
-          .filter((p) => isValidCoord(p.coordinates))
-          .map(
-            (p) =>
-              `${p.browseOrder ?? ""}:${profileKey(p)}:${p.coordinates[0]},${p.coordinates[1]}`
-          ),
-      ].join("|"),
-    [profiles, userCoordinates]
-  );
+  useEffect(() => {
+    idleSinceRef.current = Date.now();
+  }, []);
 
   useEffect(() => {
     if (!map || !isLoaded) return;
+
+    const applyGlobeProjection = () => {
+      map.setProjection(GLOBE_PROJECTION);
+    };
+
+    applyGlobeProjection();
+    map.on("styledata", applyGlobeProjection);
+
+    const themeObserver = new MutationObserver(applyGlobeProjection);
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    const onMoveStart = () => {
+      idleSinceRef.current = Date.now();
+      rotatingRef.current = false;
+    };
+
+    const onDblClick = (event: MapLibreGL.MapMouseEvent) => {
+      idleSinceRef.current = Date.now();
+      const targetZoom = Math.min(18, map.getZoom() + 2.2);
+      map.flyTo({
+        center: event.lngLat,
+        zoom: targetZoom,
+        duration: FLY_DURATION_MS,
+        easing: FLY_EASE,
+        essential: true,
+      });
+    };
+
+    map.on("movestart", onMoveStart);
+    map.on("dragstart", onMoveStart);
+    map.on("zoomstart", onMoveStart);
+    map.on("dblclick", onDblClick);
+
+    const autoRotateTimer = window.setInterval(() => {
+      if (!map.getContainer()?.isConnected) return;
+      if (map.getZoom() > AUTO_ROTATE_MAX_ZOOM) return;
+      if (map.isMoving() || rotatingRef.current) return;
+      if (Date.now() - idleSinceRef.current < AUTO_ROTATE_IDLE_MS) return;
+
+      rotatingRef.current = true;
+      map.easeTo({
+        bearing: map.getBearing() + 18,
+        duration: 12000,
+        easing: (t) => t * (2 - t),
+        essential: true,
+      });
+      map.once("moveend", () => {
+        rotatingRef.current = false;
+        idleSinceRef.current = Date.now();
+      });
+    }, 2000);
+
+    return () => {
+      themeObserver.disconnect();
+      map.off("styledata", applyGlobeProjection);
+      map.off("movestart", onMoveStart);
+      map.off("dragstart", onMoveStart);
+      map.off("zoomstart", onMoveStart);
+      map.off("dblclick", onDblClick);
+      window.clearInterval(autoRotateTimer);
+    };
+  }, [map, isLoaded]);
+
+  return null;
+}
+
+function MapInitialViewport({
+  userCoordinates,
+}: {
+  userCoordinates?: [number, number] | null;
+}) {
+  const { map, isLoaded } = useMap();
+  const hasFitRef = useRef(false);
+
+  const locationKey = useMemo(
+    () =>
+      userCoordinates && isValidCoord(userCoordinates)
+        ? userCoordinates.join(",")
+        : "",
+    [userCoordinates]
+  );
+
+  useEffect(() => {
+    if (!map || !isLoaded || hasFitRef.current) return;
+    if (!userCoordinates || !isValidCoord(userCoordinates)) return;
 
     let cancelled = false;
 
@@ -103,34 +179,20 @@ function MapFitBounds({
       if (cancelled) return;
 
       try {
-        const container = map.getContainer();
-        if (!container?.isConnected) return;
+        if (!map.getContainer()?.isConnected) return;
 
-        const points = profiles
-          .map((p) => p.coordinates)
-          .filter(isValidCoord)
-          .map(([lat, lng]) => [lng, lat] as [number, number]);
+        const [lat, lng] = userCoordinates;
+        const { sw, ne } = lngLatBoundsForRadiusKm(lat, lng, MAP_INITIAL_RADIUS_KM);
+        hasFitRef.current = true;
 
-        if (userCoordinates && isValidCoord(userCoordinates)) {
-          points.push([userCoordinates[1], userCoordinates[0]]);
-        }
-
-        if (points.length === 0) return;
-
-        if (points.length === 1) {
-          map.setCenter(points[0]);
-          map.setZoom(13);
-          return;
-        }
-
-        const bounds = points.reduce(
-          (acc, point) => acc.extend(point),
-          new MapLibreGL.LngLatBounds(points[0], points[0])
-        );
-
-        map.fitBounds(bounds, { padding: 50, maxZoom: 15, duration: 0 });
+        map.fitBounds(new MapLibreGL.LngLatBounds(sw, ne), {
+          padding: { top: 120, bottom: 160, left: 80, right: 80 },
+          duration: FLY_DURATION_MS,
+          easing: FLY_EASE,
+          essential: true,
+        });
       } catch {
-        /* map not ready or already removed */
+        /* map not ready */
       }
     });
 
@@ -138,7 +200,7 @@ function MapFitBounds({
       cancelled = true;
       cancelAnimationFrame(frame);
     };
-  }, [profilePointsKey, map, isLoaded, profiles, userCoordinates]);
+  }, [locationKey, map, isLoaded, userCoordinates]);
 
   return null;
 }
@@ -160,25 +222,75 @@ function FocusOnProfile({
 
     const { longitude, latitude } = toLngLat(profile.coordinates);
 
-    try {
-      map.flyTo({
-        center: [longitude, latitude],
-        zoom: MARKER_FOCUS_ZOOM,
-        duration: FLY_DURATION_MS,
-      });
-    } catch {
-      /* map not ready */
-    }
+    map.flyTo({
+      center: [longitude, latitude],
+      zoom: MARKER_FOCUS_ZOOM,
+      duration: FLY_DURATION_MS,
+      easing: FLY_EASE,
+      essential: true,
+    });
   }, [focusProfileId, map, isLoaded, profiles]);
 
   return null;
 }
 
+function MapControlBridge({
+  userCoordinates,
+}: {
+  userCoordinates?: [number, number] | null;
+}) {
+  const { map, isLoaded } = useMap();
+
+  const zoomIn = useCallback(() => {
+    if (!map) return;
+    map.zoomTo(Math.min(18, map.getZoom() + 1.15), { duration: 450 });
+  }, [map]);
+
+  const zoomOut = useCallback(() => {
+    if (!map) return;
+    map.zoomTo(Math.max(0.5, map.getZoom() - 1.15), { duration: 450 });
+  }, [map]);
+
+  const locate = useCallback(() => {
+    if (!map || !userCoordinates || !isValidCoord(userCoordinates)) return;
+    map.flyTo({
+      center: [userCoordinates[1], userCoordinates[0]],
+      zoom: MARKER_FOCUS_ZOOM,
+      duration: FLY_DURATION_MS,
+      easing: FLY_EASE,
+      essential: true,
+    });
+  }, [map, userCoordinates]);
+
+  const recenterNorth = useCallback(() => {
+    if (!map) return;
+    map.easeTo({
+      bearing: 0,
+      duration: FLY_DURATION_MS,
+      easing: FLY_EASE,
+      essential: true,
+    });
+  }, [map]);
+
+  if (!isLoaded || !map) return null;
+
+  return (
+    <MapFloatingControls
+      onZoomIn={zoomIn}
+      onZoomOut={zoomOut}
+      onRecenterNorth={recenterNorth}
+      onLocate={locate}
+    />
+  );
+}
+
 function ProfileMarker({
   profile,
+  isFocused,
   onProfileFocus,
 }: {
   profile: MapProfile;
+  isFocused?: boolean;
   onProfileFocus?: (profileId: string) => void;
 }) {
   const { map } = useMap();
@@ -190,27 +302,25 @@ function ProfileMarker({
       center: [longitude, latitude],
       zoom: MARKER_FOCUS_ZOOM,
       duration: FLY_DURATION_MS,
+      easing: FLY_EASE,
+      essential: true,
     });
     onProfileFocus?.(key);
   };
 
   return (
     <MapMarker longitude={longitude} latitude={latitude} onClick={handleClick}>
-      <MarkerContent className="flex cursor-pointer flex-col items-center">
-        <div className="relative">
-          <div className="h-11 w-11 overflow-hidden rounded-full border-[2.5px] border-white bg-surface-dim shadow-[0_4px_14px_rgba(0,0,0,0.35)] sm:h-12 sm:w-12">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={profilePhotoUrl(profile)}
-              alt=""
-              className="h-full w-full object-cover"
-            />
-          </div>
-          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-surface-container-highest/90 px-1.5 py-0.5 text-[10px] font-semibold text-on-surface shadow-md backdrop-blur-sm">
+      <MarkerContent className="map-marker">
+        <div
+          className={`map-marker__avatar ${isFocused ? "map-marker__avatar--focused" : ""}`}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={profilePhotoUrl(profile)} alt="" />
+          <span className="map-marker__badge">
             {formatDistanceCompact(profile.distanceMeters)}
-          </div>
+          </span>
         </div>
-        <div className="mt-2 h-2 w-2 rounded-full border border-white/80 bg-primary shadow-sm" />
+        <div className="map-marker__pin" />
       </MarkerContent>
     </MapMarker>
   );
@@ -221,10 +331,10 @@ function UserLocationMarker({ coordinates }: { coordinates: [number, number] }) 
 
   return (
     <MapMarker longitude={longitude} latitude={latitude}>
-      <MarkerContent className="relative flex h-16 w-16 items-center justify-center">
-        <div className="ios-location-pulse absolute h-14 w-14 rounded-full bg-[#0a84ff]/25" />
-        <div className="absolute h-10 w-10 rounded-full bg-[#0a84ff]/15" />
-        <div className="relative h-4 w-4 rounded-full border-[2.5px] border-white bg-[#0a84ff] shadow-[0_2px_8px_rgba(10,132,255,0.45)]" />
+      <MarkerContent className="map-marker map-marker--user">
+        <div className="map-marker-user__pulse map-marker-user__pulse--outer" />
+        <div className="map-marker-user__pulse map-marker-user__pulse--inner" />
+        <div className="map-marker-user__dot" />
       </MarkerContent>
     </MapMarker>
   );
@@ -237,39 +347,68 @@ export default function MapView({
   focusProfileId,
   onProfileFocus,
 }: MapViewProps) {
-  const mappableProfiles = useMemo(
-    () => profiles.filter((p) => isValidCoord(p.coordinates)),
-    [profiles, profilesOrderKey]
-  );
+  const { resolvedTheme } = useTheme();
+  const theme = resolvedTheme === "light" ? "light" : "dark";
+  const layerEnabled = useMapLayersStore((s) => s.enabled);
+  const showProfiles = isDuoLayerVisible(layerEnabled, "duo-profiles", true);
+  const showUserLocation = isDuoLayerVisible(layerEnabled, "duo-user-location", true);
+
+  const mappableProfiles = useMemo(() => {
+    void profilesOrderKey;
+    return profiles.filter((p) => isValidCoord(p.coordinates));
+  }, [profiles, profilesOrderKey]);
+
+  const initialViewport = useMemo(() => {
+    if (userCoordinates && isValidCoord(userCoordinates)) {
+      const [lat, lng] = userCoordinates;
+      return {
+        center: [lng, lat] as [number, number],
+        zoom: zoomForRadiusKm(lat, MAP_INITIAL_RADIUS_KM),
+      };
+    }
+    return {
+      center: DEFAULT_CENTER,
+      zoom: zoomForRadiusKm(DEFAULT_CENTER[1], MAP_INITIAL_RADIUS_KM),
+    };
+  }, [userCoordinates]);
 
   return (
-    <div className="relative h-full min-h-[300px] w-full [&_.maplibregl-ctrl-attrib]:hidden">
+    <div className="map-surface relative h-full min-h-[300px] w-full">
+      <MapLayersPanel />
       <Map
-        center={DEFAULT_CENTER}
-        zoom={11}
-        theme="dark"
+        center={initialViewport.center}
+        zoom={initialViewport.zoom}
+        maxPitch={85}
+        projection={GLOBE_PROJECTION}
+        theme={theme}
         className="h-full min-h-[300px] w-full"
       >
-        <MapControls
-          showZoom
-          showLocate
-          position="top-right"
-          className="ios-map-controls right-3 top-[calc(5.75rem+env(safe-area-inset-top))] md:top-3"
-        />
-        {userCoordinates && isValidCoord(userCoordinates) ? (
+        <GlobeExperience />
+        <MapLayersBridge />
+        <SpaceStarfieldBridge />
+        <SpaceAtmosphereBridge />
+        <WeatherBridge />
+        <MapDebugHud />
+        <MapControlBridge userCoordinates={userCoordinates} />
+        {showUserLocation && userCoordinates && isValidCoord(userCoordinates) ? (
           <UserLocationMarker coordinates={userCoordinates} />
         ) : null}
-        {mappableProfiles.map((profile) => (
-          <ProfileMarker
-            key={profileKey(profile)}
-            profile={profile}
-            onProfileFocus={onProfileFocus}
-          />
-        ))}
+        {showProfiles
+          ? mappableProfiles.map((profile) => (
+              <ProfileMarker
+                key={profileKey(profile)}
+                profile={profile}
+                isFocused={focusProfileId === profileKey(profile)}
+                onProfileFocus={onProfileFocus}
+              />
+            ))
+          : null}
         <MapResizeHandler />
-        <MapFitBounds profiles={mappableProfiles} userCoordinates={userCoordinates} />
+        <MapInitialViewport userCoordinates={userCoordinates} />
         <FocusOnProfile profiles={mappableProfiles} focusProfileId={focusProfileId} />
       </Map>
     </div>
   );
 }
+
+export { isValidCoord, profileKey, toLngLat } from "./utils";

@@ -118,7 +118,7 @@ export default function MatchBrowseMobileSheet({
           onPointerDown={(event) => dragControls.start(event)}
         >
           <div className="flex justify-center pb-2 pt-2.5">
-            <div className="h-[5px] w-9 rounded-full bg-white/25" />
+            <div className="ios-sheet__handle" />
           </div>
 
           <div className="px-4 pb-3">
