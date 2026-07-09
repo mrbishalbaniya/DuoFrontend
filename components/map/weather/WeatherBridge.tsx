@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useMap } from "@/components/ui/mapcn-map";
 import {
   isSnapWeatherLayerActive,
@@ -19,12 +19,10 @@ import {
   setWeatherAmbienceTarget,
 } from "@/lib/weather/ambienceStore";
 import { fetchCurrentWeather, fetchWeatherGrid } from "@/lib/weather/api";
-import type { SnapAtmosphereFlags } from "@/lib/weather/createSnapAtmosphereLayer";
 import {
   createSnapAtmosphereLayer,
   SNAP_ATMOSPHERE_LAYER_ID,
 } from "@/lib/weather/createSnapAtmosphereLayer";
-import type { SnapParticleFlags } from "@/lib/weather/createWeatherParticleLayer";
 import {
   createWeatherParticleLayer,
   WEATHER_PARTICLE_LAYER_ID,
@@ -41,15 +39,6 @@ function debounce<T extends (...args: never[]) => void>(fn: T, ms: number) {
 export default function WeatherBridge() {
   const { map, isLoaded } = useMap();
   const enabled = useMapLayersStore((s) => s.enabled);
-  const flagsRef = useRef<{ atmosphere: SnapAtmosphereFlags; particles: SnapParticleFlags }>({
-    atmosphere: snapAtmosphereFlags(enabled),
-    particles: snapParticleFlags(enabled),
-  });
-
-  flagsRef.current = {
-    atmosphere: snapAtmosphereFlags(enabled),
-    particles: snapParticleFlags(enabled),
-  };
 
   useEffect(() => {
     if (!map || !isLoaded) return;
@@ -67,14 +56,22 @@ export default function WeatherBridge() {
 
       if (!map.getLayer(SNAP_ATMOSPHERE_LAYER_ID)) {
         try {
-          map.addLayer(createSnapAtmosphereLayer(() => flagsRef.current.atmosphere));
+          map.addLayer(
+            createSnapAtmosphereLayer(() =>
+              snapAtmosphereFlags(useMapLayersStore.getState().enabled)
+            )
+          );
         } catch (error) {
           console.warn("Snap atmosphere layer failed", error);
         }
       }
       if (!map.getLayer(WEATHER_PARTICLE_LAYER_ID)) {
         try {
-          map.addLayer(createWeatherParticleLayer(() => flagsRef.current.particles));
+          map.addLayer(
+            createWeatherParticleLayer(() =>
+              snapParticleFlags(useMapLayersStore.getState().enabled)
+            )
+          );
         } catch (error) {
           console.warn("Weather particle layer failed", error);
         }
