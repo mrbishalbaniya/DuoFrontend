@@ -4,6 +4,7 @@ import Script from "next/script";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { GoogleOAuthProviderWrapper } from "@/components/auth/google-oauth-provider";
+import { PushNotificationBridge } from "@/components/push/PushNotificationBridge";
 import { LenisProvider } from "@/components/lenis-provider";
 import "./globals.css";
 
@@ -57,7 +58,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <div className="app-background" aria-hidden="true" />
           <GoogleOAuthProviderWrapper>
             <ThemeProvider>
-              <AuthProvider>{children}</AuthProvider>
+              <AuthProvider>
+                <PushNotificationBridge />
+                {children}
+              </AuthProvider>
             </ThemeProvider>
           </GoogleOAuthProviderWrapper>
         </LenisProvider>

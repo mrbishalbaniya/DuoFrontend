@@ -1,4 +1,4 @@
-const DEV_BACKEND = "http://localhost:8001/api";
+const DEV_BACKEND = "http://localhost:8000/api";
 
 export function getBackendApiUrl(): string {
   const configured = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");

@@ -614,6 +614,34 @@ class ApiClient {
       body: JSON.stringify({ reason }),
     });
   }
+
+  async getNotificationConfig(): Promise<{
+    enabled: boolean;
+    firebase?: {
+      apiKey: string;
+      authDomain: string;
+      projectId: string;
+      messagingSenderId: string;
+      appId: string;
+    };
+    vapidKey?: string;
+  }> {
+    return this.request("/notifications/config/", { skipAuthRedirect: true });
+  }
+
+  async registerDeviceToken(token: string, platform: "web" | "android" | "ios" = "web") {
+    return this.request<{ detail: string }>("/notifications/devices/", {
+      method: "POST",
+      body: JSON.stringify({ token, platform }),
+    });
+  }
+
+  async unregisterDeviceToken(token: string) {
+    return this.request<{ detail: string }>("/notifications/devices/unregister/", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    });
+  }
 }
 
 const api = new ApiClient();

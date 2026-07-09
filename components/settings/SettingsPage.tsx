@@ -9,6 +9,11 @@ import BottomNav from "@/components/BottomNav";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme, type ThemeMode } from "@/contexts/ThemeContext";
 import api from "@/lib/api";
+import {
+  getPushStatus,
+  registerPushNotifications,
+  unregisterPushNotifications,
+} from "@/lib/push/fcm";
 import { cn } from "@/lib/utils";
 
 function SettingsSection({
@@ -127,8 +132,29 @@ export function SettingsPage() {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [pushLoading, setPushLoading] = useState(true);
+  const [pushSaving, setPushSaving] = useState(false);
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushConfigured, setPushConfigured] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushError, setPushError] = useState<string | null>(null);
+  const [pushMessage, setPushMessage] = useState<string | null>(null);
 
   const isVerified = user?.profile?.is_verified;
+
+  useEffect(() => {
+    let cancelled = false;
+    void getPushStatus().then((status) => {
+      if (cancelled) return;
+      setPushSupported(status.supported);
+      setPushConfigured(status.configured);
+      setPushEnabled(status.enabled);
+      setPushLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     lenis?.stop();
@@ -163,6 +189,27 @@ export function SettingsPage() {
       setPasswordError(err instanceof Error ? err.message : "Could not update password.");
     } finally {
       setPasswordSaving(false);
+    }
+  };
+
+  const handlePushToggle = async () => {
+    setPushError(null);
+    setPushMessage(null);
+    setPushSaving(true);
+    try {
+      if (pushEnabled) {
+        await unregisterPushNotifications();
+        setPushEnabled(false);
+        setPushMessage("Push notifications turned off.");
+      } else {
+        await registerPushNotifications();
+        setPushEnabled(true);
+        setPushMessage("Push notifications enabled.");
+      }
+    } catch (err) {
+      setPushError(err instanceof Error ? err.message : "Could not update notifications.");
+    } finally {
+      setPushSaving(false);
     }
   };
 
@@ -231,6 +278,58 @@ export function SettingsPage() {
                 </div>
               </div>
             </SettingsSection>
+
+                <SettingsSection title="Notifications">
+                  <div className="px-4 py-4 md:px-5 md:py-5">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        <span className="material-symbols-outlined text-[22px]">notifications</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-on-surface">Push notifications</p>
+                        <p className="mt-0.5 text-sm text-on-surface-variant">
+                          Get alerts for new chat messages when Duo is in the background.
+                        </p>
+                        {pushLoading ? (
+                          <p className="mt-3 text-sm text-on-surface-variant">Checking support…</p>
+                        ) : !pushSupported ? (
+                          <p className="mt-3 text-sm text-on-surface-variant">
+                            This browser does not support push notifications.
+                          </p>
+                        ) : !pushConfigured ? (
+                          <p className="mt-3 text-sm text-on-surface-variant">
+                            Push is not configured yet. Ask an admin to enable Firebase in integration settings.
+                          </p>
+                        ) : (
+                          <div className="mt-4 flex flex-wrap items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => void handlePushToggle()}
+                              disabled={pushSaving}
+                              className={cn(
+                                "rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors",
+                                pushEnabled
+                                  ? "border border-outline-variant/30 text-on-surface hover:bg-surface-container-high/60"
+                                  : "text-white gradient-brand"
+                              )}
+                            >
+                              {pushSaving
+                                ? "Updating…"
+                                : pushEnabled
+                                  ? "Turn off notifications"
+                                  : "Enable notifications"}
+                            </button>
+                            <span className="text-sm text-on-surface-variant">
+                              {pushEnabled ? "Enabled" : "Disabled"}
+                            </span>
+                          </div>
+                        )}
+                        {pushError ? <p className="mt-3 text-sm text-red-500">{pushError}</p> : null}
+                        {pushMessage ? <p className="mt-3 text-sm text-accent">{pushMessage}</p> : null}
+                      </div>
+                    </div>
+                  </div>
+                </SettingsSection>
               </div>
 
               <div className="space-y-6">
