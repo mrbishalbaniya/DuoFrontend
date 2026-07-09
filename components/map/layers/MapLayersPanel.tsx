@@ -6,11 +6,10 @@ import {
   getCategoryById,
   getLayerById,
   getLayersForCategory,
-  MAP_LAYER_CATEGORIES,
-  MAP_LAYER_CATALOG,
+  MAP_LAYERS_MAIN_CATEGORIES,
 } from "@/lib/mapLayers/catalog";
-import type { MapLayerDefinition } from "@/lib/mapLayers/types";
-import { useMapLayersStore, GLOBE_MULTI_TOGGLE_IDS } from "@/lib/mapLayers/store";
+import type { MapLayerCategoryId, MapLayerDefinition } from "@/lib/mapLayers/types";
+import { useMapLayersStore } from "@/lib/mapLayers/store";
 import { MapMaterialIcon } from "./MapMaterialIcon";
 
 function matchesSearch(layer: MapLayerDefinition, query: string): boolean {
@@ -21,21 +20,16 @@ function matchesSearch(layer: MapLayerDefinition, query: string): boolean {
   return layer.keywords?.some((k) => k.toLowerCase().includes(q)) ?? false;
 }
 
-function LayerRow({ layer }: { layer: MapLayerDefinition }) {
+function LayerRow({ layer, showFavorite = true }: { layer: MapLayerDefinition; showFavorite?: boolean }) {
   const enabled = useMapLayersStore((s) => s.enabled[layer.id] === true);
   const toggleLayer = useMapLayersStore((s) => s.toggleLayer);
   const toggleFavorite = useMapLayersStore((s) => s.toggleFavorite);
   const isFavorite = useMapLayersStore((s) => s.favorites.includes(layer.id));
   const category = getCategoryById(layer.categoryId);
-  const isSingle =
-    category?.selectionMode === "single" &&
-    (layer.categoryId === "base" ||
-      (layer.categoryId === "globe" && !GLOBE_MULTI_TOGGLE_IDS.has(layer.id)));
+  const isSingle = category?.selectionMode === "single" && layer.categoryId === "base";
 
   return (
-    <div
-      className={`map-layers-row ${enabled ? "map-layers-row--active" : ""}`}
-    >
+    <div className={`map-layers-row ${enabled ? "map-layers-row--active" : ""}`}>
       <div className="map-layers-row__icon">
         <MapMaterialIcon name={layer.icon} className="text-lg" />
       </div>
@@ -43,18 +37,18 @@ function LayerRow({ layer }: { layer: MapLayerDefinition }) {
         <div className="map-layers-row__title">
           <span>{layer.label}</span>
         </div>
-        {layer.description ? (
-          <p className="map-layers-row__desc">{layer.description}</p>
-        ) : null}
+        {layer.description ? <p className="map-layers-row__desc">{layer.description}</p> : null}
       </div>
-      <button
-        type="button"
-        className={`map-layers-fav ${isFavorite ? "map-layers-fav--active" : ""}`}
-        aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
-        onClick={() => toggleFavorite(layer.id)}
-      >
-        <MapMaterialIcon name="star" className="text-base" filled={isFavorite} />
-      </button>
+      {showFavorite ? (
+        <button
+          type="button"
+          className={`map-layers-fav ${isFavorite ? "map-layers-fav--active" : ""}`}
+          aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+          onClick={() => toggleFavorite(layer.id)}
+        >
+          <MapMaterialIcon name="star" className="text-base" filled={isFavorite} />
+        </button>
+      ) : null}
       {isSingle ? (
         <button
           type="button"
@@ -89,7 +83,7 @@ function CategorySection({
   layers: MapLayerDefinition[];
   defaultOpen?: boolean;
 }) {
-  const category = getCategoryById(categoryId as MapLayerDefinition["categoryId"]);
+  const category = getCategoryById(categoryId as MapLayerCategoryId);
   const enabled = useMapLayersStore((s) => s.enabled);
   const [open, setOpen] = useState(defaultOpen ?? false);
   if (!category || layers.length === 0) return null;
@@ -131,11 +125,31 @@ function CategorySection({
   );
 }
 
-export default function MapLayersPanel() {
-  const panelOpen = useMapLayersStore((s) => s.panelOpen);
-  const setPanelOpen = useMapLayersStore((s) => s.setPanelOpen);
-  const searchQuery = useMapLayersStore((s) => s.searchQuery);
-  const setSearchQuery = useMapLayersStore((s) => s.setSearchQuery);
+type MapLayersSheetProps = {
+  open: boolean;
+  onClose: () => void;
+  panelId: string;
+  title: string;
+  subtitle: string;
+  categoryIds: MapLayerCategoryId[];
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+  showFavorites?: boolean;
+  showSearch?: boolean;
+};
+
+export function MapLayersSheet({
+  open,
+  onClose,
+  panelId,
+  title,
+  subtitle,
+  categoryIds,
+  searchQuery,
+  onSearchChange,
+  showFavorites = true,
+  showSearch = true,
+}: MapLayersSheetProps) {
   const favorites = useMapLayersStore((s) => s.favorites);
 
   const favoriteLayers = useMemo(
@@ -143,46 +157,46 @@ export default function MapLayersPanel() {
       favorites
         .map((id) => getLayerById(id))
         .filter((l): l is MapLayerDefinition => Boolean(l))
+        .filter((l) => categoryIds.includes(l.categoryId))
         .filter((l) => matchesSearch(l, searchQuery)),
-    [favorites, searchQuery]
+    [favorites, searchQuery, categoryIds]
   );
 
   const filteredByCategory = useMemo(() => {
     const map = new Map<string, MapLayerDefinition[]>();
-    for (const category of MAP_LAYER_CATEGORIES) {
-      const layers = getLayersForCategory(category.id).filter((l) => matchesSearch(l, searchQuery));
-      if (layers.length) map.set(category.id, layers);
+    for (const categoryId of categoryIds) {
+      const layers = getLayersForCategory(categoryId).filter((l) => matchesSearch(l, searchQuery));
+      if (layers.length) map.set(categoryId, layers);
     }
     return map;
-  }, [searchQuery]);
+  }, [searchQuery, categoryIds]);
 
   const totalResults = useMemo(() => {
-    if (!searchQuery.trim()) return MAP_LAYER_CATALOG.length;
     let n = 0;
     filteredByCategory.forEach((layers) => {
       n += layers.length;
     });
     return n;
-  }, [filteredByCategory, searchQuery]);
+  }, [filteredByCategory]);
 
   return (
     <AnimatePresence>
-      {panelOpen ? (
+      {open ? (
         <>
           <motion.button
             type="button"
-            aria-label="Close layers panel"
+            aria-label={`Close ${title.toLowerCase()}`}
             className="map-layers-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            onClick={() => setPanelOpen(false)}
+            onClick={onClose}
           />
           <motion.aside
-            id="map-layers-panel"
+            id={panelId}
             role="dialog"
-            aria-label="Map layers"
+            aria-label={title}
             className="map-layers-panel ios-glass pointer-events-auto"
             initial={{ opacity: 0, y: 16, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -191,45 +205,45 @@ export default function MapLayersPanel() {
           >
             <header className="map-layers-panel__header">
               <div>
-                <h2 className="map-layers-panel__title">Map Layers</h2>
-                <p className="map-layers-panel__subtitle">
-                  {totalResults} layers · synced across globe &amp; map
-                </p>
+                <h2 className="map-layers-panel__title">{title}</h2>
+                <p className="map-layers-panel__subtitle">{subtitle}</p>
               </div>
               <button
                 type="button"
                 className="map-layers-panel__close"
                 aria-label="Close"
-                onClick={() => setPanelOpen(false)}
+                onClick={onClose}
               >
                 <MapMaterialIcon name="close" className="text-xl" />
               </button>
             </header>
 
-            <div className="map-layers-search">
-              <MapMaterialIcon name="search" className="text-lg text-on-surface-variant" />
-              <input
-                type="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search layers…"
-                aria-label="Search map layers"
-                className="map-layers-search__input"
-              />
-              {searchQuery ? (
-                <button
-                  type="button"
-                  aria-label="Clear search"
-                  className="map-layers-search__clear"
-                  onClick={() => setSearchQuery("")}
-                >
-                  <MapMaterialIcon name="close" className="text-base" />
-                </button>
-              ) : null}
-            </div>
+            {showSearch ? (
+              <div className="map-layers-search">
+                <MapMaterialIcon name="search" className="text-lg text-on-surface-variant" />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => onSearchChange(e.target.value)}
+                  placeholder="Search…"
+                  aria-label={`Search ${title.toLowerCase()}`}
+                  className="map-layers-search__input"
+                />
+                {searchQuery ? (
+                  <button
+                    type="button"
+                    aria-label="Clear search"
+                    className="map-layers-search__clear"
+                    onClick={() => onSearchChange("")}
+                  >
+                    <MapMaterialIcon name="close" className="text-base" />
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="map-layers-panel__scroll ios-sheet-scroll">
-              {favoriteLayers.length > 0 ? (
+              {showFavorites && favoriteLayers.length > 0 ? (
                 <div className="map-layers-favorites">
                   <h3 className="map-layers-section-title">
                     <MapMaterialIcon name="star" className="text-base text-primary" filled />
@@ -243,15 +257,15 @@ export default function MapLayersPanel() {
                 </div>
               ) : null}
 
-              {MAP_LAYER_CATEGORIES.map((category, index) => {
-                const layers = filteredByCategory.get(category.id);
+              {categoryIds.map((categoryId) => {
+                const layers = filteredByCategory.get(categoryId);
                 if (!layers?.length) return null;
                 return (
                   <CategorySection
-                    key={category.id}
-                    categoryId={category.id}
+                    key={categoryId}
+                    categoryId={categoryId}
                     layers={layers}
-                    defaultOpen={index < 2 || Boolean(searchQuery.trim())}
+                    defaultOpen={Boolean(searchQuery.trim())}
                   />
                 );
               })}
@@ -259,7 +273,7 @@ export default function MapLayersPanel() {
               {totalResults === 0 ? (
                 <div className="map-layers-empty">
                   <MapMaterialIcon name="layers_clear" className="text-4xl text-primary/40" />
-                  <p>No layers match your search.</p>
+                  <p>No options match your search.</p>
                 </div>
               ) : null}
             </div>
@@ -267,5 +281,27 @@ export default function MapLayersPanel() {
         </>
       ) : null}
     </AnimatePresence>
+  );
+}
+
+export default function MapLayersPanel() {
+  const panelOpen = useMapLayersStore((s) => s.panelOpen);
+  const setPanelOpen = useMapLayersStore((s) => s.setPanelOpen);
+  const searchQuery = useMapLayersStore((s) => s.searchQuery);
+  const setSearchQuery = useMapLayersStore((s) => s.setSearchQuery);
+
+  return (
+    <MapLayersSheet
+      open={panelOpen}
+      onClose={() => setPanelOpen(false)}
+      panelId="map-layers-panel"
+      title="Map Style"
+      subtitle="Choose a look"
+      categoryIds={MAP_LAYERS_MAIN_CATEGORIES}
+      searchQuery={searchQuery}
+      onSearchChange={setSearchQuery}
+      showFavorites={false}
+      showSearch={false}
+    />
   );
 }

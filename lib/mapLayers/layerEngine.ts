@@ -6,7 +6,7 @@ import {
   NATURAL_EARTH,
   OVERLAY_PREFIX,
   OVERLAY_SOURCE_PREFIX,
-  resolveBasemapForGlobeMode,
+  resolveBasemapForView,
   TERRAIN_SOURCE_ID,
 } from "./basemaps";
 
@@ -144,50 +144,57 @@ function isMapStyleReady(map: MapLibreMap): boolean {
 
 function applySky(map: MapLibreMap, enabled: Record<string, boolean>) {
   if (!isMapStyleReady(map)) return;
+  // Disable cinematic sky while zoomed out — it was covering the Earth disc.
+  if (map.getZoom() < 5.5) {
+    try {
+      map.setSky(undefined as unknown as never);
+    } catch {
+      map.setSky({
+        "sky-color": "#050814",
+        "horizon-color": "#102033",
+        "atmosphere-blend": 0,
+        "sky-horizon-blend": 0,
+        "horizon-fog-blend": 0,
+        "fog-ground-blend": 0,
+      });
+    }
+    return;
+  }
   if (enabled["globe-atmosphere"] === false && enabled["globe-earth-glow"] === false) {
     map.setSky({ "sky-color": "transparent", "horizon-color": "transparent" });
     return;
   }
+
   const sky = readMapSkySpec();
   const fade = computeSpaceFade(map.getZoom());
-  const zoom = map.getZoom();
-  const spaceView = zoom < 5;
-
-  let atmosphereBlend =
-    (typeof sky["atmosphere-blend"] === "number" ? sky["atmosphere-blend"] : 0.82) *
-    (spaceView ? 0.22 : 0.4 + fade.atmosphereBoost * 0.6);
+  let atmosphereBlend = 0.28 + fade.atmosphereBoost * 0.35;
   if (enabled["globe-earth-glow"] === false) {
-    atmosphereBlend = Math.min(0.28, atmosphereBlend);
+    atmosphereBlend = Math.min(0.18, atmosphereBlend);
   }
   if (enabled["globe-atmosphere"] === false) {
     atmosphereBlend = 0;
   }
-  if (enabled["weather-day-night"] === true) {
-    atmosphereBlend = Math.min(1, atmosphereBlend + 0.15);
-  }
+
   map.setSky({
     ...sky,
-    "sky-color": "#000000",
-    "horizon-color": "#000000",
+    "sky-color": "#050814",
+    "horizon-color": "#0e1c2e",
     "fog-color": "#000000",
     "atmosphere-blend": atmosphereBlend,
-    "sky-horizon-blend": spaceView ? 0 : 0.12 + fade.atmosphereBoost * 0.2,
-    "horizon-fog-blend": spaceView ? 0 : 0.03 + fade.atmosphereBoost * 0.05,
+    "sky-horizon-blend": 0.16 + fade.atmosphereBoost * 0.12,
+    "horizon-fog-blend": 0.04,
+    "fog-ground-blend": 0,
   });
 }
 
 export function applyGlobeLighting(map: MapLibreMap) {
   if (!isMapStyleReady(map)) return;
-  const fade = computeSpaceFade(map.getZoom());
-  const bearing = map.getBearing();
-  const pitch = map.getPitch();
-  const sunAz = ((bearing + 200) % 360) - 180;
-  const sunPolar = 52 + pitch * 0.22;
+  // Neutral bright light so the globe face is never a black disc.
   map.setLight({
-    anchor: "viewport",
-    color: "#fff8f0",
-    intensity: 0.28 + fade.atmosphereBoost * 0.42,
-    position: [1.2, sunAz, sunPolar],
+    anchor: "map",
+    color: "#ffffff",
+    intensity: map.getZoom() < 5.5 ? 1.2 : 0.75,
+    position: [1.5, 210, 30],
   });
 }
 
@@ -206,22 +213,24 @@ export async function applyMapLayersState(
   state: {
     enabled: Record<string, boolean>;
     baseMapId: string;
-    globeModeId: string;
+    globeModeId?: string;
   }
 ): Promise<void> {
-  const styleKey = `${state.baseMapId}:${state.globeModeId}`;
+  const zoom = map.getZoom();
+  const globeBand = zoom < 5.5 ? "globe" : "street";
+  const styleKey = `${state.baseMapId}:${globeBand}`;
   if (styleKey !== lastBasemapKey) {
     lastBasemapKey = styleKey;
     const center = map.getCenter();
-    const zoom = map.getZoom();
+    const currentZoom = zoom;
     const bearing = map.getBearing();
     const pitch = map.getPitch();
 
-    const nextStyle = resolveBasemapForGlobeMode(state.baseMapId, state.globeModeId);
+    const nextStyle = resolveBasemapForView(state.baseMapId, zoom);
     await new Promise<void>((resolve) => {
       const onLoad = () => {
         map.off("style.load", onLoad);
-        map.jumpTo({ center, zoom, bearing, pitch });
+        map.jumpTo({ center, zoom: currentZoom, bearing, pitch });
         resolve();
       };
       map.once("style.load", onLoad);
@@ -239,9 +248,7 @@ export async function applyMapLayersState(
     }
   }
 
-  const terrainOn =
-    state.enabled["globe-terrain-elevation"] === true ||
-    state.enabled["base-topographic"] === true;
+  const terrainOn = false;
   setTerrain(map, terrainOn);
 
   for (const key of Object.keys(OVERLAYS)) {

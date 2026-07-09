@@ -2,7 +2,7 @@ export type LayerSelectionMode = "single" | "multi";
 
 export type MapLayerCategoryId =
   | "base"
-  | "globe"
+  | "globe-fx"
   | "geographic"
   | "weather"
   | "duo"
@@ -28,6 +28,5 @@ export interface MapLayerDefinition {
 export interface MapLayersPersistedState {
   enabled: Record<string, boolean>;
   baseMapId: string;
-  globeModeId: string;
   favorites: string[];
 }

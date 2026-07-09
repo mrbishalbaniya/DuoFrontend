@@ -257,6 +257,25 @@ export default function ProfilePage() {
                   </ul>
                 </div>
 
+                <button
+                  type="button"
+                  onClick={() => router.push("/avatar")}
+                  className="flex w-full items-center gap-4 rounded-2xl border border-primary/20 bg-primary/5 p-5 text-left transition-colors hover:bg-primary/10"
+                >
+                  <div className="gradient-brand-br shrink-0 rounded-full p-3 text-white">
+                    <span className="material-symbols-outlined">view_in_ar</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-on-surface">Avatar Studio</p>
+                    <p className="text-xs text-on-surface-variant">
+                      Create your 3D avatar for the globe
+                    </p>
+                  </div>
+                  <span className="material-symbols-outlined text-on-surface-variant">
+                    chevron_right
+                  </span>
+                </button>
+
                 {profile.is_verified ? (
                   <div className="flex items-center gap-4 rounded-2xl border border-primary/10 bg-secondary/70 p-5">
                     <div className="gradient-brand-br shrink-0 rounded-full p-3 text-white">

@@ -147,10 +147,16 @@ export function createSnapAtmosphereLayer(
       const flags = getFlags();
       if (!flags.live) return;
 
-      const ambience = tickWeatherAmbience();
       const zoom = map.getZoom();
+      // Don't darken the planetary globe with a fullscreen weather wash.
+      if (zoom < 4.5) return;
+
+      const ambience = tickWeatherAmbience();
       const fade = computeSpaceFade(zoom);
-      const zoomOpacity = zoom < 3 ? 0.35 + fade.stars * 0.45 : 0.55 + Math.min(0.35, (zoom - 3) * 0.04);
+      const zoomOpacity =
+        zoom < 6
+          ? 0.18 + fade.stars * 0.12
+          : 0.45 + Math.min(0.3, (zoom - 3) * 0.04);
 
       const elapsed = (performance.now() - start) / 1000;
       let lightning = 0;

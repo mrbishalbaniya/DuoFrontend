@@ -6,6 +6,7 @@ import {
   isSupported,
   onMessage,
   type Messaging,
+  type MessagePayload,
 } from "firebase/messaging";
 
 import api from "@/lib/api";
@@ -24,10 +25,13 @@ export type PushConfig = {
 
 const PUSH_PREF_KEY = "duo_push_enabled";
 const SW_PATH = "/firebase-messaging-sw.js";
+const DEFAULT_ICON = "/icons/duo-notification-192.png";
+const DEFAULT_BADGE = "/icons/duo-badge-96.png";
 
 let messagingInstance: Messaging | null = null;
 let cachedConfig: PushConfig | null = null;
 let cachedToken: string | null = null;
+let foregroundListenerBound = false;
 
 export function getPushPreference(): boolean {
   if (typeof window === "undefined") return false;
@@ -45,8 +49,8 @@ export async function isPushSupported(): Promise<boolean> {
   return isSupported();
 }
 
-async function fetchPushConfig(): Promise<PushConfig> {
-  if (cachedConfig) return cachedConfig;
+async function fetchPushConfig(forceRefresh = false): Promise<PushConfig> {
+  if (!forceRefresh && cachedConfig) return cachedConfig;
   cachedConfig = await api.getNotificationConfig();
   return cachedConfig;
 }
@@ -70,8 +74,87 @@ async function ensureMessaging(config: PushConfig): Promise<Messaging | null> {
 async function ensureServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (!("serviceWorker" in navigator)) return null;
   const existing = await navigator.serviceWorker.getRegistration(SW_PATH);
-  if (existing) return existing;
-  return navigator.serviceWorker.register(SW_PATH);
+  if (existing) {
+    // Force update so notification UX fixes ship without a hard refresh.
+    void existing.update();
+    return existing;
+  }
+  return navigator.serviceWorker.register(SW_PATH, { scope: "/" });
+}
+
+function pickString(...values: Array<string | undefined | null>): string {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+}
+
+function notificationFromPayload(payload: MessagePayload): {
+  title: string;
+  options: NotificationOptions;
+} {
+  const data = (payload.data || {}) as Record<string, string>;
+  const n = payload.notification;
+  const type = pickString(data.type);
+
+  let title = pickString(n?.title, data.title, "Duo");
+  let body = pickString(n?.body, data.body, "You have a new update");
+  const otherName = pickString(data.other_name, "someone special");
+  const score = pickString(data.compatibility_score);
+
+  if (!n?.title && !data.title) {
+    if (type === "new_match") title = "It's a Match!";
+    else if (type === "profile_like") title = "Someone liked you";
+    else if (type === "chat_message") title = "New message";
+  }
+
+  if (!n?.body && !data.body && type === "new_match") {
+    body = score
+      ? `You and ${otherName} have expressed interest in each other. ${score}% compatible — start chatting.`
+      : `You and ${otherName} have expressed interest in each other. Start chatting on Duo.`;
+  }
+
+  const icon = pickString(data.icon, n?.icon, DEFAULT_ICON);
+  const badge = pickString(data.badge, DEFAULT_BADGE);
+  const image = pickString(data.image, n?.image);
+  const tag = pickString(data.tag, type || "duo-foreground");
+  const url = pickString(data.url, type === "new_match" ? "/chat" : "/message");
+
+  const options: NotificationOptions & {
+    image?: string;
+    renotify?: boolean;
+    requireInteraction?: boolean;
+  } = {
+    body,
+    icon,
+    badge,
+    tag,
+    renotify: true,
+    requireInteraction: type === "new_match",
+    data: { ...data, url, type },
+  };
+  if (image) options.image = image;
+  return { title, options };
+}
+
+function bindForegroundListener(messaging: Messaging): void {
+  if (foregroundListenerBound) return;
+  foregroundListenerBound = true;
+
+  onMessage(messaging, (payload) => {
+    if (Notification.permission !== "granted") return;
+
+    const { title, options } = notificationFromPayload(payload);
+
+    // Prefer the active SW registration so clicks route through our handler.
+    void navigator.serviceWorker.getRegistration(SW_PATH).then((reg) => {
+      if (reg?.showNotification) {
+        void reg.showNotification(title, options);
+        return;
+      }
+      new Notification(title, options);
+    });
+  });
 }
 
 export async function getRegisteredPushToken(): Promise<string | null> {
@@ -84,7 +167,7 @@ export async function registerPushNotifications(): Promise<string | null> {
     throw new Error("Push notifications are not supported in this browser.");
   }
 
-  const config = await fetchPushConfig();
+  const config = await fetchPushConfig(true);
   if (!config.enabled || !config.vapidKey || !config.firebase) {
     throw new Error("Push notifications are not configured on the server yet.");
   }
@@ -100,6 +183,22 @@ export async function registerPushNotifications(): Promise<string | null> {
     throw new Error("Could not initialize Firebase messaging.");
   }
 
+  // Wait until the SW is active before requesting a token.
+  if (registration.installing || registration.waiting) {
+    await new Promise<void>((resolve) => {
+      const worker = registration.installing || registration.waiting;
+      if (!worker) {
+        resolve();
+        return;
+      }
+      worker.addEventListener("statechange", () => {
+        if (worker.state === "activated" || worker.state === "redundant") {
+          resolve();
+        }
+      });
+    });
+  }
+
   const token = await getToken(messaging, {
     vapidKey: config.vapidKey,
     serviceWorkerRegistration: registration,
@@ -112,18 +211,7 @@ export async function registerPushNotifications(): Promise<string | null> {
   await api.registerDeviceToken(token, "web");
   cachedToken = token;
   setPushPreference(true);
-
-  onMessage(messaging, (payload) => {
-    const title = payload.notification?.title ?? "Duo";
-    const body = payload.notification?.body ?? "";
-    if (document.visibilityState === "visible" && Notification.permission === "granted") {
-      new Notification(title, {
-        body,
-        icon: "/globe.svg",
-        data: payload.data,
-      });
-    }
-  });
+  bindForegroundListener(messaging);
 
   return token;
 }
@@ -176,7 +264,7 @@ export async function getPushStatus(): Promise<{
     };
   }
 
-  const config = await fetchPushConfig();
+  const config = await fetchPushConfig(true);
   return {
     supported: true,
     configured: Boolean(config.enabled && config.firebase && config.vapidKey),

@@ -10,8 +10,7 @@ export default function MapLayersBridge() {
   const { map, isLoaded } = useMap();
   const enabled = useMapLayersStore((s) => s.enabled);
   const baseMapId = useMapLayersStore((s) => s.baseMapId);
-  const globeModeId = useMapLayersStore((s) => s.globeModeId);
-  const togglePanel = useMapLayersStore((s) => s.togglePanel);
+  const toggleSettingsPanel = useMapLayersStore((s) => s.toggleSettingsPanel);
   const applyingRef = useRef(false);
 
   useEffect(() => {
@@ -27,7 +26,6 @@ export default function MapLayersBridge() {
         await applyMapLayersState(map, {
           enabled: state.enabled,
           baseMapId: state.baseMapId,
-          globeModeId: state.globeModeId,
         });
         map.triggerRepaint();
       } finally {
@@ -36,10 +34,17 @@ export default function MapLayersBridge() {
     };
 
     void apply();
+
+    const onZoomEnd = () => {
+      void apply();
+    };
+    map.on("zoomend", onZoomEnd);
+
     return () => {
       cancelled = true;
+      map.off("zoomend", onZoomEnd);
     };
-  }, [map, isLoaded, enabled, baseMapId, globeModeId]);
+  }, [map, isLoaded, enabled, baseMapId]);
 
   useEffect(() => {
     if (!map || !isLoaded) return;
@@ -49,7 +54,6 @@ export default function MapLayersBridge() {
       void applyMapLayersState(map, {
         enabled: state.enabled,
         baseMapId: state.baseMapId,
-        globeModeId: state.globeModeId,
       }).then(() => map.triggerRepaint());
     };
 
@@ -75,12 +79,12 @@ export default function MapLayersBridge() {
       const target = event.target as HTMLElement | null;
       if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
       event.preventDefault();
-      togglePanel();
+      toggleSettingsPanel();
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [togglePanel]);
+  }, [toggleSettingsPanel]);
 
   return null;
 }

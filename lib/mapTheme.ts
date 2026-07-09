@@ -12,16 +12,16 @@ function readCssNumber(name: string, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-/** Globe atmosphere — pure black space behind the globe. */
+/** Globe atmosphere — deep space behind the globe, soft horizon near Earth. */
 export function readMapSkySpec(): SkySpecification {
   return {
-    "sky-color": readCssVar("--map-space-deep", readCssVar("--map-sky-color", "#000000")),
-    "horizon-color": readCssVar("--map-space-deep", readCssVar("--map-horizon-color", "#000000")),
+    "sky-color": readCssVar("--map-space-deep", readCssVar("--map-sky-color", "#02040a")),
+    "horizon-color": readCssVar("--map-horizon-color", "#071018"),
     "fog-color": readCssVar("--map-fog-color", "#000000"),
-    "sky-horizon-blend": readCssNumber("--map-sky-horizon-blend", 0),
-    "horizon-fog-blend": readCssNumber("--map-horizon-fog-blend", 0),
+    "sky-horizon-blend": readCssNumber("--map-sky-horizon-blend", 0.08),
+    "horizon-fog-blend": readCssNumber("--map-horizon-fog-blend", 0.02),
     "fog-ground-blend": readCssNumber("--map-fog-ground-blend", 0),
-    "atmosphere-blend": readCssNumber("--map-atmosphere-blend", 0.82),
+    "atmosphere-blend": readCssNumber("--map-atmosphere-blend", 0.35),
   };
 }
 

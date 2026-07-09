@@ -76,8 +76,10 @@ export function getBasemapStyle(baseMapId: string): string | StyleSpecification 
         ["https://tile.opentopomap.org/{z}/{x}/{y}.png"],
         "OpenTopoMap"
       );
+    case "base-night":
     case "base-dark":
     case "base-blueprint":
+    case "globe-night-view":
       return CARTO.dark;
     case "base-light":
     case "base-minimal":
@@ -87,21 +89,31 @@ export function getBasemapStyle(baseMapId: string): string | StyleSpecification 
     case "base-outdoors":
     case "base-navigation":
     case "base-standard-street":
+    case "globe-realistic-earth":
       return CARTO.voyager;
     default:
       return CARTO.voyager;
   }
 }
 
+/**
+ * At planetary zoom, dark basemaps paint the whole Earth black.
+ * Prefer a colorful globe style, then restore the chosen style when zoomed in.
+ */
+export function resolveBasemapForView(
+  baseMapId: string,
+  zoom: number
+): string | StyleSpecification {
+  if (zoom < 5.5 && (baseMapId === "base-night" || baseMapId === "base-dark")) {
+    return getBasemapStyle("base-satellite");
+  }
+  return getBasemapStyle(baseMapId);
+}
+
 export function resolveBasemapForGlobeMode(
   baseMapId: string,
-  globeModeId: string
+  _globeModeId?: string
 ): string | StyleSpecification {
-  if (globeModeId === "globe-night-view") return CARTO.dark;
-  if (globeModeId === "globe-day-view") return CARTO.light;
-  if (globeModeId === "globe-nasa-blue-marble") return getBasemapStyle("base-satellite");
-  if (globeModeId === "globe-political") return CARTO.voyager;
-  if (globeModeId === "globe-physical") return getBasemapStyle("base-topographic");
   return getBasemapStyle(baseMapId);
 }
 

@@ -144,13 +144,19 @@ export function SettingsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    void getPushStatus().then((status) => {
-      if (cancelled) return;
-      setPushSupported(status.supported);
-      setPushConfigured(status.configured);
-      setPushEnabled(status.enabled);
-      setPushLoading(false);
-    });
+    void getPushStatus()
+      .then((status) => {
+        if (cancelled) return;
+        setPushSupported(status.supported);
+        setPushConfigured(status.configured);
+        setPushEnabled(status.enabled);
+        setPushLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPushConfigured(false);
+        setPushLoading(false);
+      });
     return () => {
       cancelled = true;
     };
@@ -288,7 +294,7 @@ export function SettingsPage() {
                       <div className="min-w-0 flex-1">
                         <p className="font-semibold text-on-surface">Push notifications</p>
                         <p className="mt-0.5 text-sm text-on-surface-variant">
-                          Get alerts for new chat messages when Duo is in the background.
+                          Get beautiful alerts for likes, new matches, and messages on this device.
                         </p>
                         {pushLoading ? (
                           <p className="mt-3 text-sm text-on-surface-variant">Checking support…</p>

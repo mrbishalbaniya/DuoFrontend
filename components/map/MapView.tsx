@@ -9,15 +9,15 @@ import {
   useMap,
 } from "@/components/ui/mapcn-map";
 import { useTheme } from "@/contexts/ThemeContext";
-import { formatDistanceCompact } from "@/lib/distance";
-import { profilePhotoUrl } from "@/components/map/MatchMapCard";
 import { MapFloatingControls } from "./MapFloatingControls";
 import SpaceStarfieldBridge from "./SpaceStarfieldBridge";
 import SpaceAtmosphereBridge from "./SpaceAtmosphereBridge";
 import MapLayersBridge from "./layers/MapLayersBridge";
-import MapLayersPanel from "./layers/MapLayersPanel";
+import MapLayersSettingsPanel from "./layers/MapLayersSettingsPanel";
 import MapDebugHud from "./layers/MapDebugHud";
 import WeatherBridge from "./weather/WeatherBridge";
+import GlobeAvatarBridge from "./globeAvatars/GlobeAvatarBridge";
+import ActivityHeatmapBridge from "./activityHeatmap/ActivityHeatmapBridge";
 import { isDuoLayerVisible } from "@/lib/mapLayers/layerEngine";
 import { useMapLayersStore } from "@/lib/mapLayers/store";
 import type { MapProfile } from "./types";
@@ -39,7 +39,7 @@ interface MapViewProps {
   onProfileFocus?: (profileId: string) => void;
 }
 
-const MARKER_FOCUS_ZOOM = 15;
+const MARKER_FOCUS_ZOOM = 13.5;
 const FLY_DURATION_MS = 1200;
 const AUTO_ROTATE_IDLE_MS = 14000;
 const AUTO_ROTATE_MAX_ZOOM = 3.8;
@@ -224,7 +224,8 @@ function FocusOnProfile({
 
     map.flyTo({
       center: [longitude, latitude],
-      zoom: MARKER_FOCUS_ZOOM,
+      zoom: Math.max(map.getZoom(), MARKER_FOCUS_ZOOM),
+      pitch: Math.max(map.getPitch(), 52),
       duration: FLY_DURATION_MS,
       easing: FLY_EASE,
       essential: true,
@@ -284,48 +285,6 @@ function MapControlBridge({
   );
 }
 
-function ProfileMarker({
-  profile,
-  isFocused,
-  onProfileFocus,
-}: {
-  profile: MapProfile;
-  isFocused?: boolean;
-  onProfileFocus?: (profileId: string) => void;
-}) {
-  const { map } = useMap();
-  const key = profileKey(profile);
-  const { longitude, latitude } = toLngLat(profile.coordinates);
-
-  const handleClick = () => {
-    map?.flyTo({
-      center: [longitude, latitude],
-      zoom: MARKER_FOCUS_ZOOM,
-      duration: FLY_DURATION_MS,
-      easing: FLY_EASE,
-      essential: true,
-    });
-    onProfileFocus?.(key);
-  };
-
-  return (
-    <MapMarker longitude={longitude} latitude={latitude} onClick={handleClick}>
-      <MarkerContent className="map-marker">
-        <div
-          className={`map-marker__avatar ${isFocused ? "map-marker__avatar--focused" : ""}`}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={profilePhotoUrl(profile)} alt="" />
-          <span className="map-marker__badge">
-            {formatDistanceCompact(profile.distanceMeters)}
-          </span>
-        </div>
-        <div className="map-marker__pin" />
-      </MarkerContent>
-    </MapMarker>
-  );
-}
-
 function UserLocationMarker({ coordinates }: { coordinates: [number, number] }) {
   const { longitude, latitude } = toLngLat(coordinates);
 
@@ -352,6 +311,7 @@ export default function MapView({
   const layerEnabled = useMapLayersStore((s) => s.enabled);
   const showProfiles = isDuoLayerVisible(layerEnabled, "duo-profiles", true);
   const showUserLocation = isDuoLayerVisible(layerEnabled, "duo-user-location", true);
+  const showActivityHeatmap = isDuoLayerVisible(layerEnabled, "duo-activity-heatmap", true);
 
   const mappableProfiles = useMemo(() => {
     void profilesOrderKey;
@@ -374,7 +334,7 @@ export default function MapView({
 
   return (
     <div className="map-surface relative h-full min-h-[300px] w-full">
-      <MapLayersPanel />
+      <MapLayersSettingsPanel />
       <Map
         center={initialViewport.center}
         zoom={initialViewport.zoom}
@@ -388,21 +348,21 @@ export default function MapView({
         <SpaceStarfieldBridge />
         <SpaceAtmosphereBridge />
         <WeatherBridge />
+        {showActivityHeatmap ? (
+          <ActivityHeatmapBridge userCoordinates={userCoordinates} />
+        ) : null}
         <MapDebugHud />
         <MapControlBridge userCoordinates={userCoordinates} />
         {showUserLocation && userCoordinates && isValidCoord(userCoordinates) ? (
           <UserLocationMarker coordinates={userCoordinates} />
         ) : null}
-        {showProfiles
-          ? mappableProfiles.map((profile) => (
-              <ProfileMarker
-                key={profileKey(profile)}
-                profile={profile}
-                isFocused={focusProfileId === profileKey(profile)}
-                onProfileFocus={onProfileFocus}
-              />
-            ))
-          : null}
+        {showProfiles ? (
+          <GlobeAvatarBridge
+            profiles={mappableProfiles}
+            focusProfileId={focusProfileId}
+            onProfileFocus={onProfileFocus}
+          />
+        ) : null}
         <MapResizeHandler />
         <MapInitialViewport userCoordinates={userCoordinates} />
         <FocusOnProfile profiles={mappableProfiles} focusProfileId={focusProfileId} />

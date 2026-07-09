@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getLayersForCategory } from "@/lib/mapLayers/catalog";
 import { useMapLayersStore } from "@/lib/mapLayers/store";
 import { MapMaterialIcon } from "./layers/MapMaterialIcon";
 
@@ -11,6 +12,8 @@ interface MapFloatingControlsProps {
   onLocate: () => void;
 }
 
+const MAP_STYLES = getLayersForCategory("base");
+
 export function MapFloatingControls({
   onZoomIn,
   onZoomOut,
@@ -18,22 +21,73 @@ export function MapFloatingControls({
   onLocate,
 }: MapFloatingControlsProps) {
   const [toolsOpen, setToolsOpen] = useState(false);
-  const panelOpen = useMapLayersStore((s) => s.panelOpen);
-  const togglePanel = useMapLayersStore((s) => s.togglePanel);
+  const [styleOpen, setStyleOpen] = useState(false);
+  const baseMapId = useMapLayersStore((s) => s.baseMapId);
+  const setBaseMap = useMapLayersStore((s) => s.setBaseMap);
+  const settingsPanelOpen = useMapLayersStore((s) => s.settingsPanelOpen);
+  const toggleSettingsPanel = useMapLayersStore((s) => s.toggleSettingsPanel);
+  const setPanelOpen = useMapLayersStore((s) => s.setPanelOpen);
+
+  const activeStyle = MAP_STYLES.find((s) => s.id === baseMapId) ?? MAP_STYLES[0];
 
   return (
     <div className="map-controls-stack pointer-events-auto">
+      <div className={`map-controls-group ${styleOpen ? "map-controls-group--open map-controls-group--styles" : ""}`}>
+        <div className="map-controls-group__collapsible" aria-hidden={!styleOpen}>
+          {MAP_STYLES.map((style, index) => (
+            <div key={style.id}>
+              {index > 0 ? <div className="map-control-divider" /> : null}
+              <button
+                type="button"
+                role="radio"
+                aria-checked={baseMapId === style.id}
+                aria-label={style.label}
+                title={style.label}
+                onClick={() => {
+                  setBaseMap(style.id);
+                  setStyleOpen(false);
+                }}
+                className={`map-controls-btn ${baseMapId === style.id ? "map-controls-btn--active" : ""}`}
+              >
+                <MapMaterialIcon name={style.icon} className="text-xl text-primary" />
+              </button>
+            </div>
+          ))}
+          <div className="map-control-divider" />
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setStyleOpen((open) => !open);
+            setToolsOpen(false);
+            setPanelOpen(false);
+          }}
+          aria-expanded={styleOpen}
+          aria-label="Map style"
+          title={activeStyle?.label ?? "Map style"}
+          className={`map-controls-btn map-controls-toggle ${styleOpen ? "map-controls-toggle--open" : ""}`}
+        >
+          <MapMaterialIcon
+            name={styleOpen ? "expand_more" : (activeStyle?.icon ?? "map")}
+            className="text-xl"
+          />
+        </button>
+      </div>
+
       <div className={`map-controls-group ${toolsOpen ? "map-controls-group--open" : ""}`}>
         <div className="map-controls-group__collapsible" aria-hidden={!toolsOpen}>
           <button
             type="button"
-            onClick={togglePanel}
-            aria-label="Map layers"
-            aria-expanded={panelOpen}
-            aria-controls="map-layers-panel"
-            className={`map-controls-btn ${panelOpen ? "map-controls-btn--active" : ""}`}
+            onClick={() => {
+              toggleSettingsPanel();
+              setStyleOpen(false);
+            }}
+            aria-label="Map settings"
+            aria-expanded={settingsPanelOpen}
+            aria-controls="map-layers-settings-panel"
+            className={`map-controls-btn ${settingsPanelOpen ? "map-controls-btn--active" : ""}`}
           >
-            <MapMaterialIcon name="layers" className="text-xl text-primary" />
+            <MapMaterialIcon name="tune" className="text-xl text-primary" />
           </button>
           <div className="map-control-divider" />
           <button
@@ -67,7 +121,10 @@ export function MapFloatingControls({
         </div>
         <button
           type="button"
-          onClick={() => setToolsOpen((open) => !open)}
+          onClick={() => {
+            setToolsOpen((open) => !open);
+            setStyleOpen(false);
+          }}
           aria-expanded={toolsOpen}
           aria-label={toolsOpen ? "Hide map tools" : "Show map tools"}
           className={`map-controls-btn map-controls-toggle ${toolsOpen ? "map-controls-toggle--open" : ""}`}
