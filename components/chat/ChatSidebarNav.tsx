@@ -158,6 +158,12 @@ export function ChatSidebarNav({ className = "" }: ChatSidebarNavProps) {
 
       <div className="mt-2 flex flex-col items-center gap-1.5 border-t border-outline-variant/30 pt-3">
         <SidebarIconButton
+          href="/wallet"
+          icon="account_balance_wallet"
+          label="Wallet"
+          active={pathname === "/wallet"}
+        />
+        <SidebarIconButton
           href="/profile"
           icon="person"
           label="Profile"

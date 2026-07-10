@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
 import { submitEsewaPayment } from "@/lib/esewa";
 import { resolveProfilePhotoUrl } from "@/lib/mediaUrl";
-import type { LikedProfile, Profile, SubscriptionPlan, SwipeAction, VisitedProfile } from "@/types";
+import type { LikedProfile, Profile, SubscriptionPlan, SwipeAction, VisitedProfile, WalletSummary } from "@/types";
 
 type DiscoverTab = "visited-you" | "liked-by-you" | "likes-you";
 
@@ -350,9 +350,11 @@ export function DiscoverMatchesPage() {
   const [likesYou, setLikesYou] = useState<LikedProfile[]>([]);
   const [premiumVariant, setPremiumVariant] = useState<"likes" | "visitors">("likes");
   const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
+  const [wallet, setWallet] = useState<WalletSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [paying, setPaying] = useState(false);
+  const [purchasing, setPurchasing] = useState(false);
+  const [toppingUp, setToppingUp] = useState(false);
   const [premiumSheetOpen, setPremiumSheetOpen] = useState(false);
   const [likingBackId, setLikingBackId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -363,16 +365,18 @@ export function DiscoverMatchesPage() {
     else setError(null);
 
     try {
-      const [visitorsData, likedData, likesData, plansData] = await Promise.all([
+      const [visitorsData, likedData, likesData, plansData, walletData] = await Promise.all([
         api.getProfileVisitors(),
         api.getLikedByYou(),
         api.getLikesYou(),
         api.getSubscriptionPlans().catch(() => []),
+        api.getWallet().catch(() => null),
       ]);
       setProfileVisitors(visitorsData.results);
       setLikedByYou(likedData);
       setLikesYou(likesData.results);
       setSubscriptionPlans(plansData);
+      setWallet(walletData);
       setError(null);
     } catch {
       setError("Could not load your discover lists.");
@@ -385,17 +389,38 @@ export function DiscoverMatchesPage() {
     }
   }, []);
 
-  const handleSubscribe = useCallback(async (planId: string) => {
-    setPaying(true);
+  const handlePurchase = useCallback(async (planId: string) => {
+    setPurchasing(true);
     setNotice(null);
     try {
-      const payment = await api.initiateSubscription(planId);
+      const result = await api.purchaseWithWallet(planId);
+      setWallet((prev) =>
+        prev
+          ? { ...prev, balance: result.balance }
+          : { balance: result.balance, currency: "NPR", top_up_presets: [500, 1000, 2000, 5000], transactions: [] }
+      );
+      setNotice("Pass purchased. Duo Premium is now active.");
+      setPremiumSheetOpen(false);
+      void fetchUser();
+      void loadData(true);
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Could not purchase pass. Please try again.");
+    } finally {
+      setPurchasing(false);
+    }
+  }, [fetchUser, loadData]);
+
+  const handleTopUp = useCallback(async (amount: number) => {
+    setToppingUp(true);
+    setNotice(null);
+    try {
+      const payment = await api.initiateWalletTopUp(amount);
       submitEsewaPayment(payment.payment_url, payment.form);
     } catch (err) {
       setNotice(
-        err instanceof Error ? err.message : "Could not start eSewa payment. Please try again."
+        err instanceof Error ? err.message : "Could not start eSewa top-up. Please try again."
       );
-      setPaying(false);
+      setToppingUp(false);
     }
   }, []);
 
@@ -444,6 +469,7 @@ export function DiscoverMatchesPage() {
 
   useEffect(() => {
     const subscriptionResult = searchParams.get("subscription");
+    const walletResult = searchParams.get("wallet");
     const tab = searchParams.get("tab");
 
     if (tab === "likes-you") {
@@ -452,7 +478,17 @@ export function DiscoverMatchesPage() {
       setActiveTab("visited-you");
     }
 
-    if (subscriptionResult === "success") {
+    if (walletResult === "success") {
+      setNotice("Wallet topped up successfully.");
+      setActiveTab("likes-you");
+      void fetchUser();
+      void loadData(true);
+      router.replace("/discover");
+    } else if (walletResult === "failed") {
+      setNotice("Top-up was not completed. You can try again with eSewa.");
+      setActiveTab("likes-you");
+      router.replace("/discover");
+    } else if (subscriptionResult === "success") {
       setNotice("Payment successful. Duo Premium is now active.");
       setActiveTab("likes-you");
       void fetchUser();
@@ -628,8 +664,12 @@ export function DiscoverMatchesPage() {
         plans={subscriptionPlans}
         count={premiumCount}
         variant={premiumVariant}
-        paying={paying}
-        onSubscribe={(planId) => void handleSubscribe(planId)}
+        walletBalance={wallet?.balance ?? user?.profile.wallet_balance ?? 0}
+        topUpPresets={wallet?.top_up_presets ?? [500, 1000, 2000, 5000]}
+        purchasing={purchasing}
+        toppingUp={toppingUp}
+        onPurchase={(planId) => void handlePurchase(planId)}
+        onTopUp={(amount) => void handleTopUp(amount)}
       />
     </>
   );

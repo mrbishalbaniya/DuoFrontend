@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLenis } from "lenis/react";
 import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
@@ -178,6 +179,11 @@ export default function ProfilePage() {
       >
         <div className="relative h-32 bg-gradient-to-br from-primary/30 via-secondary/50 to-accent/25 sm:h-40 md:h-48">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-transparent to-surface/80" />
+          <div className="absolute inset-x-0 top-0 z-20 flex justify-end px-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:hidden">
+            <Link href="/settings" aria-label="Settings" className="ios-nav-btn -mr-2">
+              <span className="material-symbols-outlined text-[22px]">settings</span>
+            </Link>
+          </div>
         </div>
 
         <div className="relative z-10 mx-auto -mt-14 max-w-7xl px-5 sm:-mt-16 sm:px-6 md:-mt-20">

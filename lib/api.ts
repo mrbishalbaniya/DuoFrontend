@@ -9,6 +9,8 @@ import type {
   InitiateSubscriptionResponse,
   SubscriptionPlan,
   SubscriptionStatus,
+  WalletPurchaseResponse,
+  WalletSummary,
   Message,
   PhotoAnalysis,
   PhotoUploadAnalysisResponse,
@@ -497,15 +499,26 @@ class ApiClient {
     return this.request<SubscriptionPlan[]>("/subscriptions/plan/");
   }
 
-  async getSubscriptionStatus(): Promise<SubscriptionStatus> {
-    return this.request<SubscriptionStatus>("/subscriptions/status/");
+  async getWallet(): Promise<WalletSummary> {
+    return this.request<WalletSummary>("/wallet/");
   }
 
-  async initiateSubscription(planId: string): Promise<InitiateSubscriptionResponse> {
-    return this.request<InitiateSubscriptionResponse>("/subscriptions/initiate/", {
+  async initiateWalletTopUp(amount: number): Promise<InitiateSubscriptionResponse> {
+    return this.request<InitiateSubscriptionResponse>("/wallet/topup/initiate/", {
+      method: "POST",
+      body: JSON.stringify({ amount }),
+    });
+  }
+
+  async purchaseWithWallet(planId: string): Promise<WalletPurchaseResponse> {
+    return this.request<WalletPurchaseResponse>("/wallet/purchase/", {
       method: "POST",
       body: JSON.stringify({ plan_id: planId }),
     });
+  }
+
+  async getSubscriptionStatus(): Promise<SubscriptionStatus> {
+    return this.request<SubscriptionStatus>("/subscriptions/status/");
   }
 
   async verifySubscription(transactionUuid: string): Promise<{ status: string; is_premium: boolean }> {

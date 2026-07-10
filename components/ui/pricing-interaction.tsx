@@ -17,8 +17,12 @@ type PricingInteractionProps = {
   likesCount?: number;
   visitorsCount?: number;
   variant?: "likes" | "visitors";
-  paying?: boolean;
-  onSubscribe: (planId: string) => void;
+  walletBalance?: number;
+  topUpPresets?: number[];
+  purchasing?: boolean;
+  toppingUp?: boolean;
+  onPurchase: (planId: string) => void;
+  onTopUp: (amount: number) => void;
 };
 
 export function PricingInteraction({
@@ -26,8 +30,12 @@ export function PricingInteraction({
   likesCount = 0,
   visitorsCount = 0,
   variant = "likes",
-  paying = false,
-  onSubscribe,
+  walletBalance = 0,
+  topUpPresets = [500, 1000, 2000, 5000],
+  purchasing = false,
+  toppingUp = false,
+  onPurchase,
+  onTopUp,
 }: PricingInteractionProps) {
   const popularIndex = plans.findIndex((plan) => plan.badge === "Popular");
   const defaultIndex = popularIndex >= 0 ? popularIndex : 0;
@@ -52,12 +60,16 @@ export function PricingInteraction({
         ? "Upgrade to see who has been checking out your profile."
         : "Upgrade to unlock blurred profiles when someone likes you.";
 
+  const shortfall = Math.max(0, selected.price - walletBalance);
+  const canAfford = shortfall === 0;
+  const busy = purchasing || toppingUp;
+
   return (
     <div className="flex w-full max-w-sm flex-col items-center gap-4">
       <div className="w-full text-left">
         <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-primary">
-          <span className="material-symbols-outlined text-sm">workspace_premium</span>
-          Duo Premium
+          <span className="material-symbols-outlined text-sm">account_balance_wallet</span>
+          Duo Wallet
         </div>
         <h2 className="font-[var(--font-headline)] text-xl font-bold text-on-surface">
           {headline}
@@ -65,6 +77,12 @@ export function PricingInteraction({
         <p className="mt-2 text-sm leading-relaxed text-on-surface-variant">
           {subtitle}
         </p>
+        <div className="mt-3 flex items-center justify-between rounded-2xl border border-white/10 bg-surface-variant/30 px-4 py-3">
+          <span className="text-sm text-on-surface-variant">Wallet balance</span>
+          <span className="text-lg font-bold tabular-nums text-on-surface">
+            NPR <NumberFlow value={walletBalance} />
+          </span>
+        </div>
         <ul className="mt-3 space-y-1.5 text-sm text-on-surface-variant">
           <li className="flex items-center gap-2">
             <span className="material-symbols-outlined text-base text-primary">check_circle</span>
@@ -135,16 +153,50 @@ export function PricingInteraction({
 
         <button
           type="button"
-          disabled={paying}
-          onClick={() => onSubscribe(selected.planId)}
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#60bb46] p-3 text-base font-bold text-white shadow-[0_8px_24px_rgba(96,187,70,0.25)] transition active:scale-95 disabled:opacity-60"
+          disabled={busy || !canAfford}
+          onClick={() => onPurchase(selected.planId)}
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary p-3 text-base font-bold text-on-primary shadow-[0_8px_24px_rgba(var(--primary-rgb,96,187,70),0.25)] transition active:scale-95 disabled:opacity-60"
         >
-          <EsewaLogo />
-          {paying ? "Redirecting…" : "Pay with eSewa"}
+          <span className="material-symbols-outlined text-xl">shopping_bag</span>
+          {purchasing
+            ? "Purchasing…"
+            : canAfford
+              ? `Buy pass · NPR ${selected.price.toLocaleString("en-NP")}`
+              : `Need NPR ${shortfall.toLocaleString("en-NP")} more`}
         </button>
-        <p className="mt-2 text-center text-[11px] text-on-surface-variant/70">
-          Secure payment in NPR via eSewa ePay
-        </p>
+
+        {!canAfford ? (
+          <div className="mt-4 border-t border-white/10 pt-4">
+            <p className="mb-3 text-center text-sm text-on-surface-variant">
+              Top up your wallet with eSewa to unlock this pass.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {topUpPresets.map((amount) => (
+                <button
+                  key={amount}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onTopUp(amount)}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-background/50 px-3 py-2.5 text-sm font-semibold text-on-surface transition hover:border-[#60bb46]/40 hover:bg-[#60bb46]/10 disabled:opacity-60"
+                >
+                  <EsewaLogo className="size-4" />
+                  NPR {amount.toLocaleString("en-NP")}
+                </button>
+              ))}
+            </div>
+            {toppingUp ? (
+              <p className="mt-2 text-center text-xs text-on-surface-variant">Redirecting to eSewa…</p>
+            ) : (
+              <p className="mt-2 text-center text-[11px] text-on-surface-variant/70">
+                Secure top-up in NPR via eSewa ePay
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="mt-2 text-center text-[11px] text-on-surface-variant/70">
+            Purchases are deducted from your wallet balance
+          </p>
+        )}
       </div>
     </div>
   );

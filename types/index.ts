@@ -129,6 +129,7 @@ export interface Profile {
   location_shared?: boolean;
   is_premium?: boolean;
   subscription_expires_at?: string | null;
+  wallet_balance?: number;
   preview_distance_km?: number;
 }
 
@@ -205,6 +206,29 @@ export interface InitiateSubscriptionResponse {
   payment_url: string;
   transaction_uuid: string;
   form: EsewaPaymentForm;
+}
+
+export interface WalletTransaction {
+  type: "top_up" | "purchase" | "adjustment";
+  amount: string;
+  balance_after: string;
+  description: string;
+  reference_id: string;
+  created_at: string;
+}
+
+export interface WalletSummary {
+  balance: number;
+  currency: string;
+  top_up_presets: number[];
+  transactions: WalletTransaction[];
+}
+
+export interface WalletPurchaseResponse {
+  is_premium: boolean;
+  expires_at: string;
+  balance: number;
+  plan: SubscriptionPlan;
 }
 
 export interface VisitedProfile {

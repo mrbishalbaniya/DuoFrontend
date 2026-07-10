@@ -12,8 +12,12 @@ interface PremiumUpgradeSheetProps {
   plans: SubscriptionPlan[];
   count: number;
   variant?: "likes" | "visitors";
-  paying: boolean;
-  onSubscribe: (planId: string) => void;
+  walletBalance?: number;
+  topUpPresets?: number[];
+  purchasing?: boolean;
+  toppingUp?: boolean;
+  onPurchase: (planId: string) => void;
+  onTopUp: (amount: number) => void;
 }
 
 export function PremiumUpgradeSheet({
@@ -22,8 +26,12 @@ export function PremiumUpgradeSheet({
   plans,
   count,
   variant = "likes",
-  paying,
-  onSubscribe,
+  walletBalance = 0,
+  topUpPresets = [500, 1000, 2000, 5000],
+  purchasing = false,
+  toppingUp = false,
+  onPurchase,
+  onTopUp,
 }: PremiumUpgradeSheetProps) {
   const mounted = useIsClient();
 
@@ -95,8 +103,12 @@ export function PremiumUpgradeSheet({
                 likesCount={variant === "likes" ? count : 0}
                 visitorsCount={variant === "visitors" ? count : 0}
                 variant={variant}
-                paying={paying}
-                onSubscribe={onSubscribe}
+                walletBalance={walletBalance}
+                topUpPresets={topUpPresets}
+                purchasing={purchasing}
+                toppingUp={toppingUp}
+                onPurchase={onPurchase}
+                onTopUp={onTopUp}
               />
             </div>
           ) : null}

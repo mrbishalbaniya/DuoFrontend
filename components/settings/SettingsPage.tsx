@@ -230,6 +230,24 @@ export function SettingsPage() {
           <div className="mx-auto w-full max-w-6xl">
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start lg:gap-8 xl:gap-10">
               <div className="space-y-6">
+            <div className="md:hidden">
+              <SettingsSection title="Wallet">
+                <SettingsRow
+                  icon="account_balance_wallet"
+                  title="Duo Wallet"
+                  description="Top up with eSewa and buy Premium passes"
+                  href="/wallet"
+                  trailing={
+                    user?.profile?.wallet_balance != null ? (
+                      <span className="text-sm font-semibold tabular-nums text-on-surface">
+                        NPR {user.profile.wallet_balance.toLocaleString("en-NP")}
+                      </span>
+                    ) : undefined
+                  }
+                />
+              </SettingsSection>
+            </div>
+
             <SettingsSection title="Verification">
               {isVerified ? (
                 <div className="flex items-center gap-3 px-4 py-4 md:px-5 md:py-5">
