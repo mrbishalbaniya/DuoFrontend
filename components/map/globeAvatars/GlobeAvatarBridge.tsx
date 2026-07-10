@@ -37,9 +37,11 @@ export default function GlobeAvatarBridge({
   const hydrateConfigs = useAvatarConfigStore((s) => s.hydrate);
   const configRevision = useAvatarConfigStore((s) => s.revision);
 
-  profilesRef.current = profiles;
-  focusRef.current = focusProfileId ?? null;
-  onFocusRef.current = onProfileFocus;
+  useEffect(() => {
+    profilesRef.current = profiles;
+    focusRef.current = focusProfileId ?? null;
+    onFocusRef.current = onProfileFocus;
+  }, [profiles, focusProfileId, onProfileFocus]);
 
   useEffect(() => {
     const ids = profiles.map((p) => profileKey(p)).filter(Boolean);

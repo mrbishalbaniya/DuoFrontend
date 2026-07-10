@@ -28,11 +28,12 @@ export function AvatarPopup({ onProfileFocus }: AvatarPopupProps) {
   const profile = selectedProfile;
   const userKey = profile ? String(profile.user_id ?? profile.id ?? "") : "";
   const status = userKey ? presence[userKey] ?? "online" : "offline";
+  const lifestyleTags = profile?.lifestyle_tags;
 
   const mutualInterests = useMemo(() => {
-    if (!profile?.lifestyle_tags?.length) return [];
-    return profile.lifestyle_tags.slice(0, 3);
-  }, [profile?.lifestyle_tags]);
+    if (!lifestyleTags?.length) return [];
+    return lifestyleTags.slice(0, 3);
+  }, [lifestyleTags]);
 
   if (!profile) return null;
 

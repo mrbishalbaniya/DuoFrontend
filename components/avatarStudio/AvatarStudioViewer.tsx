@@ -44,11 +44,13 @@ export default function AvatarStudioViewer({
   const bgRef = useRef(background);
   const [ready, setReady] = useState(false);
 
-  configRef.current = config;
-  animRef.current = animation;
-  autoRef.current = autoRotate;
-  modeRef.current = cameraMode;
-  bgRef.current = background;
+  useEffect(() => {
+    configRef.current = config;
+    animRef.current = animation;
+    autoRef.current = autoRotate;
+    modeRef.current = cameraMode;
+    bgRef.current = background;
+  }, [config, animation, autoRotate, cameraMode, background]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -58,6 +60,12 @@ export default function AvatarStudioViewer({
     let raf = 0;
     let rig: ModularAvatarRig | null = null;
     let configKey = "";
+
+    const markReady = () => {
+      queueMicrotask(() => {
+        if (!disposed) setReady(true);
+      });
+    };
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
@@ -165,13 +173,13 @@ export default function AvatarStudioViewer({
       rig = assembleModularAvatar(cfg);
       scene.add(rig.root);
       configKey = JSON.stringify(cfg);
-      setReady(true);
+      markReady();
     };
 
     if (configRef.current.gender) {
       rebuild(configRef.current);
     } else {
-      setReady(true);
+      markReady();
     }
 
     const onPointerDown = (e: PointerEvent) => {

@@ -7,24 +7,10 @@ import {
   type FormEvent,
 } from "react";
 
-/** Keeps draft text local so typing does not re-render the message list. */
-export const ChatComposerInput = memo(function ChatComposerInput({
-  inputRef,
-  placeholder,
-  disabled,
-  clearToken,
-  appendEmoji,
-  onAppendConsumed,
-  draftRef,
-  onHasTextChange,
-  onFocusChange,
-  onSubmit,
-  onTyping,
-}: {
+type ChatComposerInputProps = {
   inputRef: React.RefObject<HTMLInputElement | null>;
   placeholder: string;
   disabled?: boolean;
-  clearToken: number;
   appendEmoji: string | null;
   onAppendConsumed: () => void;
   draftRef: React.MutableRefObject<string>;
@@ -32,14 +18,29 @@ export const ChatComposerInput = memo(function ChatComposerInput({
   onFocusChange: (focused: boolean) => void;
   onSubmit: (e: FormEvent | React.KeyboardEvent) => void;
   onTyping: () => void;
-}) {
-  const [value, setValue] = useState("");
+};
 
-  useEffect(() => {
-    setValue("");
-    draftRef.current = "";
-    onHasTextChange(false);
-  }, [clearToken, draftRef, onHasTextChange]);
+/** Keeps draft text local so typing does not re-render the message list. */
+export const ChatComposerInput = memo(function ChatComposerInput({
+  clearToken,
+  ...props
+}: ChatComposerInputProps & { clearToken: number }) {
+  return <ChatComposerInputInner key={clearToken} {...props} />;
+});
+
+const ChatComposerInputInner = memo(function ChatComposerInputInner({
+  inputRef,
+  placeholder,
+  disabled,
+  appendEmoji,
+  onAppendConsumed,
+  draftRef,
+  onHasTextChange,
+  onFocusChange,
+  onSubmit,
+  onTyping,
+}: ChatComposerInputProps) {
+  const [value, setValue] = useState("");
 
   useEffect(() => {
     if (!appendEmoji) return;

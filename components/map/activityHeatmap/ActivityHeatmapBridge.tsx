@@ -58,7 +58,9 @@ export default function ActivityHeatmapBridge({ userCoordinates }: ActivityHeatm
   const setScreenPoints = useActivityHeatmapStore((s) => s.setScreenPoints);
   const setSelected = useActivityHeatmapStore((s) => s.setSelected);
 
-  flagsRef.current = flags;
+  useEffect(() => {
+    flagsRef.current = flags;
+  }, [flags]);
 
   const [viewport, setViewport] = useState<{
     latMin: number;
