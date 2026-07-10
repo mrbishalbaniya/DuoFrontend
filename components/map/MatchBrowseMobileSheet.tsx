@@ -18,7 +18,9 @@ import {
 
 export type MatchBrowseSheetSnap = "map" | "list";
 
-const PEEK_HEIGHT = 128;
+/** Peek height above the bottom nav so the sheet handle stays tappable. */
+const PEEK_HEIGHT = 112;
+const BOTTOM_NAV_CLEARANCE = 72;
 
 interface MatchBrowseMobileSheetProps {
   snap: MatchBrowseSheetSnap;
@@ -37,7 +39,7 @@ export default function MatchBrowseMobileSheet({
 }: MatchBrowseMobileSheetProps) {
   const measureRef = useRef<HTMLDivElement>(null);
   const dragControls = useDragControls();
-  const [sheetHeight, setSheetHeight] = useState(480);
+  const [sheetHeight, setSheetHeight] = useState(420);
   const y = useMotionValue(0);
 
   const collapsedY = Math.max(0, sheetHeight - PEEK_HEIGHT);
@@ -47,17 +49,23 @@ export default function MatchBrowseMobileSheet({
     if (!parent) return;
 
     const measure = () => {
-      const h = parent.getBoundingClientRect().height;
-      setSheetHeight(Math.max(300, Math.round(h * 0.88)));
+      const parentH = parent.getBoundingClientRect().height;
+      const navClear = BOTTOM_NAV_CLEARANCE + (window.visualViewport?.offsetTop ?? 0);
+      // Leave room for bottom nav; use most of remaining stage height when expanded.
+      const available = Math.max(280, parentH - navClear * 0.15);
+      const next = Math.round(Math.min(available * 0.9, parentH - 48));
+      setSheetHeight(Math.max(300, next));
     };
 
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(parent);
     window.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("resize", measure);
     return () => {
       ro.disconnect();
       window.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("resize", measure);
     };
   }, []);
 
@@ -99,11 +107,11 @@ export default function MatchBrowseMobileSheet({
   return (
     <div
       ref={measureRef}
-      className="pointer-events-none absolute inset-0 z-[35] md:hidden"
+      className="map-browse-sheet-root pointer-events-none absolute inset-0 z-[35] md:hidden"
       aria-hidden={hidden}
     >
       <motion.div
-        className="ios-sheet pointer-events-auto absolute inset-x-0 bottom-0 flex flex-col overflow-hidden rounded-t-[20px]"
+        className="ios-sheet map-browse-sheet pointer-events-auto absolute inset-x-0 flex flex-col overflow-hidden rounded-t-[20px]"
         style={{ height: sheetHeight, y }}
         drag="y"
         dragControls={dragControls}
@@ -121,7 +129,7 @@ export default function MatchBrowseMobileSheet({
             <div className="ios-sheet__handle" />
           </div>
 
-          <div className="px-4 pb-3">
+          <div className="px-4 pb-2">
             <p className="text-center text-[13px] font-medium text-on-surface-variant">
               {matchCount} {matchCount === 1 ? "friend" : "friends"} nearby
             </p>
@@ -147,7 +155,7 @@ export default function MatchBrowseMobileSheet({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-1 hide-scrollbar">
+        <div className="map-browse-sheet__scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-1 hide-scrollbar sm:px-4">
           {children}
         </div>
       </motion.div>

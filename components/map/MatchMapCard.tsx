@@ -23,12 +23,17 @@ export default function MatchMapCard({
   isActive = false,
   onClick,
 }: MatchMapCardProps) {
+  const canFocusOnMap = profile.locationShared && profile.coordinates != null;
+
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={!canFocusOnMap}
       data-active={isActive || undefined}
-      className="map-list-row flex w-full items-center gap-3 px-4 py-3 text-left"
+      className={`map-list-row flex w-full items-center gap-3 px-4 py-3 text-left ${
+        canFocusOnMap ? "" : "opacity-70"
+      }`}
     >
       <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-surface-dim ring-2 ring-outline-variant/30">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -43,10 +48,14 @@ export default function MatchMapCard({
           {profile.age != null ? `, ${profile.age}` : ""}
         </p>
         <p className="mt-0.5 text-[13px] font-medium text-primary">
-          {formatDistanceAway(profile.distanceMeters)}
+          {profile.locationShared && profile.distanceMeters != null
+            ? formatDistanceAway(profile.distanceMeters)
+            : "Location hidden"}
         </p>
         <p className="mt-0.5 truncate text-[13px] text-on-surface-variant">
-          {profile.location || "Nepal"}
+          {profile.locationShared
+            ? profile.location || "Nepal"
+            : "Not sharing location with you"}
         </p>
       </div>
       <span className="material-symbols-outlined shrink-0 text-xl text-on-surface-variant/50">

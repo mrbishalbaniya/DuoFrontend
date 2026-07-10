@@ -523,36 +523,59 @@ class ApiClient {
     return this.request<Match>(`/matching/insights/${matchId}/`);
   }
 
-  async getConversations(): Promise<Conversation[]> {
-    return this.request<Conversation[]>("/chat/conversations/");
+  async getConversations(options?: { archived?: boolean; unread?: boolean }): Promise<Conversation[]> {
+    const params = new URLSearchParams();
+    if (options?.archived) params.set("archived", "true");
+    if (options?.unread) params.set("unread", "true");
+    const qs = params.toString();
+    return this.request<Conversation[]>(`/chat/conversations/${qs ? `?${qs}` : ""}`);
   }
 
-  async getConversationDetail(conversationId: number): Promise<ConversationDetail> {
+  async getConversationDetail(conversationId: number | string): Promise<ConversationDetail> {
     return this.request<ConversationDetail>(`/chat/conversations/${conversationId}/`);
   }
 
-  async getMessages(conversationId: number): Promise<Message[]> {
-    return this.request<Message[]>(`/chat/conversations/${conversationId}/messages/`);
+  async getMessages(
+    conversationId: number | string,
+    options?: { before?: number; limit?: number }
+  ): Promise<{ results: Message[]; has_more: boolean; next_before: number | null }> {
+    const params = new URLSearchParams();
+    if (options?.before) params.set("before", String(options.before));
+    if (options?.limit) params.set("limit", String(options.limit));
+    const qs = params.toString();
+    return this.request<{ results: Message[]; has_more: boolean; next_before: number | null }>(
+      `/chat/conversations/${conversationId}/messages${qs ? `?${qs}` : ""}`
+    );
+  }
+
+  async getMessagesLegacy(conversationId: number | string): Promise<Message[]> {
+    const data = await this.getMessages(conversationId);
+    return data.results;
   }
 
   async sendMessage(
-    conversationId: number,
+    conversationId: number | string,
     content: string,
-    image_url = ""
+    image_url = "",
+    reply_to_id?: number | null
   ): Promise<Message> {
     return this.request<Message>(`/chat/conversations/${conversationId}/messages/`, {
       method: "POST",
-      body: JSON.stringify({ content, image_url }),
+      body: JSON.stringify({
+        content,
+        image_url,
+        ...(reply_to_id ? { reply_to_id } : {}),
+      }),
     });
   }
 
-  async sendTypingHeartbeat(conversationId: number): Promise<void> {
+  async sendTypingHeartbeat(conversationId: number | string): Promise<void> {
     await this.request(`/chat/conversations/${conversationId}/typing/`, {
       method: "POST",
     });
   }
 
-  async getWsTicket(conversationId: number): Promise<string> {
+  async getWsTicket(conversationId: number | string): Promise<string> {
     const data = await this.request<{ ticket: string }>(
       `/chat/conversations/${conversationId}/ws-ticket/`,
       { method: "POST" }
@@ -583,30 +606,46 @@ class ApiClient {
     });
   }
 
-  async updateConversationNickname(
-    conversationId: number,
-    nickname: string
-  ): Promise<{ nickname: string }> {
-    return this.request<{ nickname: string }>(`/chat/conversations/${conversationId}/settings/`, {
-      method: "PATCH",
-      body: JSON.stringify({ nickname }),
-    });
+  async updateConversationSettings(
+    conversationId: number | string,
+    settings: {
+      nickname?: string;
+      is_archived?: boolean;
+      is_muted?: boolean;
+      is_pinned?: boolean;
+    }
+  ): Promise<{ nickname: string; is_archived: boolean; is_muted: boolean; is_pinned: boolean }> {
+    return this.request<{ nickname: string; is_archived: boolean; is_muted: boolean; is_pinned: boolean }>(
+      `/chat/conversations/${conversationId}/settings/`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(settings),
+      }
+    );
   }
 
-  async clearConversationHistory(conversationId: number): Promise<{ detail: string }> {
+  async updateConversationNickname(
+    conversationId: number | string,
+    nickname: string
+  ): Promise<{ nickname: string }> {
+    const result = await this.updateConversationSettings(conversationId, { nickname });
+    return { nickname: result.nickname };
+  }
+
+  async clearConversationHistory(conversationId: number | string): Promise<{ detail: string }> {
     return this.request<{ detail: string }>(`/chat/conversations/${conversationId}/clear/`, {
       method: "POST",
     });
   }
 
-  async unmatchConversation(conversationId: number): Promise<{ detail: string }> {
+  async unmatchConversation(conversationId: number | string): Promise<{ detail: string }> {
     return this.request<{ detail: string }>(`/chat/conversations/${conversationId}/unmatch/`, {
       method: "POST",
     });
   }
 
   async reportConversation(
-    conversationId: number,
+    conversationId: number | string,
     reason: string
   ): Promise<{ detail: string }> {
     return this.request<{ detail: string }>(`/chat/conversations/${conversationId}/report/`, {

@@ -96,17 +96,11 @@ export function getBasemapStyle(baseMapId: string): string | StyleSpecification 
   }
 }
 
-/**
- * At planetary zoom, dark basemaps paint the whole Earth black.
- * Prefer a colorful globe style, then restore the chosen style when zoomed in.
- */
+/** Resolve the active basemap style for the current view. */
 export function resolveBasemapForView(
   baseMapId: string,
-  zoom: number
+  _zoom?: number
 ): string | StyleSpecification {
-  if (zoom < 5.5 && (baseMapId === "base-night" || baseMapId === "base-dark")) {
-    return getBasemapStyle("base-satellite");
-  }
   return getBasemapStyle(baseMapId);
 }
 

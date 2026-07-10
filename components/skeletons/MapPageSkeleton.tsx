@@ -20,15 +20,15 @@ function MapFriendsListSkeleton() {
 export function MapPageSkeleton() {
   return (
     <div
-      className="flex h-dvh overflow-hidden bg-surface"
+      className="map-page flex h-dvh max-h-dvh overflow-hidden bg-surface"
       aria-busy="true"
       aria-label="Loading map"
     >
       <div className="hidden w-[4.25rem] shrink-0 border-r border-outline-variant/30 bg-surface md:flex" />
 
-      <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <main className="map-page__main relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <div className="flex min-h-0 flex-1 overflow-hidden">
-          <aside className="hidden w-[min(100%,360px)] shrink-0 flex-col border-r border-outline-variant/20 bg-surface md:flex">
+          <aside className="map-friends-sidebar hidden shrink-0 flex-col border-r border-outline-variant/20 bg-surface md:flex">
             <div className="border-b border-border p-4">
               <Skeleton className="mb-2 h-6 w-32" />
               <Skeleton className="h-4 w-24" />
@@ -38,12 +38,12 @@ export function MapPageSkeleton() {
 
           <div className="relative min-h-0 min-w-0 flex-1 bg-background">
             <div className="absolute inset-x-0 top-0 z-[25] px-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:hidden">
-              <Skeleton className="h-16 w-full rounded-2xl" />
+              <Skeleton className="h-14 w-full rounded-2xl sm:h-16" />
             </div>
-            <div className="flex h-full items-center justify-center p-6">
-              <Skeleton className="h-full w-full max-w-none rounded-none md:rounded-none" />
+            <div className="flex h-full items-center justify-center p-4 sm:p-6">
+              <Skeleton className="h-full w-full max-w-none rounded-none" />
             </div>
-            <div className="absolute inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] px-3 md:hidden">
+            <div className="map-page__empty absolute inset-x-0 px-3 md:hidden">
               <Skeleton className="mx-auto h-24 w-full max-w-md rounded-2xl" />
             </div>
           </div>

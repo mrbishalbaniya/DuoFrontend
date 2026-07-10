@@ -104,11 +104,11 @@ function targetPathFromNotification(notification) {
   const data = notification?.data || {};
   if (data.url) return data.url;
   if (data.conversation_id) {
-    return `/message?conversation=${data.conversation_id}`;
+    return `/chat?conversation=${data.conversation_id}`;
   }
   if (data.type === "profile_like") return "/discover?tab=likes-you";
   if (data.type === "new_match") return "/chat";
-  return "/message";
+  return "/chat";
 }
 
 async function focusOrOpen(targetUrl) {

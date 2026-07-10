@@ -122,6 +122,11 @@ export interface Profile {
   pref_relationship_goal?: "everyone" | "serious" | "casual" | "dating";
   pref_verified_only?: boolean;
   relationship_goal?: "serious" | "casual" | "dating" | "";
+  location_ghost_mode?: boolean;
+  location_visibility?: "friends" | "friends_except" | "only_these";
+  location_visibility_friends?: number[];
+  /** Present on match profiles: whether this person shares location with you. */
+  location_shared?: boolean;
   is_premium?: boolean;
   subscription_expires_at?: string | null;
   preview_distance_km?: number;
@@ -248,11 +253,29 @@ export interface ChatMessage extends Message {
   sender_photo?: string;
   sender_name?: string;
   timestamp?: string;
+  delivered_at?: string | null;
+  read_at?: string | null;
+  edited_at?: string | null;
+  message_type?: "text" | "image" | "voice";
+  reply_to?: MessageReplyPreview | null;
+  client_temp_id?: string;
+  send_status?: "pending" | "sent" | "failed";
+}
+
+export interface MessageReplyPreview {
+  id: number;
+  content: string;
+  sender_name: string;
+  image_url?: string;
+  message_type?: string;
 }
 
 export interface Conversation {
   id: number;
+  /** 10-digit shareable id used in /chat?conversation=… */
+  public_id?: string;
   match_id?: number;
+  match_created_at?: string;
   other_user_nickname?: string;
   other_user_profile?: Profile;
   last_message?: string | { content?: string; timestamp?: string; created_at?: string };
@@ -260,6 +283,9 @@ export interface Conversation {
   updated_at?: string;
   created_at?: string;
   unread_count?: number;
+  is_archived?: boolean;
+  is_muted?: boolean;
+  is_pinned?: boolean;
 }
 
 export interface ConversationDetail extends Conversation {
@@ -275,6 +301,11 @@ export interface Message {
   created_at?: string;
   reactions?: Record<string, number[] | number>;
   is_deleted?: boolean;
+  message_type?: string;
+  delivered_at?: string | null;
+  read_at?: string | null;
+  edited_at?: string | null;
+  reply_to?: MessageReplyPreview | null;
 }
 
 export interface ProfileFormData {

@@ -97,12 +97,10 @@ export default function GlobeAvatarBridge({
       if (!pickedId) return;
 
       const profile = profilesRef.current.find((p) => profileKey(p) === pickedId);
-      if (!profile) return;
+      if (!profile || !profile.coordinates) return;
 
-      const { longitude, latitude } = (() => {
-        const [lat, lng] = profile.coordinates;
-        return { longitude: lng, latitude: lat };
-      })();
+      const [lat, lng] = profile.coordinates;
+      const { longitude, latitude } = { longitude: lng, latitude: lat };
 
       mapInstance.flyTo({
         center: [longitude, latitude],

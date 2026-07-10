@@ -38,7 +38,7 @@ function formatDuration(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
-export default function VoiceMessageBubble({
+function VoiceMessageBubble({
   audioSrc,
   duration: durationProp = 0,
   bubbleColor = "transparent",
@@ -54,21 +54,32 @@ export default function VoiceMessageBubble({
   const [duration, setDuration] = React.useState(durationProp);
   const barHeights = React.useMemo(() => seedHeights(audioSrc), [audioSrc]);
 
-  React.useEffect(() => {
-    const audio = new Audio(audioSrc);
+  const disposeAudio = React.useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.pause();
+    audio.removeAttribute("src");
+    audio.load();
+    audioRef.current = null;
+  }, []);
+
+  const ensureAudio = React.useCallback(() => {
+    if (audioRef.current) return audioRef.current;
+
+    const audio = new Audio();
+    audio.preload = "none";
+    audio.src = audioSrc;
     audioRef.current = audio;
 
     const handleTimeUpdate = () => {
       if (!audio.duration) return;
       setProgress((audio.currentTime / audio.duration) * 100);
     };
-
     const handleLoadedMetadata = () => {
       if (Number.isFinite(audio.duration) && audio.duration > 0) {
         setDuration(Math.floor(audio.duration));
       }
     };
-
     const handleEnded = () => {
       setIsPlaying(false);
       setProgress(0);
@@ -77,23 +88,33 @@ export default function VoiceMessageBubble({
     audio.addEventListener("timeupdate", handleTimeUpdate);
     audio.addEventListener("loadedmetadata", handleLoadedMetadata);
     audio.addEventListener("ended", handleEnded);
-
-    return () => {
+    (audio as HTMLAudioElement & { __duoCleanup?: () => void }).__duoCleanup = () => {
       audio.removeEventListener("timeupdate", handleTimeUpdate);
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
       audio.removeEventListener("ended", handleEnded);
-      audio.pause();
-      audioRef.current = null;
     };
+
+    return audio;
   }, [audioSrc]);
+
+  React.useEffect(() => {
+    setIsPlaying(false);
+    setProgress(0);
+    return () => {
+      const audio = audioRef.current as
+        | (HTMLAudioElement & { __duoCleanup?: () => void })
+        | null;
+      audio?.__duoCleanup?.();
+      disposeAudio();
+    };
+  }, [audioSrc, disposeAudio]);
 
   React.useEffect(() => {
     if (durationProp > 0) setDuration(durationProp);
   }, [durationProp]);
 
   const togglePlay = async () => {
-    const audio = audioRef.current;
-    if (!audio) return;
+    const audio = ensureAudio();
 
     if (isPlaying) {
       audio.pause();
@@ -110,9 +131,10 @@ export default function VoiceMessageBubble({
   };
 
   const seekFromClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const audio = audioRef.current;
+    const audio = ensureAudio();
     const rect = waveRef.current?.getBoundingClientRect();
-    if (!audio || !rect || !audio.duration) return;
+    if (!rect) return;
+    if (!audio.duration) return;
 
     const clickX = e.clientX - rect.left;
     audio.currentTime = (clickX / rect.width) * audio.duration;
@@ -198,3 +220,5 @@ export default function VoiceMessageBubble({
     </div>
   );
 }
+
+export default React.memo(VoiceMessageBubble);

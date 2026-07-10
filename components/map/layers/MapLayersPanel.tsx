@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   getCategoryById,
@@ -125,31 +125,25 @@ function CategorySection({
   );
 }
 
-type MapLayersSheetProps = {
-  open: boolean;
-  onClose: () => void;
-  panelId: string;
-  title: string;
-  subtitle: string;
+type MapLayersContentProps = {
   categoryIds: MapLayerCategoryId[];
   searchQuery: string;
   onSearchChange: (query: string) => void;
   showFavorites?: boolean;
   showSearch?: boolean;
+  titleForSearch?: string;
+  prepend?: ReactNode;
 };
 
-export function MapLayersSheet({
-  open,
-  onClose,
-  panelId,
-  title,
-  subtitle,
+export function MapLayersContent({
   categoryIds,
   searchQuery,
   onSearchChange,
   showFavorites = true,
   showSearch = true,
-}: MapLayersSheetProps) {
+  titleForSearch = "options",
+  prepend,
+}: MapLayersContentProps) {
   const favorites = useMapLayersStore((s) => s.favorites);
 
   const favoriteLayers = useMemo(
@@ -179,6 +173,99 @@ export function MapLayersSheet({
     return n;
   }, [filteredByCategory]);
 
+  return (
+    <>
+      {prepend}
+      {showSearch ? (
+        <div className="map-layers-search">
+          <MapMaterialIcon name="search" className="text-lg text-on-surface-variant" />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Search…"
+            aria-label={`Search ${titleForSearch}`}
+            className="map-layers-search__input"
+          />
+          {searchQuery ? (
+            <button
+              type="button"
+              aria-label="Clear search"
+              className="map-layers-search__clear"
+              onClick={() => onSearchChange("")}
+            >
+              <MapMaterialIcon name="close" className="text-base" />
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="map-layers-panel__scroll ios-sheet-scroll">
+        {showFavorites && favoriteLayers.length > 0 ? (
+          <div className="map-layers-favorites">
+            <h3 className="map-layers-section-title">
+              <MapMaterialIcon name="star" className="text-base text-primary" filled />
+              Favorites
+            </h3>
+            <div className="ios-inset-group">
+              {favoriteLayers.map((layer) => (
+                <LayerRow key={`fav-${layer.id}`} layer={layer} />
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {categoryIds.map((categoryId) => {
+          const layers = filteredByCategory.get(categoryId);
+          if (!layers?.length) return null;
+          return (
+            <CategorySection
+              key={categoryId}
+              categoryId={categoryId}
+              layers={layers}
+              defaultOpen={Boolean(searchQuery.trim())}
+            />
+          );
+        })}
+
+        {totalResults === 0 ? (
+          <div className="map-layers-empty">
+            <MapMaterialIcon name="layers_clear" className="text-4xl text-primary/40" />
+            <p>No options match your search.</p>
+          </div>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
+type MapLayersSheetProps = {
+  open: boolean;
+  onClose: () => void;
+  panelId: string;
+  title: string;
+  subtitle: string;
+  categoryIds: MapLayerCategoryId[];
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+  showFavorites?: boolean;
+  showSearch?: boolean;
+  prepend?: ReactNode;
+};
+
+export function MapLayersSheet({
+  open,
+  onClose,
+  panelId,
+  title,
+  subtitle,
+  categoryIds,
+  searchQuery,
+  onSearchChange,
+  showFavorites = true,
+  showSearch = true,
+  prepend,
+}: MapLayersSheetProps) {
   return (
     <AnimatePresence>
       {open ? (
@@ -218,65 +305,15 @@ export function MapLayersSheet({
               </button>
             </header>
 
-            {showSearch ? (
-              <div className="map-layers-search">
-                <MapMaterialIcon name="search" className="text-lg text-on-surface-variant" />
-                <input
-                  type="search"
-                  value={searchQuery}
-                  onChange={(e) => onSearchChange(e.target.value)}
-                  placeholder="Search…"
-                  aria-label={`Search ${title.toLowerCase()}`}
-                  className="map-layers-search__input"
-                />
-                {searchQuery ? (
-                  <button
-                    type="button"
-                    aria-label="Clear search"
-                    className="map-layers-search__clear"
-                    onClick={() => onSearchChange("")}
-                  >
-                    <MapMaterialIcon name="close" className="text-base" />
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-
-            <div className="map-layers-panel__scroll ios-sheet-scroll">
-              {showFavorites && favoriteLayers.length > 0 ? (
-                <div className="map-layers-favorites">
-                  <h3 className="map-layers-section-title">
-                    <MapMaterialIcon name="star" className="text-base text-primary" filled />
-                    Favorites
-                  </h3>
-                  <div className="ios-inset-group">
-                    {favoriteLayers.map((layer) => (
-                      <LayerRow key={`fav-${layer.id}`} layer={layer} />
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {categoryIds.map((categoryId) => {
-                const layers = filteredByCategory.get(categoryId);
-                if (!layers?.length) return null;
-                return (
-                  <CategorySection
-                    key={categoryId}
-                    categoryId={categoryId}
-                    layers={layers}
-                    defaultOpen={Boolean(searchQuery.trim())}
-                  />
-                );
-              })}
-
-              {totalResults === 0 ? (
-                <div className="map-layers-empty">
-                  <MapMaterialIcon name="layers_clear" className="text-4xl text-primary/40" />
-                  <p>No options match your search.</p>
-                </div>
-              ) : null}
-            </div>
+            <MapLayersContent
+              categoryIds={categoryIds}
+              searchQuery={searchQuery}
+              onSearchChange={onSearchChange}
+              showFavorites={showFavorites}
+              showSearch={showSearch}
+              titleForSearch={title.toLowerCase()}
+              prepend={prepend}
+            />
           </motion.aside>
         </>
       ) : null}

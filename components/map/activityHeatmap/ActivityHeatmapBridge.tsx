@@ -32,9 +32,25 @@ type ActivityHeatmapBridgeProps = {
 
 export default function ActivityHeatmapBridge({ userCoordinates }: ActivityHeatmapBridgeProps) {
   const { map, isLoaded } = useMap();
-  const enabled = useMapLayersStore((s) => s.enabled);
-  const flags = useMemo(() => activityLayerFlags(enabled), [enabled]);
-  const active = isActivityHeatmapActive(enabled);
+  const heatmapLive = useMapLayersStore((s) => s.enabled["duo-activity-heatmap"] !== false);
+  const trending = useMapLayersStore((s) => Boolean(s.enabled["duo-activity-trending"]));
+  const nearby = useMapLayersStore((s) => Boolean(s.enabled["duo-activity-nearby"]));
+  const events = useMapLayersStore((s) => Boolean(s.enabled["duo-activity-events"]));
+  const friends = useMapLayersStore((s) => Boolean(s.enabled["duo-activity-friends"]));
+  const flags = useMemo(
+    () =>
+      activityLayerFlags({
+        "duo-activity-heatmap": heatmapLive,
+        "duo-activity-trending": trending,
+        "duo-activity-nearby": nearby,
+        "duo-activity-events": events,
+        "duo-activity-friends": friends,
+      }),
+    [heatmapLive, trending, nearby, events, friends]
+  );
+  const active = isActivityHeatmapActive({
+    "duo-activity-heatmap": heatmapLive,
+  });
 
   const zonesRef = useRef<ActivityZone[]>([]);
   const flagsRef = useRef(flags);

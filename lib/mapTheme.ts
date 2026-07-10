@@ -45,13 +45,31 @@ function cssColorToRgb(css: string, fallback: [number, number, number]): [number
   return [Number(match[1]) / 255, Number(match[2]) / 255, Number(match[3]) / 255];
 }
 
-/** Space starfield palette from CSS variables */
+let cachedSpaceTheme: MapSpaceTheme | null = null;
+let cachedThemeKey = "";
+
+function themeCacheKey(): string {
+  if (typeof document === "undefined") return "ssr";
+  return document.documentElement.className;
+}
+
+/** Space starfield palette from CSS variables (cached until theme class changes). */
 export function readMapSpaceTheme(): MapSpaceTheme {
-  return {
+  const key = themeCacheKey();
+  if (cachedSpaceTheme && cachedThemeKey === key) return cachedSpaceTheme;
+
+  cachedThemeKey = key;
+  cachedSpaceTheme = {
     deep: cssColorToRgb(readCssVar("--map-space-deep", "#000000"), [0, 0, 0]),
     nebula: cssColorToRgb(readCssVar("--map-space-nebula", "#000000"), [0, 0, 0]),
     milkyWay: cssColorToRgb(readCssVar("--map-space-milky-way", "#000000"), [0, 0, 0]),
     starWarm: cssColorToRgb(readCssVar("--map-star-warm", "#f4e4cf"), [0.96, 0.89, 0.81]),
     starCool: cssColorToRgb(readCssVar("--map-star-cool", "#c4d4ff"), [0.77, 0.83, 1]),
   };
+  return cachedSpaceTheme;
+}
+
+export function invalidateMapSpaceThemeCache() {
+  cachedSpaceTheme = null;
+  cachedThemeKey = "";
 }

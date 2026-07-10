@@ -188,27 +188,29 @@ export default function MatchFriendsSidebar({
   }
 
   return (
-    <aside className="map-friends-sidebar hidden h-full w-72 shrink-0 flex-col border-r border-outline-variant/20 bg-surface md:flex md:w-80">
-        <div className="shrink-0 px-5 pb-3 pt-5">
-          <h1 className="text-[22px] font-bold tracking-tight text-on-surface">Friends</h1>
-          <p className="mt-0.5 text-[13px] text-on-surface-variant">
-            <FriendsSubtitle
-              loading={loading}
-              waitingForLocation={waitingForLocation}
-              matchCount={matches.length}
-            />
-          </p>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
-          <FriendsListBody
-            matches={matches}
+    <aside className="map-friends-sidebar hidden h-full shrink-0 flex-col border-r border-outline-variant/20 bg-surface md:flex">
+      <div className="shrink-0 px-4 pb-3 pt-4 lg:px-5 lg:pt-5">
+        <h1 className="text-[20px] font-bold tracking-tight text-on-surface lg:text-[22px]">
+          Friends
+        </h1>
+        <p className="mt-0.5 text-[12px] text-on-surface-variant lg:text-[13px]">
+          <FriendsSubtitle
             loading={loading}
             waitingForLocation={waitingForLocation}
-            error={error}
-            focusProfileId={focusProfileId}
-            onProfileFocus={onProfileFocus}
-            onRetry={onRetry}
+            matchCount={matches.length}
+          />
+        </p>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 lg:px-4">
+        <FriendsListBody
+          matches={matches}
+          loading={loading}
+          waitingForLocation={waitingForLocation}
+          error={error}
+          focusProfileId={focusProfileId}
+          onProfileFocus={onProfileFocus}
+          onRetry={onRetry}
         />
       </div>
     </aside>

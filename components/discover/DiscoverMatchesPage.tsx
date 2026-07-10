@@ -618,7 +618,7 @@ export function DiscoverMatchesPage() {
       </main>
       </div>
 
-      {!menuOpen && !premiumSheetOpen ? <BottomNav /> : null}
+      <BottomNav />
 
       <DashboardMenuSheet open={menuOpen} onClose={() => setMenuOpen(false)} />
 

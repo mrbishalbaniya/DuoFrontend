@@ -38,7 +38,7 @@ function debounce<T extends (...args: never[]) => void>(fn: T, ms: number) {
 
 export default function WeatherBridge() {
   const { map, isLoaded } = useMap();
-  const enabled = useMapLayersStore((s) => s.enabled);
+  const weatherLive = useMapLayersStore((s) => s.enabled["weather-live"] === true);
 
   useEffect(() => {
     if (!map || !isLoaded) return;
@@ -89,11 +89,11 @@ export default function WeatherBridge() {
         /* destroyed */
       }
     };
-  }, [map, isLoaded, enabled]);
+  }, [map, isLoaded, weatherLive]);
 
   useEffect(() => {
     if (!map || !isLoaded) return;
-    if (!isSnapWeatherLayerActive(enabled)) {
+    if (!weatherLive) {
       resetWeatherAmbience();
       return;
     }
@@ -102,37 +102,44 @@ export default function WeatherBridge() {
 
     const syncAmbience = async () => {
       if (!isSnapWeatherLayerActive(useMapLayersStore.getState().enabled)) return;
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+
       const center = map.getCenter();
+      const zoom = map.getZoom();
       const b = map.getBounds();
 
       try {
-        const [current, grid] = await Promise.all([
-          fetchCurrentWeather(center.lat, center.lng),
-          fetchWeatherGrid({
-            latMin: b.getSouth(),
-            latMax: b.getNorth(),
-            lonMin: b.getWest(),
-            lonMax: b.getEast(),
-          }).catch(() => []),
-        ]);
+        // At globe zoom, center weather is enough — skip expensive grid fetch.
+        const current = await fetchCurrentWeather(center.lat, center.lng);
         if (cancelled) return;
 
         const centerAmbience = ambienceFromCurrent(
           current as Parameters<typeof ambienceFromCurrent>[0]
         );
-        const gridAmbiences = grid.map((p) => ambienceFromGridPoint(p));
-        const regional = blendAmbiences(gridAmbiences);
-        const blended: WeatherAmbience = {
-          ...centerAmbience,
-          temp: centerAmbience.temp * 0.65 + regional.temp * 0.35,
-          clouds: centerAmbience.clouds * 0.55 + regional.clouds * 0.45,
-          rainIntensity: Math.max(centerAmbience.rainIntensity, regional.rainIntensity * 0.8),
-          snowIntensity: Math.max(centerAmbience.snowIntensity, regional.snowIntensity * 0.8),
-          fogIntensity: Math.max(centerAmbience.fogIntensity, regional.fogIntensity * 0.75),
-          stormIntensity: Math.max(centerAmbience.stormIntensity, regional.stormIntensity),
-          windSpeed: centerAmbience.windSpeed * 0.6 + regional.windSpeed * 0.4,
-          windDeg: centerAmbience.windDeg,
-        };
+
+        let blended: WeatherAmbience = centerAmbience;
+        if (zoom >= 6) {
+          const grid = await fetchWeatherGrid({
+            latMin: b.getSouth(),
+            latMax: b.getNorth(),
+            lonMin: b.getWest(),
+            lonMax: b.getEast(),
+          }).catch(() => []);
+          if (cancelled) return;
+          const gridAmbiences = grid.map((p) => ambienceFromGridPoint(p));
+          const regional = blendAmbiences(gridAmbiences);
+          blended = {
+            ...centerAmbience,
+            temp: centerAmbience.temp * 0.65 + regional.temp * 0.35,
+            clouds: centerAmbience.clouds * 0.55 + regional.clouds * 0.45,
+            rainIntensity: Math.max(centerAmbience.rainIntensity, regional.rainIntensity * 0.8),
+            snowIntensity: Math.max(centerAmbience.snowIntensity, regional.snowIntensity * 0.8),
+            fogIntensity: Math.max(centerAmbience.fogIntensity, regional.fogIntensity * 0.75),
+            stormIntensity: Math.max(centerAmbience.stormIntensity, regional.stormIntensity),
+            windSpeed: centerAmbience.windSpeed * 0.6 + regional.windSpeed * 0.4,
+            windDeg: centerAmbience.windDeg,
+          };
+        }
 
         setWeatherAmbienceTarget(blended);
         map.triggerRepaint();
@@ -141,19 +148,17 @@ export default function WeatherBridge() {
       }
     };
 
-    const debouncedSync = debounce(syncAmbience, 280);
+    const debouncedSync = debounce(syncAmbience, 600);
     void syncAmbience();
-    const interval = window.setInterval(syncAmbience, 90_000);
-    map.on("move", debouncedSync);
-    map.on("moveend", syncAmbience);
+    const interval = window.setInterval(syncAmbience, 120_000);
+    map.on("moveend", debouncedSync);
 
     return () => {
       cancelled = true;
       window.clearInterval(interval);
-      map.off("move", debouncedSync);
-      map.off("moveend", syncAmbience);
+      map.off("moveend", debouncedSync);
     };
-  }, [map, isLoaded, enabled]);
+  }, [map, isLoaded, weatherLive]);
 
   return null;
 }

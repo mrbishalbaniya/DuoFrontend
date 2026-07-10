@@ -189,11 +189,12 @@ function applySky(map: MapLibreMap, enabled: Record<string, boolean>) {
 
 export function applyGlobeLighting(map: MapLibreMap) {
   if (!isMapStyleReady(map)) return;
-  // Neutral bright light so the globe face is never a black disc.
+  // Mapbox GL caps light intensity at 1 — use max at low zoom for a visible globe face.
+  const intensity = Math.min(1, map.getZoom() < 5.5 ? 1 : 0.75);
   map.setLight({
     anchor: "map",
     color: "#ffffff",
-    intensity: map.getZoom() < 5.5 ? 1.2 : 0.75,
+    intensity,
     position: [1.5, 210, 30],
   });
 }
@@ -208,6 +209,11 @@ export function applyDynamicGlobeAtmosphere(
 
 let lastBasemapKey = "";
 
+/** Force the next apply to re-set the basemap (e.g. after an external setStyle). */
+export function invalidateBasemapCache() {
+  lastBasemapKey = "";
+}
+
 export async function applyMapLayersState(
   map: MapLibreMap,
   state: {
@@ -217,8 +223,7 @@ export async function applyMapLayersState(
   }
 ): Promise<void> {
   const zoom = map.getZoom();
-  const globeBand = zoom < 5.5 ? "globe" : "street";
-  const styleKey = `${state.baseMapId}:${globeBand}`;
+  const styleKey = state.baseMapId;
   if (styleKey !== lastBasemapKey) {
     lastBasemapKey = styleKey;
     const center = map.getCenter();

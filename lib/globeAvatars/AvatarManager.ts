@@ -1,5 +1,5 @@
 import type { MapProfile } from "@/components/map/types";
-import { toLngLat } from "@/components/map/utils";
+import { isValidCoord, toLngLat } from "@/components/map/utils";
 
 import type { GlobeAvatarInstance, PresenceStatus } from "./types";
 import { defaultPresenceForUser } from "./presence";
@@ -23,6 +23,7 @@ function spreadOffsets(
   const buckets = new Map<string, MapProfile[]>();
 
   for (const profile of profiles) {
+    if (!isValidCoord(profile.coordinates)) continue;
     const { latitude, longitude } = toLngLat(profile.coordinates);
     const key = `${latitude.toFixed(2)}:${longitude.toFixed(2)}`;
     const list = buckets.get(key) ?? [];
@@ -38,6 +39,7 @@ function spreadOffsets(
         offsets.set(id, { offsetLng: 0, offsetLat: 0 });
         return;
       }
+      if (!isValidCoord(profile.coordinates)) return;
       const angle = (index / n) * Math.PI * 2;
       const spreadMeters = zoom < CLUSTER_ZOOM_THRESHOLD ? 1800 : 120 + index * 35;
       const lat = toLngLat(profile.coordinates).latitude;
@@ -61,9 +63,11 @@ export class AvatarManager {
     presenceMap: Record<string, PresenceStatus>
   ): GlobeAvatarInstance[] {
     const offsets = spreadOffsets(profiles, zoom);
-    this.instances = profiles.map((profile) => {
+    this.instances = profiles
+      .filter((profile) => isValidCoord(profile.coordinates))
+      .map((profile) => {
       const id = String(profile.user_id ?? profile.id ?? profile.full_name);
-      const { longitude, latitude } = toLngLat(profile.coordinates);
+      const { longitude, latitude } = toLngLat(profile.coordinates!);
       const offset = offsets.get(id) ?? { offsetLng: 0, offsetLat: 0 };
       const userKey = String(profile.user_id ?? profile.id ?? "");
       return {

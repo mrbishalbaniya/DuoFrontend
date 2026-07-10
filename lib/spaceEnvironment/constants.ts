@@ -10,11 +10,12 @@ export const ALTITUDE = {
   shootingStars: 50_000_000,
 } as const;
 
+/** Reduced counts keep the same look with far less GPU fill. */
 export const STAR_COUNTS = {
-  distant: 7_200,
-  medium: 4_800,
-  bright: 2_000,
-  dust: 720,
+  distant: 3_200,
+  medium: 2_000,
+  bright: 900,
+  dust: 320,
 } as const;
 
-export const SKY_TEXTURE_SIZE = { width: 2048, height: 1024 } as const;
+export const SKY_TEXTURE_SIZE = { width: 1024, height: 512 } as const;

@@ -5,6 +5,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { GoogleOAuthProviderWrapper } from "@/components/auth/google-oauth-provider";
 import { PushNotificationBridge } from "@/components/push/PushNotificationBridge";
+import { UnreadMessagesSync } from "@/components/chat/UnreadMessagesSync";
 import { LenisProvider } from "@/components/lenis-provider";
 import "./globals.css";
 
@@ -60,6 +61,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <ThemeProvider>
               <AuthProvider>
                 <PushNotificationBridge />
+                <UnreadMessagesSync />
                 {children}
               </AuthProvider>
             </ThemeProvider>

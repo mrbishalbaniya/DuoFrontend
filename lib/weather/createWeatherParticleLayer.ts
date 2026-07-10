@@ -6,6 +6,7 @@ import {
 } from "maplibre-gl";
 import { bindProjectionUniforms, linkProgram } from "@/lib/spaceEnvironment/projection";
 import { computeSpaceFade } from "@/lib/spaceEnvironment/zoomFade";
+import { isDocumentVisible, requestMapRepaint } from "@/lib/mapPerf";
 import { getWeatherAmbience, tickWeatherAmbience } from "./ambienceStore";
 import type { WeatherAmbience } from "./conditions";
 
@@ -19,7 +20,7 @@ export type SnapParticleFlags = {
   storms: boolean;
 };
 
-const MAX_PARTICLES = 2400;
+const MAX_PARTICLES = 900;
 
 function generateViewportParticles(map: MapLibreMap, ambience: WeatherAmbience): Float32Array {
   const b = map.getBounds();
@@ -128,6 +129,7 @@ export function createWeatherParticleLayer(
   let particleCount = 0;
   let start = 0;
   let lightningUntil = 0;
+  let lastPaintMs = { current: 0 };
   const programs = new Map<string, WebGLProgram>();
 
   const regen = (map: MapLibreMap, gl: WebGL2RenderingContext) => {
@@ -165,6 +167,7 @@ export function createWeatherParticleLayer(
     render(gl, args) {
       const map = mapRef;
       if (!map || !buffer || particleCount === 0) return;
+      if (!isDocumentVisible()) return;
 
       const flags = getFlags();
       if (!flags.live) return;
@@ -231,7 +234,7 @@ export function createWeatherParticleLayer(
       gl.vertexAttribPointer(phase, 1, gl.FLOAT, false, stride, 16);
 
       gl.drawArrays(gl.POINTS, 0, particleCount);
-      map.triggerRepaint();
+      requestMapRepaint(map, lastPaintMs, 28);
     },
   };
 }

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { CSSProperties } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUnreadMessagesBadge } from "@/hooks/useUnreadMessagesBadge";
+
 type NavItem = {
   href: string;
   icon: string;
@@ -45,6 +47,7 @@ function SidebarIconButton({
   href,
   icon,
   label,
+  badgeLabel,
 }: {
   active?: boolean;
   accent?: boolean;
@@ -52,8 +55,9 @@ function SidebarIconButton({
   href?: string;
   icon: string;
   label: string;
+  badgeLabel?: string;
 }) {
-  const className = `flex h-11 w-11 items-center justify-center rounded-2xl transition-all active:scale-95 ${
+  const className = `relative flex h-11 w-11 items-center justify-center rounded-2xl transition-all active:scale-95 ${
     active
       ? accent
         ? "gradient-brand-br text-white shadow-[0_8px_20px] shadow-primary/30"
@@ -61,13 +65,25 @@ function SidebarIconButton({
       : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
   }`;
 
+  const ariaLabel = badgeLabel ? `${label}, ${badgeLabel} unread` : label;
+
   const iconEl = (
-    <span
-      className="material-symbols-outlined text-[24px]"
-      style={active ? filledIconStyle : undefined}
-    >
-      {icon}
-    </span>
+    <>
+      <span
+        className="material-symbols-outlined text-[24px]"
+        style={active ? filledIconStyle : undefined}
+      >
+        {icon}
+      </span>
+      {badgeLabel ? (
+        <span
+          className="absolute right-0.5 top-0.5 flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold leading-none text-white shadow-sm"
+          aria-hidden
+        >
+          {badgeLabel}
+        </span>
+      ) : null}
+    </>
   );
 
   if (onClick) {
@@ -75,7 +91,7 @@ function SidebarIconButton({
       <button
         type="button"
         onClick={onClick}
-        aria-label={label}
+        aria-label={ariaLabel}
         title={label}
         className={className}
       >
@@ -87,7 +103,7 @@ function SidebarIconButton({
   return (
     <Link
       href={href ?? "#"}
-      aria-label={label}
+      aria-label={ariaLabel}
       title={label}
       aria-current={active ? "page" : undefined}
       className={className}
@@ -101,6 +117,7 @@ export function ChatSidebarNav({ className = "" }: ChatSidebarNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { logout } = useAuth();
+  const { badgeLabel } = useUnreadMessagesBadge();
 
   const handleLogout = () => {
     logout();
@@ -133,6 +150,7 @@ export function ChatSidebarNav({ className = "" }: ChatSidebarNavProps) {
               label={item.label}
               active={active}
               accent={active && isMatch}
+              badgeLabel={item.href === "/chat" ? badgeLabel || undefined : undefined}
             />
           );
         })}

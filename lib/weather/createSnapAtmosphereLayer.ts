@@ -1,7 +1,8 @@
 import type { CustomLayerInterface, Map as MapLibreMap } from "maplibre-gl";
 import { linkProgram } from "@/lib/spaceEnvironment/projection";
 import { computeSpaceFade } from "@/lib/spaceEnvironment/zoomFade";
-import { getWeatherAmbience, tickWeatherAmbience } from "./ambienceStore";
+import { isDocumentVisible, requestMapRepaint } from "@/lib/mapPerf";
+import { tickWeatherAmbience } from "./ambienceStore";
 import type { WeatherAmbience } from "./conditions";
 
 export const SNAP_ATMOSPHERE_LAYER_ID = "duo-snap-weather-atmosphere";
@@ -125,6 +126,7 @@ export function createSnapAtmosphereLayer(
   let start = 0;
   let program: WebGLProgram | null = null;
   let lightningUntil = 0;
+  let lastPaintMs = { current: 0 };
 
   return {
     id: SNAP_ATMOSPHERE_LAYER_ID,
@@ -144,6 +146,7 @@ export function createSnapAtmosphereLayer(
     render(gl, _args) {
       const map = mapRef;
       if (!map || !program) return;
+      if (!isDocumentVisible()) return;
       const flags = getFlags();
       if (!flags.live) return;
 
@@ -192,7 +195,7 @@ export function createSnapAtmosphereLayer(
       gl.uniform1f(gl.getUniformLocation(program, "u_stormFx"), flags.storms ? 1 : 0);
 
       gl.drawArrays(gl.TRIANGLES, 0, 3);
-      map.triggerRepaint();
+      requestMapRepaint(map, lastPaintMs, 24);
     },
   };
 }

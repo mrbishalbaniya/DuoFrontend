@@ -10,7 +10,7 @@ const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 15000;
 
 export function useChatWebSocket(
-  conversationId: number | null,
+  conversationId: number | string | null,
   userId: number | undefined,
   onMessage: (data: ChatWsPayload) => void
 ) {

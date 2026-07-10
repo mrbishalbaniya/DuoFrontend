@@ -1,12 +1,14 @@
+import BottomNav from "@/components/BottomNav";
 import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function DiscoverMatchesSkeleton() {
   return (
+    <>
     <div className="flex h-[100dvh] overflow-hidden bg-background">
       <ChatSidebarNav />
       <main
-        className="ios-page flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto pb-4 md:pb-10"
+        className="ios-page mobile-bottom-nav-offset flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto md:pb-10"
         aria-busy="true"
         aria-label="Loading discover"
       >
@@ -43,5 +45,7 @@ export function DiscoverMatchesSkeleton() {
         </div>
       </main>
     </div>
+    <BottomNav />
+    </>
   );
 }

@@ -1,5 +1,6 @@
 import type { CustomLayerInterface, CustomRenderMethodInput, Map as MapLibreMap } from "maplibre-gl";
 import { readMapSpaceTheme } from "@/lib/mapTheme";
+import { isDocumentVisible, requestMapRepaint } from "@/lib/mapPerf";
 import { ALTITUDE, SPACE_ENVIRONMENT_LAYER_ID, STAR_COUNTS } from "./constants";
 import {
   createProceduralSkyTexture,
@@ -112,6 +113,8 @@ function drawStarLayer(
 export function createSpaceEnvironmentLayer(): CustomLayerInterface {
   let mapRef: MapLibreMap | null = null;
   let startTime = 0;
+  let lastPaintMs = { current: 0 };
+  let meteorBuffer: WebGLBuffer | null = null;
   const shaderCache = new Map<string, ShaderBundle>();
 
   let distantBuffer: WebGLBuffer | null = null;
@@ -222,12 +225,14 @@ export function createSpaceEnvironmentLayer(): CustomLayerInterface {
       if (brightBuffer) gl.deleteBuffer(brightBuffer);
       if (dustBuffer) gl.deleteBuffer(dustBuffer);
       if (skyBuffer) gl.deleteBuffer(skyBuffer);
+      if (meteorBuffer) gl.deleteBuffer(meteorBuffer);
       if (skyTexture) gl.deleteTexture(skyTexture);
       distantBuffer = null;
       mediumBuffer = null;
       brightBuffer = null;
       dustBuffer = null;
       skyBuffer = null;
+      meteorBuffer = null;
       skyTexture = null;
       mapRef = null;
     },
@@ -241,6 +246,7 @@ export function createSpaceEnvironmentLayer(): CustomLayerInterface {
       const fade = computeSpaceFade(zoom);
       const lod = starLodCounts(zoom);
       if (fade.stars <= 0.01 && fade.milkyWay <= 0.01) return;
+      if (!isDocumentVisible()) return;
 
       const elapsed = (performance.now() - startTime) / 1000;
       const intro = Math.min(1, elapsed / 2);
@@ -343,8 +349,8 @@ export function createSpaceEnvironmentLayer(): CustomLayerInterface {
           const px = meteor.startX + (meteor.endX - meteor.startX) * Math.max(0, t - 0.12);
           const py = meteor.startY + (meteor.endY - meteor.startY) * Math.max(0, t - 0.12);
           const segments = new Float32Array([px, py, 0, x, y, 1]);
-          const meteorBuf = gl.createBuffer();
-          gl.bindBuffer(gl.ARRAY_BUFFER, meteorBuf);
+          if (!meteorBuffer) meteorBuffer = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, meteorBuffer);
           gl.bufferData(gl.ARRAY_BUFFER, segments, gl.STREAM_DRAW);
           gl.useProgram(shaders.meteor);
           bindProjectionUniforms(gl, shaders.meteor, args.defaultProjectionData);
@@ -356,14 +362,13 @@ export function createSpaceEnvironmentLayer(): CustomLayerInterface {
           gl.enableVertexAttribArray(shaders.meteorAttrs.t);
           gl.vertexAttribPointer(shaders.meteorAttrs.t, 1, gl.FLOAT, false, 12, 8);
           gl.drawArrays(gl.LINES, 0, 2);
-          gl.deleteBuffer(meteorBuf);
         }
       }
 
       restoreGlState(gl, glState);
 
       if (!prefersReducedMotion()) {
-        map.triggerRepaint();
+        requestMapRepaint(map, lastPaintMs, 28);
       }
     },
   };

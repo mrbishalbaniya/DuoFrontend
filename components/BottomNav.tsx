@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { CSSProperties } from "react";
+import { useUnreadMessagesBadge } from "@/hooks/useUnreadMessagesBadge";
 
 type NavItem = {
   href: string;
@@ -51,13 +52,36 @@ function isNavActive(pathname: string, href: string) {
 
 const filledIconStyle: CSSProperties = { fontVariationSettings: "'FILL' 1" };
 
-function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
+function UnreadBadge({ label }: { label: string }) {
+  if (!label) return null;
+  return (
+    <span
+      className="absolute -right-1 -top-0.5 flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold leading-none text-white shadow-sm"
+      aria-hidden
+    >
+      {label}
+    </span>
+  );
+}
+
+function NavLink({
+  item,
+  pathname,
+  unreadLabel,
+}: {
+  item: NavItem;
+  pathname: string;
+  unreadLabel?: string;
+}) {
   const isActive = isNavActive(pathname, item.href);
+  const showUnread = item.href === "/chat" && Boolean(unreadLabel);
 
   return (
     <Link
       href={item.href}
-      aria-label={item.label}
+      aria-label={
+        showUnread ? `${item.label}, ${unreadLabel} unread` : item.label
+      }
       aria-current={isActive ? "page" : undefined}
       className={`relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-0.5 py-2 transition-all duration-300 active:scale-95 sm:px-1 ${
         isActive
@@ -65,11 +89,14 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
           : "text-on-surface-variant hover:bg-surface-variant/80 hover:text-on-surface"
       }`}
     >
-      <span
-        className={`material-symbols-outlined text-[22px] ${isActive ? "text-primary" : ""}`}
-        style={isActive ? filledIconStyle : undefined}
-      >
-        {item.icon}
+      <span className="relative inline-flex">
+        <span
+          className={`material-symbols-outlined text-[22px] ${isActive ? "text-primary" : ""}`}
+          style={isActive ? filledIconStyle : undefined}
+        >
+          {item.icon}
+        </span>
+        {showUnread ? <UnreadBadge label={unreadLabel!} /> : null}
       </span>
       <span
         className={`max-w-full truncate text-[10px] font-semibold leading-tight ${
@@ -111,6 +138,7 @@ function CenterNavLink({ pathname }: { pathname: string }) {
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { badgeLabel } = useUnreadMessagesBadge();
 
   return (
     <nav
@@ -120,7 +148,12 @@ export default function BottomNav() {
       <div className="flex w-full max-w-md items-end justify-between gap-0.5 rounded-[2.2rem] border border-outline-variant/35 bg-surface/92 px-1.5 py-2 shadow-[0_16px_40px] shadow-primary/12 backdrop-blur-xl">
         <div className="flex min-w-0 flex-1 items-end justify-around">
           {navLeft.map((item) => (
-            <NavLink key={item.href} item={item} pathname={pathname} />
+            <NavLink
+              key={item.href}
+              item={item}
+              pathname={pathname}
+              unreadLabel={item.href === "/chat" ? badgeLabel : undefined}
+            />
           ))}
         </div>
 

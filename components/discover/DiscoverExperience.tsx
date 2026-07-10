@@ -253,7 +253,7 @@ export function DiscoverExperience() {
           onApply={handleApplyFilters}
         />
         </div>
-        {!sheetOpen ? <BottomNav /> : null}
+        <BottomNav />
       </div>
     );
   }
@@ -333,7 +333,7 @@ export function DiscoverExperience() {
         onApply={handleApplyFilters}
       />
       </div>
-      {!sheetOpen ? <BottomNav /> : null}
+      <BottomNav />
     </div>
   );
 }

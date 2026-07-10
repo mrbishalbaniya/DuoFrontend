@@ -67,7 +67,7 @@ export class ActivityHeatmapRenderer {
     root.userData.id = zone.id;
 
     const material = createGlowMaterial(zone.level, zone.phase);
-    const core = new THREE.Mesh(new THREE.CircleGeometry(1, 48), material);
+    const core = new THREE.Mesh(new THREE.CircleGeometry(1, 24), material);
 
     const rings: THREE.Mesh[] = [];
     const ringMaterials: THREE.ShaderMaterial[] = [];
@@ -75,7 +75,7 @@ export class ActivityHeatmapRenderer {
     for (let i = 0; i < ripples; i += 1) {
       const ringMat = createGlowMaterial(zone.level, zone.phase + i * 0.8);
       ringMat.uniforms.u_intensity!.value = 0.35;
-      const ring = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.95, 48), ringMat);
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.95, 24), ringMat);
       ringMaterials.push(ringMat);
       rings.push(ring);
       root.add(ring);

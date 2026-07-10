@@ -89,7 +89,11 @@ export function AvatarPopup({ onProfileFocus }: AvatarPopupProps) {
               </span>
             ) : null}
           </h3>
-          <p className="avatar-popup__distance">{formatDistanceAway(profile.distanceMeters)}</p>
+          <p className="avatar-popup__distance">
+            {profile.distanceMeters != null
+              ? formatDistanceAway(profile.distanceMeters)
+              : "Location hidden"}
+          </p>
           <p className="avatar-popup__goal">{relationshipGoal}</p>
 
           {mutualInterests.length > 0 ? (

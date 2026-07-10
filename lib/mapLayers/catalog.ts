@@ -44,7 +44,9 @@ export const MAP_LAYER_CATALOG: MapLayerDefinition[] = [
   // Map style (single pick)
   L("base", "base-standard-street", "Standard Street", "map", { defaultOn: true }),
   L("base", "base-satellite", "Satellite", "satellite_alt"),
-  L("base", "base-night", "Night View", "bedtime"),
+  L("base", "base-night", "Dark Mode", "dark_mode", {
+    keywords: ["night", "dark", "dark mode"],
+  }),
 
   L("globe-fx", "globe-atmosphere", "Atmosphere", "blur_on", { defaultOn: true }),
   L("globe-fx", "globe-earth-glow", "Earth Glow", "flare", { defaultOn: true }),
@@ -58,7 +60,7 @@ export const MAP_LAYER_CATALOG: MapLayerDefinition[] = [
   L("geographic", "geo-state-borders", "State Borders", "map"),
   L("geographic", "geo-coastlines", "Coastlines", "waves"),
 
-  L("duo", "duo-profiles", "3D Matches & Avatars", "favorite", { defaultOn: true }),
+  L("duo", "duo-profiles", "Match Photos", "favorite", { defaultOn: true }),
   L("duo", "duo-user-location", "Your Location", "my_location", { defaultOn: true }),
   L("duo", "duo-activity-heatmap", "Live Activity Heatmap", "local_fire_department", {
     defaultOn: true,
