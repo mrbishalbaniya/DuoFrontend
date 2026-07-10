@@ -3,7 +3,6 @@
 import * as React from "react";
 import { Heart, X } from "lucide-react";
 import {
-  AnimatePresence,
   animate,
   motion,
   useMotionValue,
@@ -89,19 +88,16 @@ function TopSwipeCard({
     [-180, 0, 180],
     [-DRAG_ROTATION_RANGE, 0, DRAG_ROTATION_RANGE]
   );
-  const direction = useTransform(x, (latest) => {
-    if (latest > 14) return "right" as const;
-    if (latest < -14) return "left" as const;
-    return null;
+  const rightGlowOpacity = useTransform(x, (latest) => {
+    if (latest <= 14) return 0;
+    return Math.min((latest - 14) / 74, 1);
   });
-  const [directionLabel, setDirectionLabel] = React.useState<SwipeDirection | null>(null);
-
-  React.useEffect(() => {
-    const unsubscribe = direction.on("change", (value) => {
-      setDirectionLabel(value);
-    });
-    return unsubscribe;
-  }, [direction]);
+  const leftGlowOpacity = useTransform(x, (latest) => {
+    if (latest >= -14) return 0;
+    return Math.min((-latest - 14) / 74, 1);
+  });
+  const rightIconOpacity = useTransform(x, (latest) => (latest > 14 ? 1 : 0));
+  const leftIconOpacity = useTransform(x, (latest) => (latest < -14 ? 1 : 0));
 
   const flyOff = React.useCallback(
     async (dir: SwipeDirection) => {
@@ -128,24 +124,24 @@ function TopSwipeCard({
 
       const offsetX = info.offset.x;
       const velocityX = info.velocity.x;
+      const isPointer = "pointerType" in _event && _event.pointerType === "mouse";
 
       if (
         Math.abs(offsetX) > SWIPE_THRESHOLD ||
-        Math.abs(velocityX) > 600
+        Math.abs(velocityX) > (isPointer ? 420 : 600)
       ) {
         const dir: SwipeDirection =
-          offsetX + velocityX * 0.12 > 0 ? "right" : "left";
+          offsetX + velocityX * (isPointer ? 0.08 : 0.12) > 0 ? "right" : "left";
         void flyOff(dir);
         return;
       }
 
       animate(x, 0, {
         type: "spring",
-        stiffness: 520,
-        damping: 34,
-        mass: 0.8,
+        stiffness: isPointer ? 460 : 520,
+        damping: isPointer ? 30 : 34,
+        mass: 0.75,
       });
-      setDirectionLabel(null);
     },
     [disabled, flyOff, x]
   );
@@ -166,10 +162,11 @@ function TopSwipeCard({
     <motion.div
       drag={disabled ? false : "x"}
       dragConstraints={{ left: -EXIT_X, right: EXIT_X }}
-      dragElastic={0.55}
+      dragElastic={0.35}
       dragMomentum={false}
-      dragTransition={{ bounceStiffness: 380, bounceDamping: 28 }}
+      dragTransition={{ bounceStiffness: 420, bounceDamping: 32, power: 0.25, timeConstant: 200 }}
       onDragEnd={handleDragEnd}
+      whileDrag={{ scale: 1.015 }}
       style={{
         x,
         rotate,
@@ -181,7 +178,7 @@ function TopSwipeCard({
         touchAction: "none",
       }}
       className={cn(
-        "absolute inset-0 overflow-hidden bg-surface-variant",
+        "absolute inset-0 overflow-hidden bg-surface-variant select-none",
         disabled ? "cursor-default" : "cursor-grab active:cursor-grabbing"
       )}
     >
@@ -196,25 +193,34 @@ function TopSwipeCard({
 
       {showInnerShadows ? (
         <>
-          <div
-            className="pointer-events-none absolute inset-0 transition-[box-shadow] duration-200 ease-out"
+          <motion.div
+            className="pointer-events-none absolute inset-0"
             style={{
               borderRadius,
-              boxShadow:
-                directionLabel === "right"
-                  ? `inset 0px -80px 60px ${greenShadowColor}`
-                  : directionLabel === "left"
-                    ? `inset 0px -80px 60px ${redShadowColor}`
-                    : "none",
+              opacity: rightGlowOpacity,
+              boxShadow: `inset 0px -80px 60px ${greenShadowColor}`,
             }}
           />
-          {directionLabel ? (
-            <div className="pointer-events-none absolute left-1/2 top-[38%] -translate-x-1/2 -translate-y-1/2">
-              {directionLabel === "right"
-                ? (rightIcon ?? defaultRightIcon)
-                : (leftIcon ?? defaultLeftIcon)}
-            </div>
-          ) : null}
+          <motion.div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              borderRadius,
+              opacity: leftGlowOpacity,
+              boxShadow: `inset 0px -80px 60px ${redShadowColor}`,
+            }}
+          />
+          <motion.div
+            className="pointer-events-none absolute left-1/2 top-[38%] -translate-x-1/2 -translate-y-1/2"
+            style={{ opacity: rightIconOpacity }}
+          >
+            {rightIcon ?? defaultRightIcon}
+          </motion.div>
+          <motion.div
+            className="pointer-events-none absolute left-1/2 top-[38%] -translate-x-1/2 -translate-y-1/2"
+            style={{ opacity: leftIconOpacity }}
+          >
+            {leftIcon ?? defaultLeftIcon}
+          </motion.div>
         </>
       ) : null}
     </motion.div>
@@ -338,10 +344,9 @@ export const SwipeableCardStack = React.forwardRef<
 
   return (
     <div
-      className={cn("relative h-full min-h-0 w-full touch-none", className)}
+      className={cn("relative h-full min-h-0 w-full touch-none select-none", className)}
     >
-      <AnimatePresence initial={false} mode="popLayout">
-        {cards.map((image, index) => {
+      {cards.map((image, index) => {
           const isTopCard = index === topIndex;
           const depth = topIndex - index;
 
@@ -402,7 +407,6 @@ export const SwipeableCardStack = React.forwardRef<
             </motion.div>
           );
         })}
-      </AnimatePresence>
     </div>
   );
 });
