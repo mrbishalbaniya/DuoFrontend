@@ -127,6 +127,8 @@ export default function MessagesSection() {
   const messagesCacheRef = useRef<Map<string, ChatMessage[]>>(new Map());
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadMessagesRequestRef = useRef(0);
+  /** Prevents URL sync from re-opening a thread while back navigation clears the query param. */
+  const leavingThreadRef = useRef(false);
 
   const clearPendingImage = useCallback(() => {
     if (pendingImagePreviewRef.current) {
@@ -388,7 +390,16 @@ export default function MessagesSection() {
   // newer in-memory selection while the URL is still catching up.
   useEffect(() => {
     const param = searchParams.get("conversation");
-    if (!param || loadingConversations) return;
+
+    if (!param) {
+      leavingThreadRef.current = false;
+      if (selectedKey !== null) {
+        setSelectedKey(null);
+      }
+      return;
+    }
+
+    if (loadingConversations || leavingThreadRef.current) return;
 
     // Already selected this conversation (public_id or legacy short id).
     if (selectedKey === param) return;
@@ -782,13 +793,14 @@ export default function MessagesSection() {
     setCameraFacingMode((prev) => (prev === "environment" ? "user" : "environment"));
   };
 
-  const handleBackToList = () => {
+  const handleBackToList = useCallback(() => {
+    leavingThreadRef.current = true;
     setSelectedKey(null);
     setReplyingTo(null);
     setInsightsOpen(false);
     setChatMenuOpen(false);
     router.replace("/chat", { scroll: false });
-  };
+  }, [router]);
 
   const updateConversationNickname = useCallback(
     async (nickname: string) => {
@@ -859,6 +871,7 @@ export default function MessagesSection() {
   );
 
   const selectConversation = (convo: Conversation) => {
+    leavingThreadRef.current = false;
     const key = conversationPublicKey(convo);
     setActiveMessageMenu(null);
     setReplyingTo(null);

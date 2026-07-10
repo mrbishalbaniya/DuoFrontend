@@ -2,10 +2,9 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef, startTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
-import BottomNav from "@/components/BottomNav";
 import { DashboardActionBar } from "@/components/dashboard/DashboardActionBar";
-import { DashboardMenuSheet } from "@/components/dashboard/DashboardMenuSheet";import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar";
+import { DashboardMenuSheet } from "@/components/dashboard/DashboardMenuSheet";
+import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar";
 import DiscoveryFiltersSheet, {
   type DiscoveryFilters,
 } from "@/components/dashboard/DiscoveryFiltersSheet";
@@ -51,11 +50,13 @@ function MatchDesktopHeader({
 const MATCH_CARD_WIDTH =
   "w-full max-w-md md:max-w-lg lg:max-w-xl xl:max-w-[30rem]";
 
+let discoverProfilesCache: Profile[] | null = null;
+
 export function DiscoverExperience() {
   const { user, loading: authLoading, fetchUser } = useAuth();
   const router = useRouter();
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [profiles, setProfiles] = useState<Profile[]>(() => discoverProfilesCache ?? []);
+  const [loading, setLoading] = useState(() => discoverProfilesCache === null);
   const [swiping, setSwiping] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -65,11 +66,14 @@ export function DiscoverExperience() {
   const stackRef = useRef<SwipeableCardStackHandle>(null);
   const locationSyncedRef = useRef(false);
 
-  const fetchProfiles = useCallback(async () => {
+  const fetchProfiles = useCallback(async (options?: { silent?: boolean }) => {
+    if (!options?.silent) setLoading(true);
     try {
       const data = await api.discoverProfiles();
+      discoverProfilesCache = data;
       setProfiles(data);
     } catch {
+      discoverProfilesCache = [];
       setProfiles([]);
     } finally {
       setLoading(false);
@@ -82,7 +86,7 @@ export function DiscoverExperience() {
       return;
     }
     if (!authLoading && user) {
-      void fetchProfiles();
+      void fetchProfiles({ silent: discoverProfilesCache !== null });
     }
   }, [user, authLoading, router, fetchProfiles]);
 
@@ -120,7 +124,7 @@ export function DiscoverExperience() {
       await api.updateProfile(filters);
       await fetchUser();
       setStackKey((key) => key + 1);
-      setLoading(true);
+      discoverProfilesCache = null;
       await fetchProfiles();
     },
     [fetchProfiles, fetchUser]
@@ -142,7 +146,6 @@ export function DiscoverExperience() {
       const nextProfiles = profiles.filter((p) => (p.user_id ?? p.id) !== toUserId);
       setProfiles(nextProfiles);
       if (nextProfiles.length === 0) {
-        setLoading(true);
         void fetchProfiles();
       }
 
@@ -200,9 +203,7 @@ export function DiscoverExperience() {
   if (!currentProfile) {
     const prefs = user?.profile;
     return (
-      <div className="flex h-full min-h-0 flex-1 overflow-hidden">
-        <ChatSidebarNav />
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <>
         <main className="mobile-bottom-nav-offset flex h-full min-h-0 flex-col overflow-hidden px-4 pt-2 md:px-6 md:pb-8 lg:px-8">
           <div className={`mx-auto flex min-h-0 flex-1 items-center justify-center overflow-hidden ${MATCH_CARD_WIDTH}`}>
             <div className="space-y-6 px-2 text-center md:px-4">
@@ -230,7 +231,6 @@ export function DiscoverExperience() {
                 </button>
                 <button
                   onClick={() => {
-                    setLoading(true);
                     void fetchProfiles();
                   }}
                   className="rounded-full px-8 py-3 font-bold text-white shadow-lg transition-all gradient-brand active:scale-95 md:px-10 md:py-3.5"
@@ -252,16 +252,12 @@ export function DiscoverExperience() {
           profile={user?.profile ?? null}
           onApply={handleApplyFilters}
         />
-        </div>
-        <BottomNav />
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-1 overflow-hidden">
-      <ChatSidebarNav />
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+    <>
       <main className="mobile-bottom-nav-offset flex h-full min-h-0 flex-col overflow-hidden px-4 pt-2 md:px-6 md:pb-8 lg:px-8">
         <div className="shrink-0 md:hidden">
           <DashboardTopBar
@@ -332,8 +328,6 @@ export function DiscoverExperience() {
         onClose={() => setFiltersOpen(false)}
         onApply={handleApplyFilters}
       />
-      </div>
-      <BottomNav />
-    </div>
+    </>
   );
 }

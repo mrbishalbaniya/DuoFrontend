@@ -1,15 +1,12 @@
-import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function DiscoverPageSkeleton() {
   return (
-    <div className="flex h-full min-h-0 flex-1 overflow-hidden">
-      <ChatSidebarNav />
-      <main
-        className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-4 pb-4 pt-2 md:px-6 md:pb-8 lg:px-8"
-        aria-busy="true"
-        aria-label="Loading discover profiles"
-      >
+    <main
+      className="mobile-bottom-nav-offset flex h-full min-h-0 flex-col overflow-hidden px-4 pb-4 pt-2 md:px-6 md:pb-8 lg:px-8"
+      aria-busy="true"
+      aria-label="Loading discover profiles"
+    >
         <div className="flex shrink-0 items-center justify-between px-1 py-3 md:hidden">
           <Skeleton className="h-11 w-11 rounded-full" />
           <Skeleton className="h-6 w-16" />
@@ -29,7 +26,6 @@ export function DiscoverPageSkeleton() {
           <Skeleton className="h-11 w-11 rounded-full md:h-12 md:w-12" />
           <Skeleton className="h-14 w-14 rounded-full md:h-16 md:w-16" />
         </div>
-      </main>
-    </div>
+    </main>
   );
 }

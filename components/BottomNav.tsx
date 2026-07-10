@@ -79,6 +79,7 @@ function NavLink({
   return (
     <Link
       href={item.href}
+      scroll={false}
       aria-label={
         showUnread ? `${item.label}, ${unreadLabel} unread` : item.label
       }
@@ -118,6 +119,7 @@ function CenterNavLink({ pathname }: { pathname: string }) {
   return (
     <Link
       href={navCenter.href}
+      scroll={false}
       aria-label={navCenter.label}
       aria-current={isActive ? "page" : undefined}
       className={`relative -mt-7 flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-full border-2 transition-all duration-300 active:scale-95 ${
