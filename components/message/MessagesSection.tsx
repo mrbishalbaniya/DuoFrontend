@@ -392,8 +392,12 @@ export default function MessagesSection() {
     const param = searchParams.get("conversation");
 
     if (!param) {
-      leavingThreadRef.current = false;
-      if (selectedKey !== null) {
+      if (leavingThreadRef.current) {
+        leavingThreadRef.current = false;
+      }
+      // On mobile, dropping the query param means return to the list view.
+      // On desktop, keep the in-memory selection until the URL sync effect catches up.
+      if (isMobile && selectedKey !== null) {
         setSelectedKey(null);
       }
       return;
@@ -422,7 +426,7 @@ export default function MessagesSection() {
     if (match) {
       setSelectedKey(conversationPublicKey(match));
     }
-  }, [searchParams, loadingConversations, conversations, selectedKey, selected]);
+  }, [searchParams, loadingConversations, conversations, selectedKey, selected, isMobile]);
 
   useEffect(() => {
     if (!selectedApiKey) return;
