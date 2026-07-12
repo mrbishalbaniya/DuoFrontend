@@ -74,9 +74,17 @@ jobs:
 
       - run: npm ci
       - run: npx playwright install chromium --with-deps
+
+      - name: Download production build
+        uses: actions/download-artifact@v4
+        with:
+          name: nextjs-build
+          path: .next
+
       - name: Run Playwright
         env:
           CI: "true"
+          PLAYWRIGHT_SKIP_BUILD: "true"
         run: npm run test:e2e
 
       - name: Upload Playwright report
