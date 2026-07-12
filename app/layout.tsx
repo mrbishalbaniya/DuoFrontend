@@ -32,6 +32,11 @@ export const metadata = {
   title: "Duo - Find Your Life Partner, Intuitively",
   description:
     "Duo blends deep-rooted tradition with advanced algorithmic matching to guide you toward a connection that feels like home.",
+  icons: {
+    icon: [{ url: "/logo.png", type: "image/png" }],
+    apple: [{ url: "/logo.png", type: "image/png" }],
+    shortcut: ["/logo.png"],
+  },
 };
 
 export const viewport: Viewport = {
