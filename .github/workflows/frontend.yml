@@ -17,7 +17,7 @@ permissions:
   checks: write
 
 env:
-  NODE_VERSION: "22"
+  NODE_VERSION: "24"
   NEXT_PUBLIC_API_URL: http://localhost:8001/api
   NEXT_PUBLIC_GOOGLE_CLIENT_ID: ci-placeholder.apps.googleusercontent.com
   NEXT_PUBLIC_GOOGLE_REDIRECT_URI: http://localhost:3000/api/auth/google/callback
@@ -49,14 +49,6 @@ jobs:
       - name: Production build
         run: npm run build
 
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: nextjs-build
-          path: .next
-          retention-days: 3
-          if-no-files-found: warn
-
   e2e:
     name: E2E Smoke Tests
     needs: validate
@@ -75,16 +67,9 @@ jobs:
       - run: npm ci
       - run: npx playwright install chromium --with-deps
 
-      - name: Download production build
-        uses: actions/download-artifact@v4
-        with:
-          name: nextjs-build
-          path: .next
-
       - name: Run Playwright
         env:
           CI: "true"
-          PLAYWRIGHT_SKIP_BUILD: "true"
         run: npm run test:e2e
 
       - name: Upload Playwright report
