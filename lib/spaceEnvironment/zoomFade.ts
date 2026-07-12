@@ -1,3 +1,5 @@
+import { STAR_COUNTS } from "./constants";
+
 /** Zoom-driven opacity curves for cinematic globe ↔ map transitions. */
 export type SpaceFadeState = {
   stars: number;
@@ -46,24 +48,24 @@ export function starLodCounts(zoom: number): {
   const t = fade.stars;
   if (zoom >= 6) {
     return {
-      distant: Math.floor(7_200 * t * 0.2),
-      medium: Math.floor(4_800 * t * 0.15),
-      bright: Math.floor(2_000 * t * 0.1),
+      distant: Math.min(STAR_COUNTS.distant, Math.floor(STAR_COUNTS.distant * t * 0.2)),
+      medium: Math.min(STAR_COUNTS.medium, Math.floor(STAR_COUNTS.medium * t * 0.15)),
+      bright: Math.min(STAR_COUNTS.bright, Math.floor(STAR_COUNTS.bright * t * 0.1)),
       dust: 0,
     };
   }
   if (zoom >= 4) {
     return {
-      distant: Math.floor(7_200 * t * 0.55),
-      medium: Math.floor(4_800 * t * 0.7),
-      bright: Math.floor(2_000 * t * 0.5),
-      dust: Math.floor(720 * t * 0.4),
+      distant: Math.min(STAR_COUNTS.distant, Math.floor(STAR_COUNTS.distant * t * 0.55)),
+      medium: Math.min(STAR_COUNTS.medium, Math.floor(STAR_COUNTS.medium * t * 0.7)),
+      bright: Math.min(STAR_COUNTS.bright, Math.floor(STAR_COUNTS.bright * t * 0.5)),
+      dust: Math.min(STAR_COUNTS.dust, Math.floor(STAR_COUNTS.dust * t * 0.4)),
     };
   }
   return {
-    distant: Math.floor(7_200 * t),
-    medium: Math.floor(4_800 * t),
-    bright: Math.floor(2_000 * t),
-    dust: Math.floor(720 * t),
+    distant: Math.min(STAR_COUNTS.distant, Math.floor(STAR_COUNTS.distant * t)),
+    medium: Math.min(STAR_COUNTS.medium, Math.floor(STAR_COUNTS.medium * t)),
+    bright: Math.min(STAR_COUNTS.bright, Math.floor(STAR_COUNTS.bright * t)),
+    dust: Math.min(STAR_COUNTS.dust, Math.floor(STAR_COUNTS.dust * t)),
   };
 }

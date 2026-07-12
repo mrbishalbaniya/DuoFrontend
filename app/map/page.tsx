@@ -261,30 +261,34 @@ export default function MapPage() {
               </div>
             ) : null}
 
+            <MapView
+              profiles={mapProfiles}
+              userCoordinates={userCoords}
+              profilesOrderKey={profilesOrderKey}
+              focusProfileId={focusProfileId}
+              onProfileFocus={handleProfileFocus}
+            />
+
             {waitingForLocation ? (
-              <div className="flex h-full items-center justify-center px-6 text-center">
-                <p className="text-[15px] text-on-surface-variant">Finding your location…</p>
+              <div className="pointer-events-none absolute inset-0 z-[18] flex items-center justify-center px-6 text-center">
+                <div className="ios-glass rounded-2xl px-5 py-3 shadow-lg">
+                  <p className="text-[15px] text-on-surface-variant">Finding your location…</p>
+                </div>
               </div>
             ) : error && matches.length === 0 && !loadingMatches ? (
-              <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
-                <p className="text-[15px] text-on-surface-variant">{error}</p>
-                <button
-                  type="button"
-                  onClick={() => void loadMatches()}
-                  className="rounded-full bg-primary px-6 py-2.5 text-[15px] font-semibold text-white active:scale-[0.98]"
-                >
-                  Try again
-                </button>
+              <div className="pointer-events-none absolute inset-0 z-[18] flex flex-col items-center justify-center gap-4 px-6 text-center">
+                <div className="ios-glass pointer-events-auto rounded-2xl px-5 py-4 shadow-lg">
+                  <p className="text-[15px] text-on-surface-variant">{error}</p>
+                  <button
+                    type="button"
+                    onClick={() => void loadMatches()}
+                    className="mt-3 rounded-full bg-primary px-6 py-2.5 text-[15px] font-semibold text-white active:scale-[0.98]"
+                  >
+                    Try again
+                  </button>
+                </div>
               </div>
-            ) : (
-              <MapView
-                profiles={mapProfiles}
-                userCoordinates={userCoords}
-                profilesOrderKey={profilesOrderKey}
-                focusProfileId={focusProfileId}
-                onProfileFocus={handleProfileFocus}
-              />
-            )}
+            ) : null}
 
             {matches.length === 0 && !error && !waitingForLocation && !loadingMatches ? (
               <div className="map-page__empty pointer-events-none absolute inset-x-0 z-[20] flex justify-center px-4 sm:px-6">

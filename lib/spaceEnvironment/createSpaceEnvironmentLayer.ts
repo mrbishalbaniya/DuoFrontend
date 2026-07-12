@@ -34,22 +34,54 @@ type ShaderBundle = {
 };
 
 function saveGlState(gl: GlContext) {
+  const gl2 = gl instanceof WebGL2RenderingContext ? gl : null;
   return {
     depth: gl.getParameter(gl.DEPTH_TEST),
     depthMask: gl.getParameter(gl.DEPTH_WRITEMASK),
     depthFunc: gl.getParameter(gl.DEPTH_FUNC),
     cull: gl.getParameter(gl.CULL_FACE),
     blend: gl.getParameter(gl.BLEND),
+    blendSrcRgb: gl.getParameter(gl.BLEND_SRC_RGB),
+    blendDstRgb: gl.getParameter(gl.BLEND_DST_RGB),
+    blendSrcAlpha: gl.getParameter(gl.BLEND_SRC_ALPHA),
+    blendDstAlpha: gl.getParameter(gl.BLEND_DST_ALPHA),
+    blendEquationRgb: gl.getParameter(gl.BLEND_EQUATION_RGB),
+    blendEquationAlpha: gl.getParameter(gl.BLEND_EQUATION_ALPHA),
+    program: gl.getParameter(gl.CURRENT_PROGRAM) as WebGLProgram | null,
+    arrayBuffer: gl.getParameter(gl.ARRAY_BUFFER_BINDING) as WebGLBuffer | null,
+    elementArrayBuffer: gl.getParameter(gl.ELEMENT_ARRAY_BUFFER_BINDING) as WebGLBuffer | null,
+    activeTexture: gl.getParameter(gl.ACTIVE_TEXTURE) as number,
+    texture2d: gl.getParameter(gl.TEXTURE_BINDING_2D) as WebGLTexture | null,
+    vertexArray: gl2
+      ? (gl2.getParameter(gl2.VERTEX_ARRAY_BINDING) as WebGLVertexArrayObject | null)
+      : null,
   };
 }
 
 function restoreGlState(gl: GlContext, state: ReturnType<typeof saveGlState>) {
   gl.depthMask(state.depthMask);
+  gl.depthFunc(state.depthFunc);
   if (state.depth) gl.enable(gl.DEPTH_TEST);
   else gl.disable(gl.DEPTH_TEST);
   if (state.cull) gl.enable(gl.CULL_FACE);
   else gl.disable(gl.CULL_FACE);
-  if (!state.blend) gl.disable(gl.BLEND);
+  if (state.blend) gl.enable(gl.BLEND);
+  else gl.disable(gl.BLEND);
+  gl.blendFuncSeparate(
+    state.blendSrcRgb,
+    state.blendDstRgb,
+    state.blendSrcAlpha,
+    state.blendDstAlpha
+  );
+  gl.blendEquationSeparate(state.blendEquationRgb, state.blendEquationAlpha);
+  gl.useProgram(state.program);
+  gl.bindBuffer(gl.ARRAY_BUFFER, state.arrayBuffer);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, state.elementArrayBuffer);
+  gl.activeTexture(state.activeTexture);
+  gl.bindTexture(gl.TEXTURE_2D, state.texture2d);
+  if (gl instanceof WebGL2RenderingContext) {
+    gl.bindVertexArray(state.vertexArray);
+  }
 }
 
 function setupTransparentDepth(gl: GlContext) {
@@ -252,13 +284,21 @@ export function createSpaceEnvironmentLayer(): CustomLayerInterface {
       const intro = Math.min(1, elapsed / 2);
       const theme = readMapSpaceTheme();
       const shaders = getShaders(gl, args);
-      const pixelRatio = window.devicePixelRatio || 1;
+      // Cap point-sprite fill cost on high-DPR phones without making desktop
+      // stars visibly soft.
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, window.innerWidth < 768 ? 1.5 : 2);
       const glState = saveGlState(gl);
+      if (gl instanceof WebGL2RenderingContext) {
+        // Never mutate MapLibre's currently bound VAO. Attribute pointers are
+        // VAO state in WebGL2 and leaking them corrupts later globe draws.
+        gl.bindVertexArray(null);
+      }
       setupTransparentDepth(gl);
 
-      // Pure black globe background — star points only, no milky/nebula sky dome.
-      const enableSkyDome = false;
-      if (enableSkyDome && fade.milkyWay > 0.01 && skyVertexCount > 0) {
+      try {
+        // Pure black globe background — star points only, no milky/nebula sky dome.
+        const enableSkyDome = false;
+        if (enableSkyDome && fade.milkyWay > 0.01 && skyVertexCount > 0) {
         const milkyOpacity = fade.milkyWay * intro * 0.92;
         gl.useProgram(shaders.sky);
         bindProjectionUniforms(gl, shaders.sky, args.defaultProjectionData);
@@ -340,9 +380,9 @@ export function createSpaceEnvironmentLayer(): CustomLayerInterface {
         args.defaultProjectionData
       );
 
-      if (!prefersReducedMotion() && fade.stars > 0.2) {
-        const meteor = shootingStars.update(elapsed);
-        if (meteor) {
+        if (!prefersReducedMotion() && fade.stars > 0.2) {
+          const meteor = shootingStars.update(elapsed);
+          if (meteor) {
           const t = meteor.progress;
           const x = meteor.startX + (meteor.endX - meteor.startX) * t;
           const y = meteor.startY + (meteor.endY - meteor.startY) * t;
@@ -362,13 +402,16 @@ export function createSpaceEnvironmentLayer(): CustomLayerInterface {
           gl.enableVertexAttribArray(shaders.meteorAttrs.t);
           gl.vertexAttribPointer(shaders.meteorAttrs.t, 1, gl.FLOAT, false, 12, 8);
           gl.drawArrays(gl.LINES, 0, 2);
+          }
         }
+      } finally {
+        restoreGlState(gl, glState);
       }
 
-      restoreGlState(gl, glState);
-
       if (!prefersReducedMotion()) {
-        requestMapRepaint(map, lastPaintMs, 28);
+        // Desktop animates at display cadence; mobile uses a stable 30 FPS
+        // starfield while MapLibre interactions remain native-rate.
+        requestMapRepaint(map, lastPaintMs, window.innerWidth < 768 ? 30 : 60);
       }
     },
   };

@@ -29,7 +29,6 @@ import {
   MAP_INITIAL_RADIUS_KM,
   profileKey,
   toLngLat,
-  zoomForRadiusKm,
 } from "./utils";
 
 interface MapViewProps {
@@ -392,12 +391,14 @@ export default function MapView({
       const [lat, lng] = userCoordinates;
       return {
         center: [lng, lat] as [number, number],
-        zoom: zoomForRadiusKm(lat, MAP_INITIAL_RADIUS_KM),
+        // Start at globe scale, then MapInitialViewport performs the existing
+        // 20 km fit as a smooth camera transition after the canvas is ready.
+        zoom: 2.2,
       };
     }
     return {
       center: DEFAULT_CENTER,
-      zoom: zoomForRadiusKm(DEFAULT_CENTER[1], MAP_INITIAL_RADIUS_KM),
+      zoom: 2.2,
     };
   }, [userCoordinates]);
 
@@ -409,6 +410,11 @@ export default function MapView({
         zoom={initialViewport.zoom}
         maxPitch={85}
         projection={GLOBE_PROJECTION}
+        canvasContextAttributes={{
+          antialias: true,
+          powerPreference: "high-performance",
+          preserveDrawingBuffer: false,
+        }}
         theme={theme}
         styles={managedMapStyles}
         className="h-full min-h-[300px] w-full"
