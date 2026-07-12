@@ -5,6 +5,7 @@ import { BorderRotate } from "@/components/ui/animated-gradient-border";
 import { DuoTestimonialsSection } from "@/components/ui/testimonial-slider";
 import { HeroSection03 } from "@/components/ui/hero-03";
 import Link from "next/link";
+import { ANDROID_APK_DOWNLOAD_URL } from "@/lib/mobileApp";
 
 export default function LandingPage() {
   return (
@@ -207,7 +208,18 @@ export default function LandingPage() {
               <ul className="space-y-3 sm:space-y-4 text-on-surface-variant text-sm font-medium">
                 <li><Link className="hover:text-primary transition-colors" href="#">How it Works</Link></li>
                 <li><Link className="hover:text-primary transition-colors" href="#">Smart Matching</Link></li>
-                <li><Link className="hover:text-primary transition-colors" href="#">Mobile App</Link></li>
+                <li>
+                  <a
+                    className="hover:text-primary transition-colors inline-flex items-center gap-1.5"
+                    href={ANDROID_APK_DOWNLOAD_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                  >
+                    <span className="material-symbols-outlined text-base">android</span>
+                    Download Android APK
+                  </a>
+                </li>
                 <li><Link className="hover:text-primary transition-colors" href="#">Pricing</Link></li>
               </ul>
             </div>
@@ -246,6 +258,16 @@ export default function LandingPage() {
               © 2024 Duo Inc. All rights reserved.
             </p>
             <div className="flex flex-wrap justify-center gap-4 sm:gap-6 md:gap-8 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+              <a
+                className="hover:text-primary inline-flex items-center gap-1.5"
+                href={ANDROID_APK_DOWNLOAD_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                download
+              >
+                <span className="material-symbols-outlined text-sm">download</span>
+                Get APK
+              </a>
               <Link className="hover:text-primary" href="#">English</Link>
               <Link className="hover:text-primary" href="#">Nepali</Link>
               <Link className="hover:text-primary" href="#">Hindi</Link>
