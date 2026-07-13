@@ -109,6 +109,8 @@ export default function MessagesSection() {
   const [showArchived, setShowArchived] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [conversationLoadError, setConversationLoadError] = useState<string | null>(null);
+  const [matchCountHint, setMatchCountHint] = useState(0);
   const [deleteConvoDialog, setDeleteConvoDialog] = useState<Conversation | null>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const failedSendPayloadsRef = useRef<Map<string, { content: string; imageUrl: string; replyToId?: number }>>(
@@ -244,8 +246,23 @@ export default function MessagesSection() {
       setConversations(sorted);
       const total = sorted.reduce((sum, c) => sum + (c.unread_count || 0), 0);
       useUnreadMessagesStore.getState().setTotalUnread(total);
-    } catch {
-      /* ignore */
+      setConversationLoadError(null);
+      if (sorted.length === 0) {
+        try {
+          const matches = await api.getMatches();
+          setMatchCountHint(matches.length);
+        } catch {
+          setMatchCountHint(0);
+        }
+      } else {
+        setMatchCountHint(0);
+      }
+    } catch (err) {
+      setConversationLoadError(
+        err instanceof Error ? err.message : "Could not load conversations."
+      );
+      setConversations([]);
+      setMatchCountHint(0);
     } finally {
       if (!options?.silent) setLoadingConversations(false);
     }
@@ -1486,23 +1503,54 @@ export default function MessagesSection() {
     return <ChatPageSkeleton />;
   }
 
+  if (conversationLoadError) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center bg-surface p-6">
+        <span className="material-symbols-outlined mb-6 text-6xl text-primary/20">cloud_off</span>
+        <h2 className="mb-2 text-2xl font-[var(--font-headline)] font-bold text-on-surface">
+          Could not load chats
+        </h2>
+        <p className="mb-8 max-w-xs text-center text-on-surface-variant">{conversationLoadError}</p>
+        <button
+          type="button"
+          onClick={() => void loadConversations()}
+          className="rounded-full bg-primary px-8 py-3 font-bold text-white shadow-lg transition-all active:scale-95"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+
   if (conversations.length === 0) {
     return (
       <>
         <div className="flex h-full flex-col items-center justify-center bg-surface p-6">
           <span className="material-symbols-outlined text-6xl text-primary/20 mb-6">chat</span>
           <h2 className="text-2xl font-[var(--font-headline)] font-bold text-on-surface mb-2">
-            No conversations yet
+            {matchCountHint > 0 ? "Your matches are ready" : "No conversations yet"}
           </h2>
           <p className="text-on-surface-variant mb-8 text-center max-w-xs">
-            Start swiping to find matches and begin chatting!
+            {matchCountHint > 0
+              ? `You have ${matchCountHint} match${matchCountHint === 1 ? "" : "es"}. Refresh to open your chat threads.`
+              : "Start swiping to find matches and begin chatting!"}
           </p>
-          <Link
-            href="/match"
-            className="px-8 py-3 gradient-brand text-white rounded-full font-bold shadow-lg active:scale-95 transition-all"
-          >
-            Find Matches
-          </Link>
+          {matchCountHint > 0 ? (
+            <button
+              type="button"
+              onClick={() => void loadConversations()}
+              className="px-8 py-3 gradient-brand text-white rounded-full font-bold shadow-lg active:scale-95 transition-all"
+            >
+              Refresh chats
+            </button>
+          ) : (
+            <Link
+              href="/match"
+              className="px-8 py-3 gradient-brand text-white rounded-full font-bold shadow-lg active:scale-95 transition-all"
+            >
+              Find Matches
+            </Link>
+          )}
         </div>
       </>
     );
