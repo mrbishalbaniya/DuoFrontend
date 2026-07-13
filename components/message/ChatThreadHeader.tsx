@@ -42,6 +42,10 @@ export function ChatThreadHeader({
 
   onReport,
 
+  onVoiceCall,
+
+  onVideoCall,
+
 }: {
 
   otherAvatarSrc?: string | null;
@@ -73,6 +77,10 @@ export function ChatThreadHeader({
   onClearHistory: () => void;
 
   onReport: () => void;
+
+  onVoiceCall?: () => void;
+
+  onVideoCall?: () => void;
 
 }) {
 
@@ -181,6 +189,24 @@ export function ChatThreadHeader({
         </div>
 
         <div className="flex shrink-0 items-center gap-0.5">
+
+          <button
+            type="button"
+            onClick={onVoiceCall}
+            className="shrink-0 max-md:ios-nav-btn md:rounded-full md:p-2 md:text-primary md:transition-colors md:hover:bg-primary/10"
+            aria-label="Voice call"
+          >
+            <span className="material-symbols-outlined text-[24px] md:text-[22px]">call</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onVideoCall}
+            className="shrink-0 max-md:ios-nav-btn md:rounded-full md:p-2 md:text-primary md:transition-colors md:hover:bg-primary/10"
+            aria-label="Video call"
+          >
+            <span className="material-symbols-outlined text-[24px] md:text-[22px]">videocam</span>
+          </button>
 
           <button
 

@@ -40,9 +40,15 @@ type RequestOptions = RequestInit & {
 
 class ApiClient {
   private baseUrl: string;
+  private readonly inflightGets = new Map<string, Promise<unknown>>();
 
   constructor() {
     this.baseUrl = getClientApiBase();
+  }
+
+  private static dedupeKey(endpoint: string, method: string): string | null {
+    if (method.toUpperCase() !== "GET") return null;
+    return `GET ${endpoint}`;
   }
 
   private static extractErrorDetail(errorData: Record<string, unknown>): string | null {
@@ -80,6 +86,21 @@ class ApiClient {
   }
 
   async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+    const method = (options.method ?? "GET").toUpperCase();
+    const dedupeKey = ApiClient.dedupeKey(endpoint, method);
+    if (dedupeKey) {
+      const inflight = this.inflightGets.get(dedupeKey);
+      if (inflight) return inflight as Promise<T>;
+      const promise = this._request<T>(endpoint, options).finally(() => {
+        this.inflightGets.delete(dedupeKey);
+      });
+      this.inflightGets.set(dedupeKey, promise);
+      return promise;
+    }
+    return this._request<T>(endpoint, options);
+  }
+
+  private async _request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
@@ -596,6 +617,57 @@ class ApiClient {
     return data.ticket;
   }
 
+  async getCallWsTicket(conversationId: number | string): Promise<string> {
+    const data = await this.request<{ ticket: string }>(
+      `/calls/conversations/${conversationId}/ws-ticket/`,
+      { method: "POST" }
+    );
+    return data.ticket;
+  }
+
+  async getIceServers(): Promise<{ ice_servers: Array<Record<string, string>> }> {
+    return this.request("/calls/ice-servers/");
+  }
+
+  async initiateCall(conversationId: string, callType: "voice" | "video") {
+    return this.request<{
+      id: string;
+      conversation_id: string;
+      call_type: string;
+      status: string;
+      caller_id: number;
+      callee_id: number;
+      ice_servers?: Array<Record<string, string>>;
+    }>("/calls/", {
+      method: "POST",
+      body: JSON.stringify({ conversation_id: conversationId, call_type: callType }),
+    });
+  }
+
+  async acceptCall(callId: string): Promise<{
+    id: string;
+    conversation_id: string;
+    call_type: string;
+    status: string;
+    caller_id: number;
+    callee_id: number;
+    ice_servers?: Array<Record<string, string>>;
+  }> {
+    return this.request(`/calls/${callId}/accept/`, { method: "POST" });
+  }
+
+  async rejectCall(callId: string) {
+    return this.request(`/calls/${callId}/reject/`, { method: "POST" });
+  }
+
+  async cancelCall(callId: string) {
+    return this.request(`/calls/${callId}/cancel/`, { method: "POST" });
+  }
+
+  async hangupCall(callId: string) {
+    return this.request(`/calls/${callId}/hangup/`, { method: "POST" });
+  }
+
   async uploadChatImage(file: File): Promise<{ image_url: string }> {
     const formData = new FormData();
     formData.append("image", file);
@@ -694,7 +766,40 @@ class ApiClient {
       body: JSON.stringify({ token }),
     });
   }
+
+  async unregisterAllDeviceTokens() {
+    return this.request<{ detail: string; count: number }>(
+      "/notifications/devices/unregister-all/",
+      { method: "POST" }
+    );
+  }
+
+  async getNotificationPreferences(): Promise<NotificationPreferences> {
+    return this.request<NotificationPreferences>("/notifications/preferences/");
+  }
+
+  async updateNotificationPreferences(
+    prefs: Partial<NotificationPreferences>
+  ): Promise<NotificationPreferences> {
+    return this.request<NotificationPreferences>("/notifications/preferences/", {
+      method: "PATCH",
+      body: JSON.stringify(prefs),
+    });
+  }
 }
+
+export type NotificationPreferences = {
+  push_enabled: boolean;
+  chat_enabled: boolean;
+  match_enabled: boolean;
+  likes_enabled: boolean;
+  marketing_enabled: boolean;
+  announcements_enabled: boolean;
+  verification_enabled: boolean;
+  payment_enabled: boolean;
+  sound_enabled: boolean;
+  vibration_enabled: boolean;
+};
 
 const api = new ApiClient();
 export default api;

@@ -8,8 +8,10 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { isAuthPublicPath } from "@/lib/authPaths";
+import { queryKeys } from "@/lib/query/keys";
 import type { LoginResponse, RegisterResponse, User } from "@/types";
 
 interface AuthContextValue {
@@ -28,26 +30,39 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+let meInflight: Promise<User> | null = null;
+
+async function fetchMeDeduped(): Promise<User> {
+  if (!meInflight) {
+    meInflight = api.getMe().finally(() => {
+      meInflight = null;
+    });
+  }
+  return meInflight;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   const fetchUser = useCallback(async () => {
     try {
-      const data = await api.getMe();
+      const data = await fetchMeDeduped();
       setUser(data);
+      queryClient.setQueryData(queryKeys.me, data);
     } catch {
       setUser(null);
+      queryClient.removeQueries({ queryKey: queryKeys.me });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [queryClient]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const path = window.location.pathname;
-    // OAuth callback sets cookies on the prior response; load the user before redirecting.
     if (path === "/login/google/complete") {
       void fetchUser();
       return;
@@ -83,8 +98,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    void (async () => {
+      try {
+        const { unregisterPushNotifications } = await import("@/lib/push/fcm");
+        await unregisterPushNotifications();
+      } catch {
+        // Best-effort cleanup when logging out.
+      }
+    })();
     void api.clearTokens();
     setUser(null);
+    queryClient.clear();
   };
 
   return (

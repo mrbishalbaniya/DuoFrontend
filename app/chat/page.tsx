@@ -1,12 +1,16 @@
 "use client";
 
 import { Suspense, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useLenis } from "lenis/react";
 import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
 import BottomNav from "@/components/BottomNav";
-import MessagesSection from "@/components/message/message";
 import { ChatPageSkeleton } from "@/components/skeletons/ChatPageSkeleton";
+
+const MessagesSection = dynamic(() => import("@/components/message/message"), {
+  loading: () => <ChatPageSkeleton />,
+});
 
 function ChatPageContent() {
   const searchParams = useSearchParams();
@@ -24,7 +28,8 @@ function ChatPageContent() {
     <div
       className="flex h-[100dvh] min-h-0 overflow-hidden overscroll-none bg-surface"
       data-lenis-prevent
-    >      <ChatSidebarNav className={inThread ? "max-lg:hidden" : ""} />
+    >
+      <ChatSidebarNav className={inThread ? "max-lg:hidden" : ""} />
       <div
         className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${
           !inThread ? "mobile-bottom-nav-offset" : ""
@@ -38,6 +43,7 @@ function ChatPageContent() {
     </div>
   );
 }
+
 export default function ChatPage() {
   return (
     <Suspense fallback={<ChatPageSkeleton />}>

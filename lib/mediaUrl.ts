@@ -1,4 +1,9 @@
 import { getBackendOrigin } from "@/lib/backendUrl";
+import {
+  cloudinaryUrl,
+  type CloudinaryPreset,
+  isCloudinaryDeliveryUrl,
+} from "@/lib/cloudinary";
 
 const API_ORIGIN = getBackendOrigin();
 
@@ -47,11 +52,16 @@ function isDeadLocalMediaUrl(url: string): boolean {
 }
 
 /** Resolve stored media URLs (Cloudinary HTTPS, legacy /media/, or broken picsum seeds). */
-export function resolveMediaUrl(url?: string | null): string | undefined {
+export function resolveMediaUrl(
+  url?: string | null,
+  preset?: CloudinaryPreset
+): string | undefined {
   if (!url) return undefined;
   if (url.includes("picsum.photos")) return remapPicsumUrl(url);
   if (isDeadLocalMediaUrl(url)) return undefined;
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return cloudinaryUrl(url, preset) ?? url;
+  }
   if (url.startsWith("/media/")) {
     return `${API_ORIGIN}${url}`;
   }
@@ -59,7 +69,7 @@ export function resolveMediaUrl(url?: string | null): string | undefined {
 }
 
 export function isCloudinaryUrl(url?: string | null): boolean {
-  return !!url && url.includes("res.cloudinary.com");
+  return isCloudinaryDeliveryUrl(url);
 }
 
 type PhotoProfile = {
@@ -70,18 +80,27 @@ type PhotoProfile = {
   full_name?: string;
 };
 
-export function resolveProfilePhotoUrl(profile: PhotoProfile, size = "400/500"): string {
+export function resolveProfilePhotoUrl(
+  profile: PhotoProfile,
+  size = "400/500",
+  preset: CloudinaryPreset = "discover_card"
+): string {
   const seed = String(profile.user_id ?? profile.id ?? profile.full_name ?? "duo");
   return (
-    resolveMediaUrl(profile.photo_url) ||
+    resolveMediaUrl(profile.photo_url, preset) ||
     resolveMediaUrl(
-      Array.isArray(profile.photo_urls) ? profile.photo_urls.find(Boolean) : undefined
+      Array.isArray(profile.photo_urls) ? profile.photo_urls.find(Boolean) : undefined,
+      preset
     ) ||
     placeholderPhotoUrl(seed, 0, size)
   );
 }
 
-export function resolveProfilePhotoUrls(profile: PhotoProfile, count = 3): string[] {
+export function resolveProfilePhotoUrls(
+  profile: PhotoProfile,
+  count = 3,
+  preset: CloudinaryPreset = "gallery"
+): string[] {
   const seed = String(profile.user_id ?? profile.id ?? profile.full_name ?? "duo");
   const fallbacks = Array.from({ length: count }, (_, index) =>
     placeholderPhotoUrl(seed, index)
@@ -89,7 +108,7 @@ export function resolveProfilePhotoUrls(profile: PhotoProfile, count = 3): strin
 
   if (Array.isArray(profile.photo_urls) && profile.photo_urls.length > 0) {
     const urls = profile.photo_urls
-      .map((url) => resolveMediaUrl(url))
+      .map((url) => resolveMediaUrl(url, preset))
       .filter((url): url is string => Boolean(url))
       .slice(0, count);
     for (let i = urls.length; i < count; i += 1) {
@@ -98,10 +117,20 @@ export function resolveProfilePhotoUrls(profile: PhotoProfile, count = 3): strin
     return urls;
   }
 
-  const primary = resolveMediaUrl(profile.photo_url);
+  const primary = resolveMediaUrl(profile.photo_url, preset);
   if (primary) {
     return [primary, ...fallbacks.slice(1)];
   }
 
   return fallbacks;
+}
+
+/** Avatar-sized Cloudinary delivery URL. */
+export function resolveAvatarUrl(url?: string | null): string | undefined {
+  return resolveMediaUrl(url, "avatar");
+}
+
+/** Chat image preview URL. */
+export function resolveChatMediaUrl(url?: string | null): string | undefined {
+  return resolveMediaUrl(url, "chat_preview");
 }

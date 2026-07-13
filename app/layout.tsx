@@ -1,13 +1,22 @@
 import type { ReactNode } from "react";
 import type { Viewport } from "next";
 import Script from "next/script";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { ThemeProvider } from "@/contexts/ThemeContext";
-import { GoogleOAuthProviderWrapper } from "@/components/auth/google-oauth-provider";
-import { PushNotificationBridge } from "@/components/push/PushNotificationBridge";
-import { UnreadMessagesSync } from "@/components/chat/UnreadMessagesSync";
-import { LenisProvider } from "@/components/lenis-provider";
+import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import { ClientProviders } from "@/components/providers/ClientProviders";
+import { jsonLdWebApplication, rootMetadata } from "@/lib/seo/metadata";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-jakarta",
+  display: "swap",
+});
 
 const themeInitScript = `
 (function () {
@@ -28,16 +37,7 @@ const themeInitScript = `
 })();
 `;
 
-export const metadata = {
-  title: "Duo - Find Your Life Partner, Intuitively",
-  description:
-    "Duo blends deep-rooted tradition with advanced algorithmic matching to guide you toward a connection that feels like home.",
-  icons: {
-    icon: [{ url: "/logo.png", type: "image/png" }],
-    apple: [{ url: "/logo.png", type: "image/png" }],
-    shortcut: ["/logo.png"],
-  },
-};
+export const metadata = rootMetadata;
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -48,30 +48,15 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className="antialiased text-on-surface">
+      <body className={`${inter.variable} ${plusJakarta.variable} antialiased text-on-surface`}>
         <Script id="duo-theme-init" strategy="beforeInteractive">
           {themeInitScript}
         </Script>
-        <LenisProvider>
-          <div className="app-background" aria-hidden="true" />
-          <GoogleOAuthProviderWrapper>
-            <ThemeProvider>
-              <AuthProvider>
-                <PushNotificationBridge />
-                <UnreadMessagesSync />
-                {children}
-              </AuthProvider>
-            </ThemeProvider>
-          </GoogleOAuthProviderWrapper>
-        </LenisProvider>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdWebApplication()) }}
+        />
+        <ClientProviders>{children}</ClientProviders>
       </body>
     </html>
   );

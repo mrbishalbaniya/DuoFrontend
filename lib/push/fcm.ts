@@ -25,8 +25,8 @@ export type PushConfig = {
 
 const PUSH_PREF_KEY = "duo_push_enabled";
 const SW_PATH = "/firebase-messaging-sw.js";
-const DEFAULT_ICON = "/icons/duo-notification-192.png";
-const DEFAULT_BADGE = "/icons/duo-badge-96.png";
+const DEFAULT_ICON = "/icon";
+const DEFAULT_BADGE = "/icon";
 
 let messagingInstance: Messaging | null = null;
 let cachedConfig: PushConfig | null = null;
@@ -106,6 +106,8 @@ function notificationFromPayload(payload: MessagePayload): {
     if (type === "new_match") title = "It's a Match!";
     else if (type === "profile_like") title = "Someone liked you";
     else if (type === "chat_message") title = "New message";
+    else if (type === "call_incoming") title = "Incoming call";
+    else if (type === "call_missed") title = "Missed call";
   }
 
   if (!n?.body && !data.body && type === "new_match") {
@@ -130,7 +132,7 @@ function notificationFromPayload(payload: MessagePayload): {
     badge,
     tag,
     renotify: true,
-    requireInteraction: type === "new_match",
+    requireInteraction: type === "new_match" || type === "call_incoming",
     data: { ...data, url, type },
   };
   if (image) options.image = image;

@@ -74,9 +74,28 @@ function LoginPageContent() {
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
+
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername) {
+      setError("Username or email is required.");
+      return;
+    }
+    if (trimmedUsername.length > 150) {
+      setError("Username or email is too long.");
+      return;
+    }
+    if (!password) {
+      setError("Password is required.");
+      return;
+    }
+    if (password.length > 128) {
+      setError("Password is too long.");
+      return;
+    }
+
     setLoading(true);
     try {
-      await login(username, password);
+      await login(trimmedUsername, password);
       router.push(safeNext ?? "/match");
     } catch (err: unknown) {
       setError(

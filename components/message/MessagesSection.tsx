@@ -25,8 +25,9 @@ import {
   ChatPageSkeleton,
 } from "@/components/skeletons/ChatPageSkeleton";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCall } from "@/components/call/CallBridge";
 import api from "@/lib/api";
-import { resolveMediaUrl, resolveProfilePhotoUrl } from "@/lib/mediaUrl";
+import { resolveAvatarUrl, resolveMediaUrl, resolveProfilePhotoUrl } from "@/lib/mediaUrl";
 import { useChatWebSocket } from "@/lib/useChatWebSocket";
 import { useUnreadMessagesStore } from "@/store/unreadMessagesStore";
 import type { ChatMessage, Conversation } from "@/types";
@@ -64,6 +65,7 @@ import { ImageLightbox } from "./ImageLightbox";
 
 export default function MessagesSection() {
   const { user, loading: authLoading } = useAuth();
+  const call = useCall();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -197,7 +199,7 @@ export default function MessagesSection() {
     selected?.other_user_nickname?.trim() || otherProfile?.full_name || "Match";
   const otherAvatarSrc = useMemo(
     () =>
-      resolveMediaUrl(otherProfile?.photo_url) ??
+      resolveAvatarUrl(otherProfile?.photo_url) ??
       resolveProfilePhotoUrl(otherProfile ?? {}),
     [otherProfile]
   );
@@ -1550,6 +1552,22 @@ export default function MessagesSection() {
                 onUnmatchBlock={() => setUnmatchDialogOpen(true)}
                 onClearHistory={() => setClearDialogOpen(true)}
                 onReport={() => setReportDialogOpen(true)}
+                onVoiceCall={() => {
+                  if (!selected?.public_id) return;
+                  void call.startOutgoing({
+                    conversationId: String(selected.public_id),
+                    callType: "voice",
+                    remoteName: otherDisplayName,
+                  });
+                }}
+                onVideoCall={() => {
+                  if (!selected?.public_id) return;
+                  void call.startOutgoing({
+                    conversationId: String(selected.public_id),
+                    callType: "video",
+                    remoteName: otherDisplayName,
+                  });
+                }}
               />
 
               {chatActionNotice ? (

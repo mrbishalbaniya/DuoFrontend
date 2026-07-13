@@ -7,34 +7,28 @@ import Navbar from "@/components/Navbar";
 import BottomNav from "@/components/BottomNav";
 import { InsightsPageSkeleton } from "@/components/skeletons/InsightsPageSkeleton";
 import { useAuth } from "@/contexts/AuthContext";
-import api from "@/lib/api";
+import { useMatchesQuery } from "@/lib/query/hooks";
 import { resolveProfilePhotoUrl } from "@/lib/mediaUrl";
 import type { Match } from "@/types";
 
 export default function InsightsPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: matches = [], isLoading } = useMatchesQuery(!authLoading && Boolean(user));
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !user) { router.push("/login"); return; }
-    if (user) loadMatches();
+    if (!authLoading && !user) {
+      router.push("/login");
+    }
   }, [user, authLoading, router]);
 
-  const loadMatches = async () => {
-    try {
-      const data = await api.getMatches();
-      setMatches(data);
-      if (data.length > 0) setSelectedMatch(data[0]);
-    } catch {
-    } finally {
-      setLoading(false);
-    }
-  };
+  const selectedMatch =
+    matches.find((m) => m.id === selectedId) ?? matches[0] ?? null;
 
-  if (authLoading || loading) {
+  const loading = authLoading || isLoading;
+
+  if (loading) {
     return <InsightsPageSkeleton />;
   }
 
@@ -69,7 +63,7 @@ export default function InsightsPage() {
             {matches.map((match) => (
               <button
                 key={match.id}
-                onClick={() => setSelectedMatch(match)}
+                onClick={() => setSelectedId(match.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap ${selectedMatch?.id === match.id ? "bg-primary text-white shadow-lg" : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container"}`}
               >
                 <div className="w-6 h-6 rounded-full overflow-hidden bg-surface-container">

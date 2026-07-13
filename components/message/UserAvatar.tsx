@@ -1,7 +1,10 @@
 "use client";
 
 import { memo } from "react";
-import { resolveMediaUrl } from "@/lib/mediaUrl";
+import Image from "next/image";
+import { resolveAvatarUrl } from "@/lib/mediaUrl";
+
+const sizePx = { sm: 32, md: 48 } as const;
 
 export const UserAvatar = memo(function UserAvatar({
   src,
@@ -16,22 +19,28 @@ export const UserAvatar = memo(function UserAvatar({
 }) {
   const dim = size === "sm" ? "w-8 h-8" : "w-12 h-12";
   const iconSize = size === "sm" ? "text-xs" : "text-sm";
-  const resolved = src ? resolveMediaUrl(src) ?? src : null;
+  const px = sizePx[size];
+  const resolved = src ? resolveAvatarUrl(src) ?? src : null;
+  const label = name?.trim() || "User avatar";
+
   return (
     <div
-      className={`${dim} rounded-full overflow-hidden bg-surface-container border border-primary/15 shrink-0 ${className}`}
+      className={`${dim} rounded-full overflow-hidden bg-surface-container border border-primary/15 shrink-0 relative ${className}`}
     >
       {resolved ? (
-        <img
-          className="w-full h-full object-cover"
-          alt=""
+        <Image
+          className="object-cover"
+          alt={label}
           src={resolved}
+          fill
+          sizes={`${px}px`}
           loading="lazy"
-          decoding="async"
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center">
-          <span className={`material-symbols-outlined ${iconSize} text-primary/30`}>person</span>
+          <span className={`material-symbols-outlined ${iconSize} text-primary/30`} aria-hidden>
+            person
+          </span>
         </div>
       )}
     </div>

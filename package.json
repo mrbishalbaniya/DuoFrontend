@@ -21,6 +21,7 @@
     "@react-oauth/google": "^0.13.5",
     "@sentry/browser": "^9.47.1",
     "@sentry/node": "^9.47.1",
+    "@tanstack/react-query": "^5.101.2",
     "@vladmandic/face-api": "^1.7.15",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

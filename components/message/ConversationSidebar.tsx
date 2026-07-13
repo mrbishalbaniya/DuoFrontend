@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { CSSProperties } from "react";
 import { motion } from "motion/react";
-import { resolveMediaUrl, resolveProfilePhotoUrl } from "@/lib/mediaUrl";
+import { resolveAvatarUrl, resolveProfilePhotoUrl } from "@/lib/mediaUrl";
 import type { Conversation } from "@/types";
 import {
   conversationPublicKey,
@@ -173,7 +173,7 @@ export function ConversationSidebar({
                   <div className="relative shrink-0">
                     <UserAvatar
                       src={
-                        resolveMediaUrl(profile?.photo_url) ??
+                        resolveAvatarUrl(profile?.photo_url) ??
                         resolveProfilePhotoUrl(profile ?? {})
                       }
                       name={convo.other_user_nickname?.trim() || profile?.full_name}

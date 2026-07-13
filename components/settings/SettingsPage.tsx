@@ -8,7 +8,7 @@ import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
 import BottomNav from "@/components/BottomNav";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme, type ThemeMode } from "@/contexts/ThemeContext";
-import api from "@/lib/api";
+import api, { type NotificationPreferences } from "@/lib/api";
 import {
   getPushStatus,
   registerPushNotifications,
@@ -139,6 +139,8 @@ export function SettingsPage() {
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
   const [pushMessage, setPushMessage] = useState<string | null>(null);
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences | null>(null);
+  const [prefsSaving, setPrefsSaving] = useState(false);
 
   const isVerified = user?.profile?.is_verified;
 
@@ -161,6 +163,35 @@ export function SettingsPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void api
+      .getNotificationPreferences()
+      .then((prefs) => {
+        if (!cancelled) setNotifPrefs(prefs);
+      })
+      .catch(() => {
+        if (!cancelled) setNotifPrefs(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const updatePref = async (key: keyof NotificationPreferences, value: boolean) => {
+    if (!notifPrefs) return;
+    setPrefsSaving(true);
+    try {
+      const updated = await api.updateNotificationPreferences({ [key]: value });
+      setNotifPrefs(updated);
+    } catch {
+      // Keep existing prefs on failure.
+    } finally {
+      setPrefsSaving(false);
+    }
+  };
 
   useEffect(() => {
     lenis?.stop();
@@ -350,6 +381,40 @@ export function SettingsPage() {
                         )}
                         {pushError ? <p className="mt-3 text-sm text-red-500">{pushError}</p> : null}
                         {pushMessage ? <p className="mt-3 text-sm text-accent">{pushMessage}</p> : null}
+                        {notifPrefs ? (
+                          <div className="mt-5 space-y-2 border-t border-outline-variant/20 pt-4">
+                            <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                              Categories
+                            </p>
+                            {(
+                              [
+                                ["chat_enabled", "Messages", "Chat and reactions"],
+                                ["match_enabled", "Matches", "New mutual matches"],
+                                ["likes_enabled", "Likes", "Likes and profile views"],
+                                ["verification_enabled", "Verification", "Photo and identity updates"],
+                                ["payment_enabled", "Payments", "Wallet and subscription alerts"],
+                                ["announcements_enabled", "Announcements", "System and admin updates"],
+                              ] as const
+                            ).map(([key, label, description]) => (
+                              <label
+                                key={key}
+                                className="flex items-center justify-between gap-3 rounded-xl px-1 py-2"
+                              >
+                                <span>
+                                  <span className="block text-sm font-medium text-on-surface">{label}</span>
+                                  <span className="block text-xs text-on-surface-variant">{description}</span>
+                                </span>
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 accent-primary"
+                                  checked={notifPrefs[key]}
+                                  disabled={prefsSaving || !notifPrefs.push_enabled}
+                                  onChange={(e) => void updatePref(key, e.target.checked)}
+                                />
+                              </label>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   </div>

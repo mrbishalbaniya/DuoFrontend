@@ -4,7 +4,7 @@
 
 import { memo } from "react";
 
-import { resolveMediaUrl } from "@/lib/mediaUrl";
+import { resolveChatMediaUrl, resolveMediaUrl } from "@/lib/mediaUrl";
 
 import VoiceMessageBubble from "@/components/ui/voice-message-bubble";
 
@@ -370,7 +370,7 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
 
                     <img
 
-                      src={msg.image_url}
+                      src={resolveChatMediaUrl(msg.image_url) ?? msg.image_url}
 
                       alt="Attached"
 
