@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
-import { EmailOtp } from "@/components/auth/email-otp";
 import { DuoPhoneInput } from "@/components/ui/phone-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -154,8 +153,8 @@ export function StepAccount({ onContinue, onBack }: StepAccountProps) {
 
   const submitAccount = accountForm.handleSubmit((values) => {
     const email = values.email.trim().toLowerCase();
-    patchData({ ...values, email, signedUpWithGoogle: false });
-    setAccountSubStep("otp");
+    patchData({ ...values, email, signedUpWithGoogle: false, otpVerified: true });
+    onContinue();
   });
 
   const submitGooglePhone = phoneForm.handleSubmit((values) => {
@@ -227,34 +226,11 @@ export function StepAccount({ onContinue, onBack }: StepAccountProps) {
     );
   }
 
-  if (accountSubStep === "otp" && !data.signedUpWithGoogle && !data.otpVerified) {
-    const otpEmail = data.email.trim().toLowerCase();
-
-    return (
-      <StepCard
-        title="Verify your email"
-        subtitle={
-          otpEmail
-            ? `We sent a 6-digit code to ${otpEmail}. Check your inbox and spam folder.`
-            : "Enter the email you used to sign up, then verify with the code we send."
-        }
-      >
-        <EmailOtp
-          email={otpEmail}
-          onBack={() => setAccountSubStep("form")}
-          onVerified={() => {
-            patchData({ otpVerified: true, signedUpWithGoogle: false });
-            onContinue();
-          }}
-        />
-      </StepCard>
-    );
-  }
 
   return (
     <StepCard
       title="Create your account"
-      subtitle="Sign up with Google or register with email. Email users verify with a 6-digit code."
+      subtitle="Sign up with Google or register with your email and password."
     >
       <div className="space-y-5">
         {googleError ? (
