@@ -252,9 +252,6 @@ function LikedByYouCard({ item }: { item: LikedProfile }) {
     <DiscoverProfileCard
       profile={profile}
       timeLabel={interactionTimeLabel(item.action, "sent", item.liked_at)}
-      actions={
-        <CardButton href="/match" icon="swipe" label="Keep swiping" full />
-      }
     />
   );
 }
