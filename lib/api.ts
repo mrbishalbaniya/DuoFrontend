@@ -668,6 +668,13 @@ class ApiClient {
     return data.ticket;
   }
 
+  async getInboxWsTicket(): Promise<string> {
+    const data = await this.request<{ ticket: string }>("/notifications/ws-ticket/", {
+      method: "POST",
+    });
+    return data.ticket;
+  }
+
   async getIceServers(): Promise<{ ice_servers: Array<Record<string, string>> }> {
     return this.request("/calls/ice-servers/");
   }
