@@ -97,7 +97,9 @@ export default function MessagesSection() {
   const [chatMenuOpen, setChatMenuOpen] = useState(false);
   const [profileSheetOpen, setProfileSheetOpen] = useState(false);
   const [nicknameDialogOpen, setNicknameDialogOpen] = useState(false);
+  const [blockDialogOpen, setBlockDialogOpen] = useState(false);
   const [unmatchDialogOpen, setUnmatchDialogOpen] = useState(false);
+  const [unmatchBlockDialogOpen, setUnmatchBlockDialogOpen] = useState(false);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [chatActionNotice, setChatActionNotice] = useState<string | null>(null);
@@ -843,23 +845,55 @@ export default function MessagesSection() {
     }
   }, [selectedApiKey]);
 
-  const handleUnmatchBlock = useCallback(async () => {
-    if (!selectedApiKey || selectedId == null) return;
+  const removeSelectedConversation = useCallback(() => {
+    if (selectedId == null) return;
+    setConversations((prev) => {
+      const next = prev.filter((convo) => convo.id !== selectedId);
+      const total = next.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+      useUnreadMessagesStore.getState().setTotalUnread(total);
+      return next;
+    });
+    handleBackToList();
+  }, [handleBackToList, selectedId]);
+
+  const handleBlockUser = useCallback(async () => {
+    if (!selectedApiKey) return;
+    try {
+      await api.blockConversation(selectedApiKey);
+      setBlockDialogOpen(false);
+      removeSelectedConversation();
+      setChatActionNotice("User blocked.");
+    } catch {
+      setChatActionNotice("Could not block user. Please try again.");
+      setBlockDialogOpen(false);
+    }
+  }, [removeSelectedConversation, selectedApiKey]);
+
+  const handleUnmatch = useCallback(async () => {
+    if (!selectedApiKey) return;
     try {
       await api.unmatchConversation(selectedApiKey);
-      setConversations((prev) => {
-        const next = prev.filter((convo) => convo.id !== selectedId);
-        const total = next.reduce((sum, c) => sum + (c.unread_count || 0), 0);
-        useUnreadMessagesStore.getState().setTotalUnread(total);
-        return next;
-      });
       setUnmatchDialogOpen(false);
-      handleBackToList();
+      removeSelectedConversation();
+      setChatActionNotice("Unmatched successfully.");
     } catch {
       setChatActionNotice("Could not unmatch. Please try again.");
       setUnmatchDialogOpen(false);
     }
-  }, [selectedApiKey, selectedId]);
+  }, [removeSelectedConversation, selectedApiKey]);
+
+  const handleUnmatchBlock = useCallback(async () => {
+    if (!selectedApiKey) return;
+    try {
+      await api.unmatchAndBlockConversation(selectedApiKey);
+      setUnmatchBlockDialogOpen(false);
+      removeSelectedConversation();
+      setChatActionNotice("Unmatched and blocked.");
+    } catch {
+      setChatActionNotice("Could not unmatch and block. Please try again.");
+      setUnmatchBlockDialogOpen(false);
+    }
+  }, [removeSelectedConversation, selectedApiKey]);
 
   const handleReportUser = useCallback(
     async (reason: string) => {
@@ -1549,7 +1583,9 @@ export default function MessagesSection() {
                 onChatMenuOpenChange={setChatMenuOpen}
                 onShowProfile={() => setProfileSheetOpen(true)}
                 onEditNickname={() => setNicknameDialogOpen(true)}
-                onUnmatchBlock={() => setUnmatchDialogOpen(true)}
+                onBlock={() => setBlockDialogOpen(true)}
+                onUnmatch={() => setUnmatchDialogOpen(true)}
+                onUnmatchBlock={() => setUnmatchBlockDialogOpen(true)}
                 onClearHistory={() => setClearDialogOpen(true)}
                 onReport={() => setReportDialogOpen(true)}
                 onVoiceCall={() => {
@@ -1806,12 +1842,32 @@ export default function MessagesSection() {
       />
 
       <ChatConfirmDialog
+        open={blockDialogOpen}
+        title="Block this user?"
+        description={`${otherDisplayName} will no longer be able to message you, and you will not see them in your matches.`}
+        confirmLabel="Block"
+        destructive
+        onClose={() => setBlockDialogOpen(false)}
+        onConfirm={() => void handleBlockUser()}
+      />
+
+      <ChatConfirmDialog
         open={unmatchDialogOpen}
+        title="Unmatch?"
+        description={`You will unmatched with ${otherDisplayName} and this conversation will be removed.`}
+        confirmLabel="Unmatch"
+        destructive
+        onClose={() => setUnmatchDialogOpen(false)}
+        onConfirm={() => void handleUnmatch()}
+      />
+
+      <ChatConfirmDialog
+        open={unmatchBlockDialogOpen}
         title="Unmatch & block?"
         description={`You will unmatched with ${otherDisplayName}, block them, and delete this conversation.`}
         confirmLabel="Unmatch & block"
         destructive
-        onClose={() => setUnmatchDialogOpen(false)}
+        onClose={() => setUnmatchBlockDialogOpen(false)}
         onConfirm={() => void handleUnmatchBlock()}
       />
     </div>

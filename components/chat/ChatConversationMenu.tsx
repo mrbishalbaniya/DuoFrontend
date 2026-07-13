@@ -7,6 +7,8 @@ type ChatConversationMenuProps = {
   onOpenChange: (open: boolean) => void;
   onShowProfile: () => void;
   onEditNickname: () => void;
+  onBlock: () => void;
+  onUnmatch: () => void;
   onUnmatchBlock: () => void;
   onClearHistory: () => void;
   onReport: () => void;
@@ -15,7 +17,9 @@ type ChatConversationMenuProps = {
 const MENU_ITEMS = [
   { id: "profile", label: "Show profile", icon: "person", tone: "default" as const },
   { id: "nickname", label: "Edit nickname", icon: "edit", tone: "default" as const },
-  { id: "unmatch", label: "Unmatch & block", icon: "block", tone: "danger" as const },
+  { id: "block", label: "Block", icon: "block", tone: "danger" as const },
+  { id: "unmatch", label: "Unmatch", icon: "heart_broken", tone: "danger" as const },
+  { id: "unmatchBlock", label: "Unmatch & block", icon: "do_not_disturb_on", tone: "danger" as const },
   { id: "clear", label: "Clear chat history", icon: "delete_sweep", tone: "danger" as const },
   { id: "report", label: "Report", icon: "flag", tone: "danger" as const },
 ];
@@ -25,6 +29,8 @@ export function ChatConversationMenu({
   onOpenChange,
   onShowProfile,
   onEditNickname,
+  onBlock,
+  onUnmatch,
   onUnmatchBlock,
   onClearHistory,
   onReport,
@@ -34,7 +40,9 @@ export function ChatConversationMenu({
   const handlers: Record<string, () => void> = {
     profile: onShowProfile,
     nickname: onEditNickname,
-    unmatch: onUnmatchBlock,
+    block: onBlock,
+    unmatch: onUnmatch,
+    unmatchBlock: onUnmatchBlock,
     clear: onClearHistory,
     report: onReport,
   };

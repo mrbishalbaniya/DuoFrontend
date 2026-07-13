@@ -244,7 +244,15 @@ function VisitedYouCard({
   );
 }
 
-function LikedByYouCard({ item }: { item: LikedProfile }) {
+function LikedByYouCard({
+  item,
+  onUnlike,
+  unliking,
+}: {
+  item: LikedProfile;
+  onUnlike: (item: LikedProfile) => void;
+  unliking?: boolean;
+}) {
   const profile = item.profile;
   if (!profile) return null;
 
@@ -252,6 +260,16 @@ function LikedByYouCard({ item }: { item: LikedProfile }) {
     <DiscoverProfileCard
       profile={profile}
       timeLabel={interactionTimeLabel(item.action, "sent", item.liked_at)}
+      actions={
+        <CardButton
+          onClick={() => onUnlike(item)}
+          icon="heart_minus"
+          label={unliking ? "Removing…" : "Unlike"}
+          full
+          disabled={unliking}
+          loading={unliking}
+        />
+      }
     />
   );
 }
@@ -354,6 +372,7 @@ export function DiscoverMatchesPage() {
   const [toppingUp, setToppingUp] = useState(false);
   const [premiumSheetOpen, setPremiumSheetOpen] = useState(false);
   const [likingBackId, setLikingBackId] = useState<string | null>(null);
+  const [unlikingId, setUnlikingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -420,6 +439,31 @@ export function DiscoverMatchesPage() {
       setToppingUp(false);
     }
   }, []);
+
+  const handleUnlike = useCallback(
+    async (item: LikedProfile) => {
+      const toUserId = item.profile.user_id ?? item.profile.id;
+      if (!toUserId) {
+        setNotice("Could not unlike — profile is missing a user id.");
+        return;
+      }
+
+      const key = likedProfileKey(item);
+      setUnlikingId(key);
+      setNotice(null);
+
+      try {
+        await api.unlikeProfile(toUserId);
+        setLikedByYou((prev) => prev.filter((entry) => likedProfileKey(entry) !== key));
+        setNotice("Like removed.");
+      } catch (err) {
+        setNotice(err instanceof Error ? err.message : "Unlike failed. Please try again.");
+      } finally {
+        setUnlikingId(null);
+      }
+    },
+    []
+  );
 
   const handleLikeBack = useCallback(
     async (item: LikedProfile) => {
@@ -548,7 +592,12 @@ export function DiscoverMatchesPage() {
     if (activeTab === "liked-by-you") {
       if (likedByYou.length === 0) return <EmptyState tab="liked-by-you" />;
       return likedByYou.map((item) => (
-        <LikedByYouCard key={likedProfileKey(item)} item={item} />
+        <LikedByYouCard
+          key={likedProfileKey(item)}
+          item={item}
+          onUnlike={(entry) => void handleUnlike(entry)}
+          unliking={unlikingId === likedProfileKey(item)}
+        />
       ));
     }
 

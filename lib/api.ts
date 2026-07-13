@@ -532,6 +532,13 @@ class ApiClient {
     });
   }
 
+  async unlikeProfile(toUserId: number): Promise<{ detail: string }> {
+    return this.request<{ detail: string }>("/matching/unlike/", {
+      method: "POST",
+      body: JSON.stringify({ to_user_id: toUserId }),
+    });
+  }
+
   async getMatches(): Promise<Match[]> {
     return this.request<Match[]>("/matching/matches/");
   }
@@ -763,6 +770,23 @@ class ApiClient {
     return this.request<{ detail: string }>(`/chat/conversations/${conversationId}/unmatch/`, {
       method: "POST",
     });
+  }
+
+  async blockConversation(conversationId: number | string): Promise<{ detail: string }> {
+    return this.request<{ detail: string }>(`/chat/conversations/${conversationId}/block/`, {
+      method: "POST",
+    });
+  }
+
+  async unmatchAndBlockConversation(
+    conversationId: number | string
+  ): Promise<{ detail: string }> {
+    return this.request<{ detail: string }>(
+      `/chat/conversations/${conversationId}/unmatch-and-block/`,
+      {
+        method: "POST",
+      }
+    );
   }
 
   async reportConversation(

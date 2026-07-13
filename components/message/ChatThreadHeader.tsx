@@ -36,6 +36,10 @@ export function ChatThreadHeader({
 
   onEditNickname,
 
+  onBlock,
+
+  onUnmatch,
+
   onUnmatchBlock,
 
   onClearHistory,
@@ -71,6 +75,10 @@ export function ChatThreadHeader({
   onShowProfile: () => void;
 
   onEditNickname: () => void;
+
+  onBlock: () => void;
+
+  onUnmatch: () => void;
 
   onUnmatchBlock: () => void;
 
@@ -235,6 +243,10 @@ export function ChatThreadHeader({
             onShowProfile={onShowProfile}
 
             onEditNickname={onEditNickname}
+
+            onBlock={onBlock}
+
+            onUnmatch={onUnmatch}
 
             onUnmatchBlock={onUnmatchBlock}
 
