@@ -488,8 +488,37 @@ class ApiClient {
     return this.request<UserVerificationSession[]>("/verification/history/");
   }
 
-  async discoverProfiles(): Promise<Profile[]> {
-    return this.request<Profile[]>("/profiles/discover/");
+  async discoverProfiles(): Promise<{ profiles: Profile[]; expandedSearch: boolean }> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    let res = await fetch(`${this.baseUrl}/profiles/discover/`, {
+      credentials: "include",
+      headers,
+    });
+
+    if (res.status === 401) {
+      const refreshed = await this.refreshSession();
+      if (refreshed) {
+        res = await fetch(`${this.baseUrl}/profiles/discover/`, {
+          credentials: "include",
+          headers,
+        });
+      } else {
+        await this.clearTokens();
+        if (shouldRedirectToLogin()) window.location.href = "/login";
+        throw new Error("Authentication failed");
+      }
+    }
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text.slice(0, 200) || `API Error: ${res.status}`);
+    }
+
+    const profiles = (await res.json()) as Profile[];
+    return {
+      profiles,
+      expandedSearch: res.headers.get("X-Duo-Discover-Expanded") === "1",
+    };
   }
 
   async getProfile(id: number | string): Promise<Profile> {

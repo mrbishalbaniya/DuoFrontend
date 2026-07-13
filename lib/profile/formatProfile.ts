@@ -104,6 +104,12 @@ export type ProfileField = {
 
 export function buildProfileSections(user: User, profile: Profile) {
   const extra = parsePrefValues(profile.pref_values);
+  const prefAgeMin = profile.pref_age_min ?? 22;
+  const prefAgeMax = profile.pref_age_max ?? 35;
+  const prefDistance = profile.pref_max_distance_km ?? 50;
+  const prefLocation = profile.pref_location?.trim() || profile.location?.trim() || "Nearby";
+  const prefHeight = profile.pref_min_height?.trim() || `5'2" (157cm)`;
+  const prefOccupation = profile.pref_occupation?.trim() || "Professional Degree";
 
   return {
     account: [
@@ -142,17 +148,17 @@ export function buildProfileSections(user: User, profile: Profile) {
       { label: "Future goals", value: displayValue(extra.futureGoals) },
     ] satisfies ProfileField[],
     preferences: [
-      { label: "Looking for gender", value: formatPrefGender(profile.pref_gender) },
-      { label: "Age range", value: `${profile.pref_age_min ?? "—"} – ${profile.pref_age_max ?? "—"} years` },
-      { label: "Min height", value: displayValue(profile.pref_min_height) },
-      { label: "Preferred occupation", value: displayValue(profile.pref_occupation) },
-      { label: "Preferred religion", value: displayValue(extra.preferredReligion) },
-      { label: "Preferred location", value: displayValue(profile.pref_location) },
-      { label: "Max distance", value: `${profile.pref_max_distance_km ?? "—"} km` },
-      { label: "Relationship preference", value: formatRelationshipGoal(profile.pref_relationship_goal) },
-      { label: "Verified profiles only", value: displayValue(profile.pref_verified_only) },
-      { label: "Inter-caste", value: displayValue(extra.interCaste) },
-      { label: "Inter-religion", value: displayValue(extra.interReligion) },
+      { label: "Looking for gender", value: formatPrefGender(profile.pref_gender || "everyone") },
+      { label: "Age range", value: `${prefAgeMin} – ${prefAgeMax} years` },
+      { label: "Min height", value: prefHeight },
+      { label: "Preferred occupation", value: prefOccupation },
+      { label: "Preferred religion", value: displayValue(extra.preferredReligion, "Any religion") },
+      { label: "Preferred location", value: prefLocation },
+      { label: "Max distance", value: `${prefDistance} km` },
+      { label: "Relationship preference", value: formatRelationshipGoal(profile.pref_relationship_goal || "everyone") },
+      { label: "Verified profiles only", value: profile.pref_verified_only ? "Yes" : "No" },
+      { label: "Inter-caste", value: displayValue(extra.interCaste, "Open") },
+      { label: "Inter-religion", value: displayValue(extra.interReligion, "Open") },
     ] satisfies ProfileField[],
     status: [
       { label: "Profile completeness", value: `${profile.profile_completeness ?? 0}%` },

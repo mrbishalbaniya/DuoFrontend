@@ -51,11 +51,13 @@ const MATCH_CARD_WIDTH =
   "w-full max-w-md md:max-w-lg lg:max-w-xl xl:max-w-[30rem]";
 
 let discoverProfilesCache: Profile[] | null = null;
+let discoverExpandedSearch = false;
 
 export function DiscoverExperience() {
   const { user, loading: authLoading, fetchUser } = useAuth();
   const router = useRouter();
   const [profiles, setProfiles] = useState<Profile[]>(() => discoverProfilesCache ?? []);
+  const [expandedSearch, setExpandedSearch] = useState(discoverExpandedSearch);
   const [loading, setLoading] = useState(() => discoverProfilesCache === null);
   const [swiping, setSwiping] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -69,12 +71,16 @@ export function DiscoverExperience() {
   const fetchProfiles = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) setLoading(true);
     try {
-      const data = await api.discoverProfiles();
+      const { profiles: data, expandedSearch: expanded } = await api.discoverProfiles();
       discoverProfilesCache = data;
+      discoverExpandedSearch = expanded;
       setProfiles(data);
+      setExpandedSearch(expanded);
     } catch {
       discoverProfilesCache = [];
+      discoverExpandedSearch = false;
       setProfiles([]);
+      setExpandedSearch(false);
     } finally {
       setLoading(false);
     }
@@ -125,6 +131,7 @@ export function DiscoverExperience() {
       await fetchUser();
       setStackKey((key) => key + 1);
       discoverProfilesCache = null;
+      discoverExpandedSearch = false;
       await fetchProfiles();
     },
     [fetchProfiles, fetchUser]
@@ -201,26 +208,19 @@ export function DiscoverExperience() {
   }
 
   if (!currentProfile) {
-    const prefs = user?.profile;
     return (
       <>
         <main className="mobile-bottom-nav-offset flex h-full min-h-0 flex-col overflow-hidden px-4 pt-2 md:px-6 md:pb-8 lg:px-8">
           <div className={`mx-auto flex min-h-0 flex-1 items-center justify-center overflow-hidden ${MATCH_CARD_WIDTH}`}>
             <div className="space-y-6 px-2 text-center md:px-4">
               <span className="material-symbols-outlined text-6xl text-primary/30 md:text-7xl">
-                search_off
+                favorite
               </span>
               <h2 className="font-[var(--font-headline)] text-2xl font-bold text-on-surface md:text-3xl">
-                No profiles to discover
+                You are all caught up
               </h2>
               <p className="mx-auto max-w-md text-on-surface-variant md:text-base">
-                {prefs?.pref_verified_only
-                  ? "No verified profiles match your filters. Try turning off “Verified only”."
-                  : prefs?.pref_age_min &&
-                      prefs?.pref_age_max &&
-                      prefs.pref_age_max - prefs.pref_age_min <= 5
-                    ? "Your age range may be too narrow. Widen it in discovery filters."
-                    : "No one matches your current filters, or you have swiped through everyone nearby. Try adjusting filters or check back later."}
+                You have seen everyone available right now. Check back soon as new people join Duo.
               </p>
               <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
                 <button
@@ -271,6 +271,12 @@ export function DiscoverExperience() {
           onOpenFilters={() => setFiltersOpen(true)}
           disabled={controlsDisabled}
         />
+
+        {expandedSearch ? (
+          <div className={`mx-auto mb-2 rounded-2xl border border-primary/15 bg-primary/10 px-4 py-2 text-center text-sm text-on-surface ${MATCH_CARD_WIDTH}`}>
+            We expanded your search to show more compatible people nearby.
+          </div>
+        ) : null}
 
         <div className={`relative mx-auto mt-1 min-h-0 flex-1 md:mt-2 ${MATCH_CARD_WIDTH}`}>
           <SwipeableCardStack
