@@ -77,7 +77,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string) => {
     const data = await api.login(username, password);
-    await fetchUser();
+    try {
+      const me = await api.getMe();
+      setUser(me);
+      queryClient.setQueryData(queryKeys.me, me);
+    } catch {
+      await api.clearTokens();
+      setUser(null);
+      queryClient.removeQueries({ queryKey: queryKeys.me });
+      throw new Error("Signed in, but the session could not be verified. Please try again.");
+    } finally {
+      setLoading(false);
+    }
     return data;
   };
 
