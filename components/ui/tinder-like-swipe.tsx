@@ -265,9 +265,13 @@ export const SwipeableCardStack = React.forwardRef<
   }, [cards]);
 
   React.useEffect(() => {
-    setCards([...images]);
-    exitingRef.current = false;
-    setIsExiting(false);
+    if (exitingRef.current) return;
+    setCards((current) => {
+      if (current.length === images.length && current.every((card, index) => card === images[index])) {
+        return current;
+      }
+      return [...images];
+    });
   }, [imagesKey, images]);
 
   React.useEffect(() => {

@@ -52,11 +52,26 @@ const MATCH_CARD_WIDTH =
 
 let discoverProfilesCache: Profile[] | null = null;
 let discoverExpandedSearch = false;
+const discoverSwipedUserIds = new Set<number>();
+
+function profileUserId(profile: Profile): number | null {
+  const id = profile.user_id ?? profile.id;
+  return typeof id === "number" && id > 0 ? id : null;
+}
+
+function withoutSwipedProfiles(profiles: Profile[]): Profile[] {
+  return profiles.filter((profile) => {
+    const id = profileUserId(profile);
+    return id == null || !discoverSwipedUserIds.has(id);
+  });
+}
 
 export function DiscoverExperience() {
   const { user, loading: authLoading, fetchUser } = useAuth();
   const router = useRouter();
-  const [profiles, setProfiles] = useState<Profile[]>(() => discoverProfilesCache ?? []);
+  const [profiles, setProfiles] = useState<Profile[]>(() =>
+    withoutSwipedProfiles(discoverProfilesCache ?? [])
+  );
   const [expandedSearch, setExpandedSearch] = useState(discoverExpandedSearch);
   const [loading, setLoading] = useState(() => discoverProfilesCache === null);
   const [swiping, setSwiping] = useState(false);
@@ -67,14 +82,17 @@ export function DiscoverExperience() {
   const swipingRef = useRef(false);
   const stackRef = useRef<SwipeableCardStackHandle>(null);
   const locationSyncedRef = useRef(false);
+  const profilesFetchedRef = useRef(discoverProfilesCache !== null);
 
   const fetchProfiles = useCallback(async (options?: { silent?: boolean }) => {
+    if (swipingRef.current) return;
     if (!options?.silent) setLoading(true);
     try {
       const { profiles: data, expandedSearch: expanded } = await api.discoverProfiles();
-      discoverProfilesCache = data;
+      const filtered = withoutSwipedProfiles(data);
+      discoverProfilesCache = filtered;
       discoverExpandedSearch = expanded;
-      setProfiles(data);
+      setProfiles(filtered);
       setExpandedSearch(expanded);
     } catch {
       discoverProfilesCache = [];
@@ -91,7 +109,8 @@ export function DiscoverExperience() {
       router.push("/login");
       return;
     }
-    if (!authLoading && user) {
+    if (!authLoading && user && !profilesFetchedRef.current) {
+      profilesFetchedRef.current = true;
       void fetchProfiles({ silent: discoverProfilesCache !== null });
     }
   }, [user, authLoading, router, fetchProfiles]);
@@ -132,6 +151,8 @@ export function DiscoverExperience() {
       setStackKey((key) => key + 1);
       discoverProfilesCache = null;
       discoverExpandedSearch = false;
+      discoverSwipedUserIds.clear();
+      profilesFetchedRef.current = false;
       await fetchProfiles();
     },
     [fetchProfiles, fetchUser]
@@ -141,7 +162,7 @@ export function DiscoverExperience() {
     (action: SwipeAction, profile: Profile): boolean => {
       if (swipingRef.current) return false;
 
-      const toUserId = profile.user_id ?? profile.id;
+      const toUserId = profileUserId(profile);
       if (!toUserId) {
         console.error("Swipe error: profile is missing user id", profile);
         return false;
@@ -150,10 +171,15 @@ export function DiscoverExperience() {
       swipingRef.current = true;
       startTransition(() => setSwiping(true));
 
-      const nextProfiles = profiles.filter((p) => (p.user_id ?? p.id) !== toUserId);
-      setProfiles(nextProfiles);
+      discoverSwipedUserIds.add(toUserId);
+      let nextProfiles: Profile[] = [];
+      setProfiles((current) => {
+        nextProfiles = current.filter((p) => profileUserId(p) !== toUserId);
+        discoverProfilesCache = nextProfiles;
+        return nextProfiles;
+      });
       if (nextProfiles.length === 0) {
-        void fetchProfiles();
+        void fetchProfiles({ silent: true });
       }
 
       void (async () => {
@@ -165,8 +191,17 @@ export function DiscoverExperience() {
           }
         } catch (err) {
           console.error("Swipe error:", err);
+          discoverSwipedUserIds.delete(toUserId);
+          setProfiles((current) => {
+            if (current.some((p) => profileUserId(p) === toUserId)) {
+              discoverProfilesCache = current;
+              return current;
+            }
+            const restored = [profile, ...current];
+            discoverProfilesCache = restored;
+            return restored;
+          });
           setStackKey((key) => key + 1);
-          void fetchProfiles();
         } finally {
           swipingRef.current = false;
           startTransition(() => setSwiping(false));
@@ -175,7 +210,7 @@ export function DiscoverExperience() {
 
       return true;
     },
-    [fetchProfiles, profiles, router]
+    [fetchProfiles, router]
   );
 
   const handleStackSwipe = useCallback(
