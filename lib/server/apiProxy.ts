@@ -28,6 +28,13 @@ export async function proxyToBackend(
   const cookieStore = await cookies();
   let access = cookieStore.get(AUTH_COOKIE_ACCESS)?.value;
   const refresh = cookieStore.get(AUTH_COOKIE_REFRESH)?.value;
+  const authHeader = request.headers.get("authorization");
+  const bearerToken = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length).trim()
+    : "";
+  if (!access && bearerToken) {
+    access = bearerToken;
+  }
   const path = pathSegments.filter((segment) => segment.length > 0).join("/");
   const base = getBackendApiUrl().replace(/\/$/, "");
   // Django APPEND_SLASH: POST without trailing slash → 301 → fetch retries as GET → 405.

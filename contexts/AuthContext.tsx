@@ -78,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (username: string, password: string) => {
     const data = await api.login(username, password);
     try {
-      const me = await api.getMe();
+      const me = data.user ?? (await api.getMe(data.access));
       setUser(me);
       queryClient.setQueryData(queryKeys.me, me);
     } catch {
@@ -94,7 +94,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginWithGoogle = async (idToken: string) => {
     const data = await api.loginWithGoogle(idToken);
-    await fetchUser();
+    try {
+      const me = data.user ?? (await api.getMe(data.access));
+      setUser(me);
+      queryClient.setQueryData(queryKeys.me, me);
+    } catch {
+      await api.clearTokens();
+      setUser(null);
+      queryClient.removeQueries({ queryKey: queryKeys.me });
+      throw new Error("Signed in, but the session could not be verified. Please try again.");
+    } finally {
+      setLoading(false);
+    }
     return data;
   };
 
@@ -104,7 +115,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     full_name: string
   ) => {
     const data = await api.register(email, password, full_name);
-    await fetchUser();
+    try {
+      const me = data.user ?? (await api.getMe(data.tokens.access));
+      setUser(me);
+      queryClient.setQueryData(queryKeys.me, me);
+    } catch {
+      await api.clearTokens();
+      setUser(null);
+      queryClient.removeQueries({ queryKey: queryKeys.me });
+      throw new Error("Account created, but the session could not be verified. Please try again.");
+    } finally {
+      setLoading(false);
+    }
     return data;
   };
 

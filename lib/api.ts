@@ -330,8 +330,15 @@ class ApiClient {
     return data;
   }
 
-  async getMe(): Promise<User> {
-    return this.request<User>("/auth/me/");
+  async getMe(accessToken?: string): Promise<User> {
+    const headers: Record<string, string> = {};
+    if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`;
+    }
+    return this.request<User>("/auth/me/", {
+      headers,
+      skipAuthRedirect: true,
+    });
   }
 
   async getMyProfile(): Promise<Profile> {
