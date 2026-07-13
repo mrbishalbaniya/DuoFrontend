@@ -1,7 +1,6 @@
 "use client";
 
 import NumberFlow from "@number-flow/react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import BottomNav from "@/components/BottomNav";
@@ -9,8 +8,9 @@ import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
 import { EsewaLogo } from "@/components/payment/EsewaLogo";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
+import { formatCoinDelta, formatCoins, formatNprPrice } from "@/lib/coins";
 import { submitEsewaPayment } from "@/lib/esewa";
-import type { SubscriptionPlan, WalletSummary, WalletTransaction } from "@/types";
+import type { CoinPack, WalletSummary, WalletTransaction } from "@/types";
 
 function formatTxnDate(iso: string): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -21,12 +21,6 @@ function formatTxnDate(iso: string): string {
   }).format(new Date(iso));
 }
 
-function formatTxnAmount(amount: string): string {
-  const num = Number(amount);
-  const abs = Math.abs(num).toLocaleString("en-NP");
-  return num >= 0 ? `+NPR ${abs}` : `-NPR ${abs}`;
-}
-
 function TransactionRow({ txn }: { txn: WalletTransaction }) {
   const num = Number(txn.amount);
   const isCredit = num >= 0;
@@ -35,7 +29,7 @@ function TransactionRow({ txn }: { txn: WalletTransaction }) {
     <div className="flex items-center justify-between gap-3 px-4 py-3.5 md:px-5">
       <div className="min-w-0">
         <p className="truncate font-medium text-on-surface">
-          {txn.description || (txn.type === "top_up" ? "Wallet top-up" : "Purchase")}
+          {txn.description || (txn.type === "top_up" ? "Coin pack purchase" : "Purchase")}
         </p>
         <p className="mt-0.5 text-xs text-on-surface-variant">{formatTxnDate(txn.created_at)}</p>
       </div>
@@ -44,31 +38,32 @@ function TransactionRow({ txn }: { txn: WalletTransaction }) {
           isCredit ? "text-[#60bb46]" : "text-on-surface"
         }`}
       >
-        {formatTxnAmount(txn.amount)}
+        {formatCoinDelta(txn.amount)}
       </p>
     </div>
   );
 }
+
+const DEFAULT_COIN_PACKS: CoinPack[] = [
+  { id: "coins_500", coins: 500, price_npr: 500, label: "500 Coins" },
+  { id: "coins_1000", coins: 1000, price_npr: 1000, label: "1,000 Coins" },
+  { id: "coins_2000", coins: 2000, price_npr: 2000, label: "2,000 Coins" },
+  { id: "coins_5000", coins: 5000, price_npr: 5000, label: "5,000 Coins" },
+];
 
 export function WalletPage() {
   const { user, loading: authLoading, fetchUser } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [wallet, setWallet] = useState<WalletSummary | null>(null);
-  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [toppingUp, setToppingUp] = useState(false);
-  const [purchasing, setPurchasing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const loadWallet = useCallback(async () => {
     try {
-      const [walletData, plansData] = await Promise.all([
-        api.getWallet(),
-        api.getSubscriptionPlans().catch(() => []),
-      ]);
+      const walletData = await api.getWallet();
       setWallet(walletData);
-      setPlans(plansData);
     } catch {
       setNotice("Could not load wallet.");
     } finally {
@@ -89,12 +84,12 @@ export function WalletPage() {
   useEffect(() => {
     const walletResult = searchParams.get("wallet");
     if (walletResult === "success") {
-      setNotice("Wallet topped up successfully.");
+      setNotice("Coins added successfully.");
       void fetchUser();
       void loadWallet();
       router.replace("/wallet");
     } else if (walletResult === "failed") {
-      setNotice("Top-up was not completed.");
+      setNotice("Coin purchase was not completed.");
       router.replace("/wallet");
     }
   }, [searchParams, fetchUser, loadWallet, router]);
@@ -106,30 +101,20 @@ export function WalletPage() {
       const payment = await api.initiateWalletTopUp(amount);
       submitEsewaPayment(payment.payment_url, payment.form);
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Could not start eSewa top-up.");
+      setNotice(err instanceof Error ? err.message : "Could not start eSewa payment.");
       setToppingUp(false);
     }
   };
 
-  const handlePurchase = async (planId: string) => {
-    setPurchasing(true);
-    setNotice(null);
-    try {
-      const result = await api.purchaseWithWallet(planId);
-      setWallet((prev) => (prev ? { ...prev, balance: result.balance } : prev));
-      setNotice(`${result.plan.name} activated.`);
-      void fetchUser();
-      void loadWallet();
-    } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Could not purchase pass.");
-    } finally {
-      setPurchasing(false);
-    }
-  };
-
-  const balance = wallet?.balance ?? user?.profile.wallet_balance ?? 0;
-  const presets = wallet?.top_up_presets ?? [500, 1000, 2000, 5000];
-  const busy = toppingUp || purchasing;
+  const balance = wallet?.coins ?? wallet?.balance ?? user?.profile.wallet_balance ?? 0;
+  const coinPacks =
+    wallet?.coin_packs?.length
+      ? wallet.coin_packs
+      : DEFAULT_COIN_PACKS.map((pack) => ({
+          ...pack,
+          coins: pack.coins,
+          price_npr: pack.price_npr,
+        }));
 
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-surface">
@@ -139,11 +124,11 @@ export function WalletPage() {
           <div className="mx-auto w-full max-w-2xl space-y-6">
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                Duo Wallet
+                Duo Coins
               </p>
               <h1 className="ios-large-title pb-0 pt-1 md:text-[2.5rem]">Wallet</h1>
               <p className="mt-2 text-sm text-on-surface-variant">
-                Top up with eSewa and use your balance for Duo Premium passes.
+                Buy coins with eSewa and spend them on Duo Premium from Discover.
               </p>
             </div>
 
@@ -160,9 +145,10 @@ export function WalletPage() {
             ) : (
               <>
                 <div className="overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/10 to-surface-variant/40 p-6">
-                  <p className="text-sm font-medium text-on-surface-variant">Available balance</p>
-                  <p className="mt-2 text-4xl font-bold tabular-nums text-on-surface">
-                    NPR <NumberFlow value={balance} />
+                  <p className="text-sm font-medium text-on-surface-variant">Your coins</p>
+                  <p className="mt-2 flex items-baseline gap-2 text-4xl font-bold tabular-nums text-on-surface">
+                    <span className="material-symbols-outlined text-3xl text-primary">toll</span>
+                    <NumberFlow value={balance} />
                   </p>
                   {user?.profile.is_premium && user.profile.subscription_expires_at ? (
                     <p className="mt-3 text-sm text-primary">
@@ -178,71 +164,36 @@ export function WalletPage() {
 
                 <section className="space-y-3">
                   <h2 className="px-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                    Top up
+                    Buy coins
                   </h2>
                   <div className="overflow-hidden rounded-2xl border border-primary/10 bg-secondary/30 p-4">
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                      {presets.map((amount) => (
+                      {coinPacks.map((pack) => (
                         <button
-                          key={amount}
+                          key={pack.id}
                           type="button"
-                          disabled={busy}
-                          onClick={() => void handleTopUp(amount)}
-                          className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-background/50 px-3 py-3 text-sm font-semibold text-on-surface transition hover:border-[#60bb46]/40 hover:bg-[#60bb46]/10 disabled:opacity-60"
+                          disabled={toppingUp}
+                          onClick={() => void handleTopUp(pack.coins)}
+                          className="flex flex-col items-center justify-center gap-1 rounded-xl border border-white/10 bg-background/50 px-3 py-3 text-sm transition hover:border-[#60bb46]/40 hover:bg-[#60bb46]/10 disabled:opacity-60"
                         >
-                          <EsewaLogo className="size-4" />
-                          {amount.toLocaleString("en-NP")}
+                          <span className="flex items-center gap-1 font-semibold text-on-surface">
+                            <span className="material-symbols-outlined text-base text-primary">toll</span>
+                            {pack.coins.toLocaleString("en-NP")}
+                          </span>
+                          <span className="flex items-center gap-1 text-[11px] text-on-surface-variant">
+                            <EsewaLogo className="size-3" />
+                            {formatNprPrice(pack.price_npr)}
+                          </span>
                         </button>
                       ))}
                     </div>
                     <p className="mt-3 text-center text-[11px] text-on-surface-variant/70">
-                      {toppingUp ? "Redirecting to eSewa…" : "Secure top-up in NPR via eSewa ePay"}
+                      {toppingUp
+                        ? "Redirecting to eSewa…"
+                        : "1 NPR via eSewa = 1 Duo Coin · Secure payment with eSewa ePay"}
                     </p>
                   </div>
                 </section>
-
-                {plans.length > 0 ? (
-                  <section className="space-y-3">
-                    <h2 className="px-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                      Premium passes
-                    </h2>
-                    <div className="overflow-hidden rounded-2xl border border-primary/10 bg-secondary/30 divide-y divide-outline-variant/20">
-                      {plans.map((plan) => {
-                        const canAfford = balance >= plan.amount;
-                        return (
-                          <div
-                            key={plan.plan_id}
-                            className="flex items-center justify-between gap-3 px-4 py-4 md:px-5"
-                          >
-                            <div className="min-w-0">
-                              <p className="font-semibold text-on-surface">{plan.name}</p>
-                              <p className="text-sm text-on-surface-variant">
-                                {plan.duration_days} days · NPR {plan.amount.toLocaleString("en-NP")}
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              disabled={busy || !canAfford}
-                              onClick={() => void handlePurchase(plan.plan_id)}
-                              className="shrink-0 rounded-full bg-primary px-4 py-2 text-sm font-bold text-on-primary disabled:opacity-50"
-                            >
-                              {purchasing ? "…" : "Buy"}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {!user?.profile.is_premium ? (
-                      <p className="px-1 text-xs text-on-surface-variant">
-                        Unlocks Liked you and Visited you on{" "}
-                        <Link href="/discover" className="text-primary underline-offset-2 hover:underline">
-                          Discover
-                        </Link>
-                        .
-                      </p>
-                    ) : null}
-                  </section>
-                ) : null}
 
                 {wallet?.transactions.length ? (
                   <section className="space-y-3">

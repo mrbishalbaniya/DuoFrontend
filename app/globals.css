@@ -1,5 +1,8 @@
 ﻿  @import "tailwindcss";
-  @import "material-symbols/outlined.css";
+
+  /* Material Symbols font is loaded via next/font/local in app/layout.tsx
+     (--font-material-symbols) so the woff2 is preloaded and ligature names
+     do not flash as plain text on refresh. */
 
   @utility bg-gradient-conic {
     background-image: conic-gradient(var(--tw-gradient-stops));
@@ -647,7 +650,7 @@
 
   /* --- Material Symbols --- */
   .material-symbols-outlined {
-    font-family: "Material Symbols Outlined";
+    font-family: var(--font-material-symbols), "Material Symbols Outlined";
     font-weight: normal;
     font-style: normal;
     font-size: 24px;
@@ -658,7 +661,12 @@
     white-space: nowrap;
     word-wrap: normal;
     direction: ltr;
+    /* Clip ligature names if the font is briefly unavailable on refresh */
+    overflow: hidden;
+    max-width: 1.25em;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     font-feature-settings: "liga";
     font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
   }

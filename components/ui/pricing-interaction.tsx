@@ -3,6 +3,7 @@
 import NumberFlow from "@number-flow/react";
 import React from "react";
 import { EsewaLogo } from "@/components/payment/EsewaLogo";
+import { formatCoins, formatNprPrice } from "@/lib/coins";
 
 export type PricingPlanOption = {
   planId: string;
@@ -68,8 +69,8 @@ export function PricingInteraction({
     <div className="flex w-full max-w-sm flex-col items-center gap-4">
       <div className="w-full text-left">
         <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-primary">
-          <span className="material-symbols-outlined text-sm">account_balance_wallet</span>
-          Duo Wallet
+          <span className="material-symbols-outlined text-sm">toll</span>
+          Duo Coins
         </div>
         <h2 className="font-[var(--font-headline)] text-xl font-bold text-on-surface">
           {headline}
@@ -78,9 +79,10 @@ export function PricingInteraction({
           {subtitle}
         </p>
         <div className="mt-3 flex items-center justify-between rounded-2xl border border-white/10 bg-surface-variant/30 px-4 py-3">
-          <span className="text-sm text-on-surface-variant">Wallet balance</span>
-          <span className="text-lg font-bold tabular-nums text-on-surface">
-            NPR <NumberFlow value={walletBalance} />
+          <span className="text-sm text-on-surface-variant">Your coins</span>
+          <span className="flex items-center gap-1.5 text-lg font-bold tabular-nums text-on-surface">
+            <span className="material-symbols-outlined text-base text-primary">toll</span>
+            <NumberFlow value={walletBalance} />
           </span>
         </div>
         <ul className="mt-3 space-y-1.5 text-sm text-on-surface-variant">
@@ -95,8 +97,8 @@ export function PricingInteraction({
           <li className="flex items-center gap-2">
             <span className="material-symbols-outlined text-base text-primary">check_circle</span>
             <span>
-              {selected.durationDays}-day access · NPR{" "}
-              <NumberFlow value={selected.price} className="inline font-medium text-on-surface" />
+              {selected.durationDays}-day access ·{" "}
+              <NumberFlow value={selected.price} className="inline font-medium text-on-surface" /> coins
             </span>
           </li>
         </ul>
@@ -129,7 +131,7 @@ export function PricingInteraction({
                   </div>
                   <p className="mt-1 text-sm text-on-surface-variant">
                     <span className="font-medium tabular-nums text-on-surface">
-                      NPR {plan.price.toLocaleString("en-NP")}
+                      {plan.price.toLocaleString("en-NP")} coins
                     </span>
                     <span className="text-on-surface-variant/80"> / {plan.durationDays} days</span>
                   </p>
@@ -161,14 +163,14 @@ export function PricingInteraction({
           {purchasing
             ? "Purchasing…"
             : canAfford
-              ? `Buy pass · NPR ${selected.price.toLocaleString("en-NP")}`
-              : `Need NPR ${shortfall.toLocaleString("en-NP")} more`}
+              ? `Buy pass · ${formatCoins(selected.price)}`
+              : `Need ${shortfall.toLocaleString("en-NP")} more coins`}
         </button>
 
         {!canAfford ? (
           <div className="mt-4 border-t border-white/10 pt-4">
             <p className="mb-3 text-center text-sm text-on-surface-variant">
-              Top up your wallet with eSewa to unlock this pass.
+              Buy coins with eSewa to unlock this pass.
             </p>
             <div className="grid grid-cols-2 gap-2">
               {topUpPresets.map((amount) => (
@@ -177,10 +179,16 @@ export function PricingInteraction({
                   type="button"
                   disabled={busy}
                   onClick={() => onTopUp(amount)}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-background/50 px-3 py-2.5 text-sm font-semibold text-on-surface transition hover:border-[#60bb46]/40 hover:bg-[#60bb46]/10 disabled:opacity-60"
+                  className="inline-flex flex-col items-center justify-center gap-0.5 rounded-xl border border-white/10 bg-background/50 px-3 py-2.5 text-sm font-semibold text-on-surface transition hover:border-[#60bb46]/40 hover:bg-[#60bb46]/10 disabled:opacity-60"
                 >
-                  <EsewaLogo className="size-4" />
-                  NPR {amount.toLocaleString("en-NP")}
+                  <span className="flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm text-primary">toll</span>
+                    {amount.toLocaleString("en-NP")}
+                  </span>
+                  <span className="flex items-center gap-1 text-[10px] font-normal text-on-surface-variant">
+                    <EsewaLogo className="size-3" />
+                    {formatNprPrice(amount)}
+                  </span>
                 </button>
               ))}
             </div>
@@ -188,13 +196,13 @@ export function PricingInteraction({
               <p className="mt-2 text-center text-xs text-on-surface-variant">Redirecting to eSewa…</p>
             ) : (
               <p className="mt-2 text-center text-[11px] text-on-surface-variant/70">
-                Secure top-up in NPR via eSewa ePay
+                1 NPR via eSewa = 1 Duo Coin
               </p>
             )}
           </div>
         ) : (
           <p className="mt-2 text-center text-[11px] text-on-surface-variant/70">
-            Purchases are deducted from your wallet balance
+            Purchases are deducted from your coin balance
           </p>
         )}
       </div>

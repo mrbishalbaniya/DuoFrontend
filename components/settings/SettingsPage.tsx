@@ -266,12 +266,13 @@ export function SettingsPage() {
                 <SettingsRow
                   icon="account_balance_wallet"
                   title="Duo Wallet"
-                  description="Top up with eSewa and buy Premium passes"
+                  description="Buy coins with eSewa and spend on Premium"
                   href="/wallet"
                   trailing={
                     user?.profile?.wallet_balance != null ? (
-                      <span className="text-sm font-semibold tabular-nums text-on-surface">
-                        NPR {user.profile.wallet_balance.toLocaleString("en-NP")}
+                      <span className="flex items-center gap-1 text-sm font-semibold tabular-nums text-on-surface">
+                        <span className="material-symbols-outlined text-base text-primary">toll</span>
+                        {user.profile.wallet_balance.toLocaleString("en-NP")}
                       </span>
                     ) : undefined
                   }

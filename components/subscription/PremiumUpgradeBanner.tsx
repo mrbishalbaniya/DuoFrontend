@@ -1,6 +1,6 @@
 "use client";
 
-import { formatNpr } from "@/lib/esewa";
+import { formatCoins } from "@/lib/coins";
 import { EsewaLogo } from "@/components/payment/EsewaLogo";
 import type { SubscriptionPlan } from "@/types";
 interface PremiumUpgradeBannerProps {
@@ -16,7 +16,7 @@ export function PremiumUpgradeBanner({
   paying,
   onSubscribe,
 }: PremiumUpgradeBannerProps) {
-  const priceLabel = plan ? formatNpr(plan.amount) : "Rs. 499";
+  const priceLabel = plan ? formatCoins(plan.amount) : "499 coins";
 
   return (
     <div className="col-span-full overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-surface-variant/80 to-background p-5 md:p-6">
@@ -58,10 +58,10 @@ export function PremiumUpgradeBanner({
             className="inline-flex items-center justify-center gap-2 rounded-full bg-[#60bb46] px-5 py-3 text-sm font-bold text-white shadow-[0_8px_24px_rgba(96,187,70,0.25)] transition hover:brightness-105 active:scale-[0.98] disabled:opacity-60"
           >
             <EsewaLogo />
-            {paying ? "Redirecting…" : "Pay with eSewa"}
+            {paying ? "Redirecting…" : "Buy with coins"}
           </button>
           <p className="text-center text-[11px] text-on-surface-variant/70 md:text-right">
-            Secure payment in NPR via eSewa ePay
+            Spend Duo Coins from your wallet
           </p>
         </div>
       </div>

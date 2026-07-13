@@ -217,10 +217,19 @@ export interface WalletTransaction {
   created_at: string;
 }
 
+export interface CoinPack {
+  id: string;
+  coins: number;
+  price_npr: number;
+  label: string;
+}
+
 export interface WalletSummary {
   balance: number;
+  coins?: number;
   currency: string;
   top_up_presets: number[];
+  coin_packs?: CoinPack[];
   transactions: WalletTransaction[];
 }
 

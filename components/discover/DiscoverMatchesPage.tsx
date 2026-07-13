@@ -413,7 +413,7 @@ export function DiscoverMatchesPage() {
       setWallet((prev) =>
         prev
           ? { ...prev, balance: result.balance }
-          : { balance: result.balance, currency: "NPR", top_up_presets: [500, 1000, 2000, 5000], transactions: [] }
+          : { balance: result.balance, coins: result.balance, currency: "COIN", top_up_presets: [500, 1000, 2000, 5000], transactions: [] }
       );
       setNotice("Pass purchased. Duo Premium is now active.");
       setPremiumSheetOpen(false);

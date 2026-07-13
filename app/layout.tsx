@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Viewport } from "next";
 import Script from "next/script";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import { ClientProviders } from "@/components/providers/ClientProviders";
 import { jsonLdWebApplication, rootMetadata } from "@/lib/seo/metadata";
 import "./globals.css";
@@ -16,6 +17,16 @@ const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-jakarta",
   display: "swap",
+});
+
+/** Preload Material Symbols so icon ligature names never flash as text on refresh. */
+const materialSymbols = localFont({
+  src: "../node_modules/material-symbols/material-symbols-outlined.woff2",
+  variable: "--font-material-symbols",
+  display: "block",
+  weight: "100 700",
+  preload: true,
+  adjustFontFallback: false,
 });
 
 const themeInitScript = `
@@ -47,8 +58,12 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${plusJakarta.variable} antialiased text-on-surface`}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${inter.variable} ${plusJakarta.variable} ${materialSymbols.variable}`}
+    >
+      <body className="antialiased text-on-surface">
         <Script id="duo-theme-init" strategy="beforeInteractive">
           {themeInitScript}
         </Script>
