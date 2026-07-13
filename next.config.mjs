@@ -1,5 +1,17 @@
 /** @type {import('next').NextConfig} */
 
+// Map/tile providers used by MapLibre (basemaps, terrain, satellite, labels) and 3D avatars.
+const MAP_TILE_HOSTS = [
+  "https://*.cartocdn.com",
+  "https://server.arcgisonline.com",
+  "https://*.tile.opentopomap.org",
+  "https://tile.opentopomap.org",
+  "https://s3.amazonaws.com",
+  "https://nominatim.openstreetmap.org",
+  "https://*.readyplayer.me",
+  "https://openweathermap.org",
+];
+
 function buildContentSecurityPolicy() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "") ?? "";
   const wsUrl = process.env.NEXT_PUBLIC_WS_URL?.replace(/\/$/, "") ?? "";
@@ -18,9 +30,22 @@ function buildContentSecurityPolicy() {
     "https://*.googleusercontent.com",
     "wss://*.onrender.com",
     "https://*.onrender.com",
+    ...MAP_TILE_HOSTS,
   ]
     .filter(Boolean)
     .join(" ");
+
+  const imgSrc = [
+    "'self'",
+    "data:",
+    "blob:",
+    "https://res.cloudinary.com",
+    "https://lh3.googleusercontent.com",
+    "https://images.unsplash.com",
+    "https://cdn.esewa.com.np",
+    "https://picsum.photos",
+    ...MAP_TILE_HOSTS,
+  ].join(" ");
 
   return [
     "default-src 'self'",
@@ -28,9 +53,10 @@ function buildContentSecurityPolicy() {
     "form-action 'self' https://esewa.com.np https://rc.esewa.com.np",
     "frame-ancestors 'none'",
     "object-src 'none'",
+    "worker-src 'self' blob:",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com",
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://res.cloudinary.com https://lh3.googleusercontent.com https://images.unsplash.com https://cdn.esewa.com.np https://picsum.photos",
+    `img-src ${imgSrc}`,
     "font-src 'self' data:",
     `connect-src ${connectSrc}`,
     "media-src 'self' blob: https://res.cloudinary.com",
