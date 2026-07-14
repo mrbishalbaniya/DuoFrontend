@@ -185,7 +185,9 @@ export function DiscoverExperience() {
       swipingRef.current = false;
 
       if (nextProfiles.length === 0) {
-        void fetchProfiles({ silent: true, clearSwiped: true });
+        // Keep session swipes so recycled discover results don't re-show
+        // the same people immediately after a left/right swipe.
+        void fetchProfiles({ silent: true, clearSwiped: false });
       }
 
       void (async () => {
