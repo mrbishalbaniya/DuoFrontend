@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef, startTransition } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardActionBar } from "@/components/dashboard/DashboardActionBar";
 import { DashboardMenuSheet } from "@/components/dashboard/DashboardMenuSheet";
@@ -74,7 +74,6 @@ export function DiscoverExperience() {
   );
   const [expandedSearch, setExpandedSearch] = useState(discoverExpandedSearch);
   const [loading, setLoading] = useState(() => discoverProfilesCache === null);
-  const [swiping, setSwiping] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [discoverInfoOpen, setDiscoverInfoOpen] = useState(false);
@@ -84,25 +83,30 @@ export function DiscoverExperience() {
   const locationSyncedRef = useRef(false);
   const profilesFetchedRef = useRef(discoverProfilesCache !== null);
 
-  const fetchProfiles = useCallback(async (options?: { silent?: boolean }) => {
-    if (swipingRef.current) return;
-    if (!options?.silent) setLoading(true);
-    try {
-      const { profiles: data, expandedSearch: expanded } = await api.discoverProfiles();
-      const filtered = withoutSwipedProfiles(data);
-      discoverProfilesCache = filtered;
-      discoverExpandedSearch = expanded;
-      setProfiles(filtered);
-      setExpandedSearch(expanded);
-    } catch {
-      discoverProfilesCache = [];
-      discoverExpandedSearch = false;
-      setProfiles([]);
-      setExpandedSearch(false);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const fetchProfiles = useCallback(
+    async (options?: { silent?: boolean; clearSwiped?: boolean }) => {
+      if (!options?.silent) setLoading(true);
+      try {
+        if (options?.clearSwiped) {
+          discoverSwipedUserIds.clear();
+        }
+        const { profiles: data, expandedSearch: expanded } = await api.discoverProfiles();
+        const filtered = withoutSwipedProfiles(data);
+        discoverProfilesCache = filtered;
+        discoverExpandedSearch = expanded;
+        setProfiles(filtered);
+        setExpandedSearch(expanded);
+      } catch {
+        discoverProfilesCache = [];
+        discoverExpandedSearch = false;
+        setProfiles([]);
+        setExpandedSearch(false);
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -151,9 +155,8 @@ export function DiscoverExperience() {
       setStackKey((key) => key + 1);
       discoverProfilesCache = null;
       discoverExpandedSearch = false;
-      discoverSwipedUserIds.clear();
       profilesFetchedRef.current = false;
-      await fetchProfiles();
+      await fetchProfiles({ clearSwiped: true });
     },
     [fetchProfiles, fetchUser]
   );
@@ -168,8 +171,9 @@ export function DiscoverExperience() {
         return false;
       }
 
+      // Brief lock so the same card can't be committed twice — unlock right after
+      // optimistic remove so the next card stays swipeable while the API runs.
       swipingRef.current = true;
-      startTransition(() => setSwiping(true));
 
       discoverSwipedUserIds.add(toUserId);
       let nextProfiles: Profile[] = [];
@@ -178,8 +182,10 @@ export function DiscoverExperience() {
         discoverProfilesCache = nextProfiles;
         return nextProfiles;
       });
+      swipingRef.current = false;
+
       if (nextProfiles.length === 0) {
-        void fetchProfiles({ silent: true });
+        void fetchProfiles({ silent: true, clearSwiped: true });
       }
 
       void (async () => {
@@ -202,9 +208,6 @@ export function DiscoverExperience() {
             return restored;
           });
           setStackKey((key) => key + 1);
-        } finally {
-          swipingRef.current = false;
-          startTransition(() => setSwiping(false));
         }
       })();
 
@@ -215,7 +218,8 @@ export function DiscoverExperience() {
 
   const handleStackSwipe = useCallback(
     (direction: SwipeDirection, _image: string, stackIndex: number) => {
-      if (swipingRef.current || filtersOpen || discoverInfoOpen || menuOpen) return false;
+      if (filtersOpen || discoverInfoOpen || menuOpen) return false;
+      if (swipingRef.current) return false;
 
       const profile = deckProfiles[deckProfiles.length - 1 - stackIndex];
       if (!profile) return false;
@@ -228,7 +232,8 @@ export function DiscoverExperience() {
 
   const userProfile = user?.profile ?? null;
   const sheetOpen = filtersOpen || discoverInfoOpen || menuOpen;
-  const controlsDisabled = swiping || sheetOpen;
+  // Never freeze the deck while a swipe API is in flight.
+  const controlsDisabled = sheetOpen;
 
   const triggerSwipe = useCallback(
     (direction: SwipeDirection) => {
@@ -266,7 +271,7 @@ export function DiscoverExperience() {
                 </button>
                 <button
                   onClick={() => {
-                    void fetchProfiles();
+                    void fetchProfiles({ clearSwiped: true });
                   }}
                   className="rounded-full px-8 py-3 font-bold text-white shadow-lg transition-all gradient-brand active:scale-95 md:px-10 md:py-3.5"
                 >
@@ -319,7 +324,7 @@ export function DiscoverExperience() {
             key={stackKey}
             images={deckImages}
             borderRadius={16}
-            disabled={swiping || sheetOpen}
+            disabled={sheetOpen}
             greenShadowColor="rgba(34, 197, 94, 0.72)"
             redShadowColor="rgba(239, 68, 68, 0.72)"
             shadowSize="0 10px 28px"

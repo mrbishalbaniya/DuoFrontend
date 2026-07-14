@@ -265,11 +265,17 @@ export const SwipeableCardStack = React.forwardRef<
   }, [cards]);
 
   React.useEffect(() => {
+    // Keep local cards aligned with parent queue. Skip only while a card is
+    // mid-exit; removeCard will finish the transition for that frame.
     if (exitingRef.current) return;
     setCards((current) => {
-      if (current.length === images.length && current.every((card, index) => card === images[index])) {
+      if (
+        current.length === images.length &&
+        current.every((card, index) => card === images[index])
+      ) {
         return current;
       }
+      // Prefer parent's next queue — once a swipe removed a profile, images is source of truth.
       return [...images];
     });
   }, [imagesKey, images]);
@@ -279,21 +285,6 @@ export const SwipeableCardStack = React.forwardRef<
       onStackEmpty?.();
     }
   }, [cards.length, images.length, onStackEmpty]);
-
-  const removeCard = React.useCallback(
-    (index: number) => {
-      setCards((current) => {
-        const next = current.filter((_, i) => i !== index);
-        if (next.length === 0) {
-          onStackEmpty?.();
-        }
-        return next;
-      });
-      exitingRef.current = false;
-      setIsExiting(false);
-    },
-    [onStackEmpty]
-  );
 
   const commitSwipe = React.useCallback(
     (direction: SwipeDirection, index: number) => {
@@ -310,15 +301,28 @@ export const SwipeableCardStack = React.forwardRef<
 
       void Promise.resolve(onSwipe?.(direction, image, index)).then((shouldRemove) => {
         if (shouldRemove === false) {
-          setCards([...images]);
           exitingRef.current = false;
           setIsExiting(false);
+          setCards([...images]);
           return;
         }
-        removeCard(index);
+        // Prefer parent images prop after optimistic remove — keeps cards in sync
+        // even when remove-by-index races a parent re-render.
+        exitingRef.current = false;
+        setIsExiting(false);
+        setCards((current) => {
+          if (images.length < current.length) {
+            return [...images];
+          }
+          const next = current.filter((_, i) => i !== index);
+          if (next.length === 0) {
+            onStackEmpty?.();
+          }
+          return next;
+        });
       });
     },
-    [images, onSwipe, removeCard]
+    [images, onStackEmpty, onSwipe]
   );
 
   const swipeTop = React.useCallback(
