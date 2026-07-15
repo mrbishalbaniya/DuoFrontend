@@ -10,6 +10,11 @@ import {
 } from "firebase/messaging";
 
 import api from "@/lib/api";
+import {
+  playNotificationSound,
+  shouldPlaySoundFromPayload,
+  unlockNotificationSound,
+} from "@/lib/push/notification-sound";
 
 export type PushConfig = {
   enabled: boolean;
@@ -126,6 +131,7 @@ function notificationFromPayload(payload: MessagePayload): {
     image?: string;
     renotify?: boolean;
     requireInteraction?: boolean;
+    silent?: boolean;
   } = {
     body,
     icon,
@@ -133,6 +139,7 @@ function notificationFromPayload(payload: MessagePayload): {
     tag,
     renotify: true,
     requireInteraction: type === "new_match" || type === "call_incoming",
+    silent: !shouldPlaySoundFromPayload(data),
     data: { ...data, url, type },
   };
   if (image) options.image = image;
@@ -145,6 +152,9 @@ function bindForegroundListener(messaging: Messaging): void {
 
   onMessage(messaging, (payload) => {
     if (Notification.permission !== "granted") return;
+
+    const data = (payload.data || {}) as Record<string, string>;
+    playNotificationSound({ soundFlag: data.sound });
 
     const { title, options } = notificationFromPayload(payload);
 
@@ -213,6 +223,7 @@ export async function registerPushNotifications(): Promise<string | null> {
   await api.registerDeviceToken(token, "web");
   cachedToken = token;
   setPushPreference(true);
+  unlockNotificationSound();
   bindForegroundListener(messaging);
 
   return token;

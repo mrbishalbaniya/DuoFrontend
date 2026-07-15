@@ -80,13 +80,24 @@ function buildNotification(payload) {
     tag,
     renotify: true,
     requireInteraction: type === "new_match" || type === "call_incoming",
+    silent: (() => {
+      const flag = String(data.sound || "").trim().toLowerCase();
+      if (!flag) return false;
+      return flag === "0" || flag === "false" || flag === "off" || flag === "no";
+    })(),
     data: {
       ...data,
       url,
       type,
     },
     // Soft double-pulse — feels like the celebration heart, not a party emoji blast
-    vibrate: type === "new_match" ? [100, 50, 100, 50, 160] : [80, 40, 80],
+    vibrate: (() => {
+      const flag = String(data.vibrate || "").trim().toLowerCase();
+      if (flag === "0" || flag === "false" || flag === "off" || flag === "no") {
+        return [];
+      }
+      return type === "new_match" ? [100, 50, 100, 50, 160] : [80, 40, 80];
+    })(),
   };
 
   if (image) options.image = image;
@@ -165,6 +176,27 @@ self.addEventListener("push", (event) => {
       }
 
       const { title, options } = buildNotification(raw);
+
+      // Ask open tabs to play the Duo chime (custom sounds aren't supported
+      // on OS web notifications — browsers only support silent vs system default).
+      const soundFlag = String((raw.data && raw.data.sound) || "1");
+      if (!options.silent) {
+        try {
+          const clientsList = await self.clients.matchAll({
+            type: "window",
+            includeUncontrolled: true,
+          });
+          for (const client of clientsList) {
+            client.postMessage({
+              type: "duo-play-notification-sound",
+              soundFlag,
+            });
+          }
+        } catch {
+          // Ignore client messaging failures.
+        }
+      }
+
       await self.registration.showNotification(title, options);
     })()
   );

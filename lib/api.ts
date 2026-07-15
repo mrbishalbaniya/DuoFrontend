@@ -892,6 +892,7 @@ class ApiClient {
 export type NotificationPreferences = {
   push_enabled: boolean;
   chat_enabled: boolean;
+  calls_enabled: boolean;
   match_enabled: boolean;
   likes_enabled: boolean;
   marketing_enabled: boolean;
