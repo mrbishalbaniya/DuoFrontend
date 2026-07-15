@@ -363,6 +363,18 @@ class ApiClient {
     });
   }
 
+  async updateLiveLocation(latitude: number, longitude: number): Promise<{
+    map_latitude: number;
+    map_longitude: number;
+    location_is_live: boolean;
+    location_updated_at: string | null;
+  }> {
+    return this.request("/profiles/me/location/", {
+      method: "POST",
+      body: JSON.stringify({ latitude, longitude }),
+    });
+  }
+
   async generateProfileCopy(options?: {
     style?: string;
     language?: string;

@@ -123,6 +123,37 @@ export function getDevicePosition(): Promise<DeviceFix> {
   });
 }
 
+/** Continuous position updates for map live sharing. Returns cleanup fn. */
+export function watchDevicePosition(
+  onUpdate: (fix: DeviceFix) => void,
+  onError?: () => void
+): (() => void) | undefined {
+  if (typeof window === "undefined" || !navigator.geolocation) {
+    onError?.();
+    return undefined;
+  }
+
+  const watchId = navigator.geolocation.watchPosition(
+    (position) => {
+      onUpdate({
+        coordinates: [position.coords.latitude, position.coords.longitude],
+        accuracyMeters:
+          typeof position.coords.accuracy === "number" && Number.isFinite(position.coords.accuracy)
+            ? position.coords.accuracy
+            : null,
+      });
+    },
+    () => onError?.(),
+    {
+      enableHighAccuracy: true,
+      maximumAge: 5000,
+      timeout: 20000,
+    }
+  );
+
+  return () => navigator.geolocation.clearWatch(watchId);
+}
+
 type ReverseGeocodeResult = {
   label: string;
   place: string;

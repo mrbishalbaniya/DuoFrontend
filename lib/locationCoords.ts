@@ -84,12 +84,25 @@ export function nearestNepalCity(lat: number, lng: number): string {
   return bestCity.charAt(0).toUpperCase() + bestCity.slice(1);
 }
 
-/** Prefer saved GPS; otherwise city center with slight spread so pins don't stack. */
+/** Prefer live map coords, then saved GPS, then city center with slight spread. */
 export function resolveProfileCoordinates(
   location: string | undefined,
   userId: number | string | undefined,
-  prefValues?: string | null
+  prefValues?: string | null,
+  mapLatitude?: number | null,
+  mapLongitude?: number | null
 ): [number, number] {
+  if (
+    typeof mapLatitude === "number" &&
+    typeof mapLongitude === "number" &&
+    Number.isFinite(mapLatitude) &&
+    Number.isFinite(mapLongitude) &&
+    Math.abs(mapLatitude) <= 90 &&
+    Math.abs(mapLongitude) <= 180
+  ) {
+    return [mapLatitude, mapLongitude];
+  }
+
   const gps = parseGpsFromPrefValues(prefValues);
   if (gps) return gps;
 

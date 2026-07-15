@@ -127,6 +127,10 @@ export interface Profile {
   location_visibility_friends?: number[];
   /** Present on match profiles: whether this person shares location with you. */
   location_shared?: boolean;
+  map_latitude?: number | null;
+  map_longitude?: number | null;
+  location_is_live?: boolean;
+  location_updated_at?: string | null;
   is_premium?: boolean;
   subscription_expires_at?: string | null;
   wallet_balance?: number;

@@ -15,7 +15,7 @@ import api from "@/lib/api";
 import { haversineMeters, formatDistanceAway } from "@/lib/distance";
 import { resolveProfileCoordinates } from "@/lib/locationCoords";
 import { useMapLayersStore } from "@/lib/mapLayers/store";
-import { useUserCoordinates } from "@/lib/useUserCoordinates";
+import { useLiveMapLocation } from "@/lib/useLiveMapLocation";
 import type { MapProfile } from "@/components/map/types";
 import type { Match, Profile } from "@/types";
 
@@ -48,7 +48,9 @@ function matchesToMapProfiles(
         ? resolveProfileCoordinates(
             profile.location,
             profile.user_id ?? profile.id,
-            profile.pref_values
+            profile.pref_values,
+            profile.map_latitude,
+            profile.map_longitude
           )
         : null;
 
@@ -108,7 +110,12 @@ export default function MapPage() {
     if (next) setFriendsPanelOpen(false);
   }, [settingsPanelOpen, setSettingsPanelOpen]);
 
-  const userCoords = useUserCoordinates(user?.profile?.location, user?.id);
+  const userCoords = useLiveMapLocation({
+    profileLocation: user?.profile?.location,
+    userId: user?.id,
+    ghostMode: Boolean(user?.profile?.location_ghost_mode),
+    enabled: Boolean(user),
+  });
 
   const matches = useMemo(() => {
     if (!userCoords) return [];
@@ -139,17 +146,19 @@ export default function MapPage() {
     return () => mq.removeEventListener("change", sync);
   }, []);
 
-  const loadMatches = useCallback(async () => {
-    setLoadingMatches(true);
+  const loadMatches = useCallback(async (silent = false) => {
+    if (!silent) setLoadingMatches(true);
     setError(null);
     try {
       const data = await api.getMatches();
       setRawMatches(data);
     } catch {
-      setError("Could not load your matches.");
-      setRawMatches([]);
+      if (!silent) {
+        setError("Could not load your matches.");
+        setRawMatches([]);
+      }
     } finally {
-      setLoadingMatches(false);
+      if (!silent) setLoadingMatches(false);
     }
   }, []);
 
@@ -157,6 +166,14 @@ export default function MapPage() {
     if (user) {
       void loadMatches();
     }
+  }, [user, loadMatches]);
+
+  useEffect(() => {
+    if (!user) return;
+    const timer = window.setInterval(() => {
+      void loadMatches(true);
+    }, 30_000);
+    return () => window.clearInterval(timer);
   }, [user, loadMatches]);
 
   const profilesOrderKey = useMemo(
