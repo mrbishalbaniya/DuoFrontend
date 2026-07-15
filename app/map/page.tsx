@@ -45,7 +45,11 @@ function matchesToMapProfiles(
 
       const locationShared = profile.location_shared !== false;
       const coordinates = locationShared
-        ? resolveProfileCoordinates(profile.location, profile.user_id ?? profile.id)
+        ? resolveProfileCoordinates(
+            profile.location,
+            profile.user_id ?? profile.id,
+            profile.pref_values
+          )
         : null;
 
       return {

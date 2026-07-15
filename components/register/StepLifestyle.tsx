@@ -40,7 +40,11 @@ export function StepLifestyle({ onContinue, onBack }: StepLifestyleProps) {
   });
 
   return (
-    <StepCard title="Personality & lifestyle" subtitle="Help matches understand your daily rhythm and habits.">
+    <StepCard
+      title="Personality & lifestyle"
+      subtitle="Help matches understand your daily rhythm and habits."
+      onSkip={onContinue}
+    >
       <form onSubmit={submit} className="space-y-5">
         <ChipSelect
           label="Personality"
@@ -83,7 +87,7 @@ export function StepLifestyle({ onContinue, onBack }: StepLifestyleProps) {
           columns={3}
         />
 
-        <StepNavigation onBack={onBack} onNext={() => submit()} onSkip={onContinue} />
+        <StepNavigation onBack={onBack} onNext={() => submit()} />
       </form>
     </StepCard>
   );

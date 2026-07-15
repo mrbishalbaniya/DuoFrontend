@@ -1,15 +1,14 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface StepNavigationProps {
   onBack?: () => void;
   onNext: () => void;
-  onSkip?: () => void;
   nextLabel?: string;
   backLabel?: string;
-  skipLabel?: string;
   loading?: boolean;
   disableNext?: boolean;
   showBack?: boolean;
@@ -18,29 +17,14 @@ interface StepNavigationProps {
 export function StepNavigation({
   onBack,
   onNext,
-  onSkip,
   nextLabel = "Continue",
   backLabel = "Back",
-  skipLabel = "Skip for now",
   loading = false,
   disableNext = false,
   showBack = true,
 }: StepNavigationProps) {
   return (
-    <div className="mt-8 space-y-3">
-      {onSkip ? (
-        <div className="flex justify-center">
-          <Button
-            type="button"
-            variant="ghost"
-            className="rounded-full text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
-            onClick={onSkip}
-            disabled={loading}
-          >
-            {skipLabel}
-          </Button>
-        </div>
-      ) : null}
+    <div className="mt-8">
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:gap-4">
         {showBack && onBack ? (
           <Button
@@ -73,16 +57,45 @@ export function StepNavigation({
 interface StepCardProps {
   title: string;
   subtitle?: string;
-  children: React.ReactNode;
+  onSkip?: () => void;
+  skipLabel?: string;
+  skipDisabled?: boolean;
+  headerAction?: ReactNode;
+  children: ReactNode;
 }
 
-export function StepCard({ title, subtitle, children }: StepCardProps) {
+export function StepCard({
+  title,
+  subtitle,
+  onSkip,
+  skipLabel = "Skip for now",
+  skipDisabled = false,
+  headerAction,
+  children,
+}: StepCardProps) {
+  const action =
+    headerAction ??
+    (onSkip ? (
+      <Button
+        type="button"
+        variant="ghost"
+        className="h-auto rounded-full px-3 py-1.5 text-sm font-semibold text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
+        onClick={onSkip}
+        disabled={skipDisabled}
+      >
+        {skipLabel}
+      </Button>
+    ) : null);
+
   return (
     <section className="glass-card rounded-[2rem] border border-primary/10 p-6 shadow-[0_20px_50px] shadow-primary/10 sm:p-8">
       <div className="mb-6 space-y-2">
-        <h2 className="font-[var(--font-headline)] text-2xl font-extrabold text-on-surface">
-          {title}
-        </h2>
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="font-[var(--font-headline)] text-2xl font-extrabold text-on-surface">
+            {title}
+          </h2>
+          {action ? <div className="shrink-0 pt-0.5">{action}</div> : null}
+        </div>
         {subtitle ? <p className="text-sm leading-relaxed text-on-surface-variant">{subtitle}</p> : null}
       </div>
       <div className="space-y-5">{children}</div>

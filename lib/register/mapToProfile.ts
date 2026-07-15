@@ -106,6 +106,21 @@ function buildPrefValues(data: RegistrationData): string {
     futureGoals: data.futureGoals,
     fieldOfStudy: data.fieldOfStudy,
     educationLevel: data.educationLevel,
+    country: data.country,
+    province: data.province,
+    district: data.district,
+    municipality: data.municipality,
+    ...(data.gpsEnabled &&
+    typeof data.latitude === "number" &&
+    typeof data.longitude === "number"
+      ? {
+          gps: {
+            lat: data.latitude,
+            lng: data.longitude,
+            accuracyMeters: data.locationAccuracyMeters,
+          },
+        }
+      : {}),
   });
 }
 

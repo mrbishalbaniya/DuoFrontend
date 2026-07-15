@@ -6,6 +6,7 @@ import { createQueryClient } from "@/lib/query/client";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { GoogleOAuthProviderWrapper } from "@/components/auth/google-oauth-provider";
+import { OnboardingGate } from "@/components/auth/OnboardingGate";
 import { CallBridge } from "@/components/call/CallBridge";
 import { PushNotificationBridge } from "@/components/push/PushNotificationBridge";
 import { UnreadMessagesSync } from "@/components/chat/UnreadMessagesSync";
@@ -21,11 +22,13 @@ export function ClientProviders({ children }: { children: ReactNode }) {
         <GoogleOAuthProviderWrapper>
           <ThemeProvider>
             <AuthProvider>
-              <CallBridge>
-                <PushNotificationBridge />
-                <UnreadMessagesSync />
-                {children}
-              </CallBridge>
+              <OnboardingGate>
+                <CallBridge>
+                  <PushNotificationBridge />
+                  <UnreadMessagesSync />
+                  {children}
+                </CallBridge>
+              </OnboardingGate>
             </AuthProvider>
           </ThemeProvider>
         </GoogleOAuthProviderWrapper>

@@ -3,6 +3,7 @@
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { syncOnboardedCookie } from "@/lib/onboardingGate";
 
 async function verifySession(): Promise<{ ok: boolean; onboarded: boolean }> {
   try {
@@ -63,10 +64,12 @@ function GoogleAuthCompleteContent() {
             return;
           }
           if (!session.onboarded && !data.onboarded) {
+            syncOnboardedCookie(false);
             sessionStorage.setItem("duo_register_via_google", "1");
             window.location.href = "/register?google=1";
             return;
           }
+          syncOnboardedCookie(true);
           window.location.href = "/match";
           return;
         } catch {
@@ -83,11 +86,13 @@ function GoogleAuthCompleteContent() {
       }
 
       if (!session.onboarded) {
+        syncOnboardedCookie(false);
         sessionStorage.setItem("duo_register_via_google", "1");
         window.location.href = "/register?google=1";
         return;
       }
 
+      syncOnboardedCookie(true);
       window.location.href = "/match";
     }
 

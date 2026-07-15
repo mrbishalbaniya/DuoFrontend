@@ -47,6 +47,7 @@ export function StepReligion({ onContinue, onBack }: StepReligionProps) {
     <StepCard
       title="Religion & matrimonial"
       subtitle="Optional matrimonial details for culturally aligned matching."
+      onSkip={onContinue}
     >
       <form onSubmit={submit} className="space-y-5">
         <ChipSelect
@@ -93,7 +94,7 @@ export function StepReligion({ onContinue, onBack }: StepReligionProps) {
           </div>
         </div>
 
-        <StepNavigation onBack={onBack} onNext={() => submit()} onSkip={onContinue} />
+        <StepNavigation onBack={onBack} onNext={() => submit()} />
       </form>
     </StepCard>
   );

@@ -5,11 +5,22 @@ import { setAuthCookies } from "@/lib/server/apiProxy";
 export async function POST(request: NextRequest) {
   const body = await request.json();
 
-  const backendRes = await fetch(`${getBackendApiUrl()}/auth/register/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  let backendRes: Response;
+  try {
+    backendRes = await fetch(`${getBackendApiUrl()}/auth/register/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    return NextResponse.json(
+      {
+        detail:
+          "Cannot reach the Duo API. Start DuoBackend (e.g. runserver), then try again.",
+      },
+      { status: 503 }
+    );
+  }
 
   const data = await backendRes.json().catch(() => ({}));
   if (!backendRes.ok) {

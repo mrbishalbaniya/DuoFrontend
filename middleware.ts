@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { ONBOARDED_COOKIE } from "@/lib/onboardingGate";
 
 const PROTECTED_PREFIXES = [
   "/match",
@@ -28,6 +29,12 @@ export function middleware(request: NextRequest) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  const isOnboarded = request.cookies.get(ONBOARDED_COOKIE)?.value === "1";
+  if (!isOnboarded) {
+    const registerUrl = new URL("/register", request.url);
+    return NextResponse.redirect(registerUrl);
   }
 
   return NextResponse.next();

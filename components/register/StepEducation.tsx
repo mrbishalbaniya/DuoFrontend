@@ -43,7 +43,11 @@ export function StepEducation({ onContinue, onBack }: StepEducationProps) {
   });
 
   return (
-    <StepCard title="Education & career" subtitle="Share your academic background and professional journey.">
+    <StepCard
+      title="Education & career"
+      subtitle="Share your academic background and professional journey."
+      onSkip={onContinue}
+    >
       <form onSubmit={submit} className="space-y-5">
         <ChipSelect
           label="Education level"
@@ -93,7 +97,7 @@ export function StepEducation({ onContinue, onBack }: StepEducationProps) {
           columns={2}
         />
 
-        <StepNavigation onBack={onBack} onNext={() => submit()} onSkip={onContinue} />
+        <StepNavigation onBack={onBack} onNext={() => submit()} />
       </form>
     </StepCard>
   );

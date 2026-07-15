@@ -322,10 +322,21 @@ class ApiClient {
     });
 
     const data = (await res.json().catch(() => ({}))) as RegisterResponse & {
-      detail?: string;
+      detail?: string | string[];
+      email?: string | string[];
+      password?: string | string[];
+      non_field_errors?: string | string[];
     };
     if (!res.ok) {
-      throw new Error(String(data.detail ?? "Registration failed"));
+      const first = (value: string | string[] | undefined) =>
+        Array.isArray(value) ? value[0] : value;
+      const message =
+        first(data.detail) ||
+        first(data.email) ||
+        first(data.password) ||
+        first(data.non_field_errors) ||
+        "Registration failed";
+      throw new Error(String(message));
     }
     return data;
   }
@@ -349,6 +360,29 @@ class ApiClient {
     return this.request<Profile>("/profiles/me/", {
       method: "PUT",
       body: JSON.stringify(data),
+    });
+  }
+
+  async generateProfileCopy(options?: {
+    style?: string;
+    language?: string;
+    force?: boolean;
+    apply?: boolean;
+  }): Promise<{
+    bio: string;
+    future_goals: string;
+    looking_for: string;
+    traits?: string[];
+    cached?: boolean;
+  }> {
+    return this.request("/profile/generate/", {
+      method: "POST",
+      body: JSON.stringify({
+        style: options?.style ?? "friendly",
+        language: options?.language ?? "en",
+        force: options?.force ?? true,
+        apply: options?.apply ?? false,
+      }),
     });
   }
 

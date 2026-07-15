@@ -112,6 +112,10 @@ export interface RegistrationData {
   municipality: string;
   currentLocation: string;
   gpsEnabled: boolean;
+  /** Precise GPS from "Enable GPS location" (degrees). */
+  latitude: number | null;
+  longitude: number | null;
+  locationAccuracyMeters: number | null;
 
   educationLevel: EducationLevel | "";
   fieldOfStudy: FieldOfStudy | "";
@@ -146,6 +150,7 @@ export interface RegistrationData {
   bio: string;
   lookingForText: string;
   futureGoals: string;
+  aboutStepSkipped: boolean;
 
   photos: RegistrationPhoto[];
 }
@@ -187,6 +192,9 @@ export const initialRegistrationData = (): RegistrationData => ({
   municipality: "",
   currentLocation: "",
   gpsEnabled: false,
+  latitude: null,
+  longitude: null,
+  locationAccuracyMeters: null,
   educationLevel: "",
   fieldOfStudy: "",
   employment: "",
@@ -215,5 +223,6 @@ export const initialRegistrationData = (): RegistrationData => ({
   bio: "",
   lookingForText: "",
   futureGoals: "",
+  aboutStepSkipped: false,
   photos: [],
 });

@@ -18,6 +18,8 @@ import { StepReligion } from "@/components/register/StepReligion";
 import { StepReview } from "@/components/register/StepReview";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
+import { SHOW_PRODUCT_ONBOARDING_KEY } from "@/lib/onboarding/content";
+import { syncOnboardedCookie } from "@/lib/onboardingGate";
 import { getRegistrationEmail, mapRegistrationToProfile } from "@/lib/register/mapToProfile";
 import { uploadRegistrationPhotos } from "@/lib/register/uploadRegistrationPhotos";
 import { useRegistrationStore } from "@/store/registrationStore";
@@ -56,8 +58,12 @@ export default function RegisterPage() {
       setSubmitting(true);
       try {
         await createAccount();
-      } catch {
-        setError("Could not create your account. This email or phone may already be registered.");
+      } catch (err) {
+        const message =
+          err instanceof Error && err.message.trim()
+            ? err.message
+            : "Could not create your account. Check your email and password, or try again.";
+        setError(message);
         setSubmitting(false);
         return;
       }
@@ -77,8 +83,14 @@ export default function RegisterPage() {
       const photoUrls = await uploadRegistrationPhotos(data.photos);
       await api.updateProfile(mapRegistrationToProfile(data, photoUrls));
       await fetchUser();
+      syncOnboardedCookie(true);
       reset();
-      router.push("/match");
+      try {
+        sessionStorage.setItem(SHOW_PRODUCT_ONBOARDING_KEY, "1");
+      } catch {
+        // ignore storage errors
+      }
+      router.push("/onboarding");
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to complete registration. Please try again.";

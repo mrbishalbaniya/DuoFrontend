@@ -44,7 +44,11 @@ export function StepPreferences({ onContinue, onBack }: StepPreferencesProps) {
   });
 
   return (
-    <StepCard title="Partner preferences" subtitle="Define the kind of connection you want to discover.">
+    <StepCard
+      title="Partner preferences"
+      subtitle="Define the kind of connection you want to discover."
+      onSkip={onContinue}
+    >
       <form onSubmit={submit} className="space-y-5">
         <ChipSelect
           label="Looking for"
@@ -117,7 +121,7 @@ export function StepPreferences({ onContinue, onBack }: StepPreferencesProps) {
           error={form.formState.errors.interReligion?.message}
         />
 
-        <StepNavigation onBack={onBack} onNext={() => submit()} onSkip={onContinue} />
+        <StepNavigation onBack={onBack} onNext={() => submit()} />
       </form>
     </StepCard>
   );

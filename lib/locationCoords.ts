@@ -37,6 +37,30 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
   return 2 * r * Math.asin(Math.sqrt(a));
 }
 
+export function parseGpsFromPrefValues(
+  prefValues?: string | null
+): [number, number] | null {
+  if (!prefValues?.trim()) return null;
+  try {
+    const parsed = JSON.parse(prefValues) as {
+      gps?: { lat?: unknown; lng?: unknown; latitude?: unknown; longitude?: unknown };
+    };
+    const lat = Number(parsed.gps?.lat ?? parsed.gps?.latitude);
+    const lng = Number(parsed.gps?.lng ?? parsed.gps?.longitude);
+    if (
+      Number.isFinite(lat) &&
+      Number.isFinite(lng) &&
+      Math.abs(lat) <= 90 &&
+      Math.abs(lng) <= 180
+    ) {
+      return [lat, lng];
+    }
+  } catch {
+    // ignore invalid JSON
+  }
+  return null;
+}
+
 export function findCityCenter(location: string): [number, number] {
   const normalized = location.toLowerCase();
   for (const [city, coords] of Object.entries(NEPAL_CITY_COORDS)) {
@@ -60,11 +84,15 @@ export function nearestNepalCity(lat: number, lng: number): string {
   return bestCity.charAt(0).toUpperCase() + bestCity.slice(1);
 }
 
-/** Spread markers slightly so profiles in the same city don't stack. */
+/** Prefer saved GPS; otherwise city center with slight spread so pins don't stack. */
 export function resolveProfileCoordinates(
   location: string | undefined,
-  userId: number | string | undefined
+  userId: number | string | undefined,
+  prefValues?: string | null
 ): [number, number] {
+  const gps = parseGpsFromPrefValues(prefValues);
+  if (gps) return gps;
+
   const base = findCityCenter(location?.trim() || "Kathmandu, Nepal");
   const seed = hashSeed(String(userId ?? location ?? "0"));
   const angle = (seed % 360) * (Math.PI / 180);

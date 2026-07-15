@@ -80,10 +80,10 @@ export const basicInfoSchema = z
 
 export const locationSchema = z.object({
   country: z.string().min(1, "Country is required"),
-  province: z.string().min(1, "Select a province"),
-  district: z.string().min(2, "District is required"),
-  municipality: z.string().min(2, "Municipality or city is required"),
-  currentLocation: z.string().optional(),
+  province: z.string().min(1, "Province is required"),
+  district: z.string().min(1, "District is required"),
+  municipality: z.string().min(1, "Municipality or city is required"),
+  currentLocation: z.string().min(2, "Detect your GPS location to continue"),
 });
 
 export const educationSchema = z.object({
@@ -162,9 +162,18 @@ export const preferencesSchema = z
   });
 
 export const aboutSchema = z.object({
-  bio: z.string().min(40, "Bio should be at least 40 characters"),
-  lookingForText: z.string().min(20, "Tell us what you are looking for"),
-  futureGoals: z.string().min(20, "Share your future goals"),
+  bio: z
+    .string()
+    .min(40, "Bio should be at least 40 characters")
+    .max(500, "Bio must be 500 characters or less"),
+  lookingForText: z
+    .string()
+    .min(20, "Tell us what you are looking for (at least 20 characters)")
+    .max(400, "Looking for must be 400 characters or less"),
+  futureGoals: z
+    .string()
+    .min(20, "Share your future goals (at least 20 characters)")
+    .max(400, "Future goals must be 400 characters or less"),
 });
 
 export const photosSchema = z.object({

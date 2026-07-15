@@ -11,6 +11,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { isAuthPublicPath } from "@/lib/authPaths";
+import { clearOnboardedCookie, syncOnboardedCookie } from "@/lib/onboardingGate";
 import { queryKeys } from "@/lib/query/keys";
 import type { LoginResponse, RegisterResponse, User } from "@/types";
 
@@ -41,23 +42,42 @@ async function fetchMeDeduped(): Promise<User> {
   return meInflight;
 }
 
+function applyUser(user: User | null): User | null {
+  if (user) {
+    syncOnboardedCookie(Boolean(user.profile?.is_onboarded));
+  } else {
+    clearOnboardedCookie();
+  }
+  return user;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const queryClient = useQueryClient();
 
+  const setAuthUser = useCallback(
+    (next: User | null) => {
+      setUser(applyUser(next));
+      if (next) {
+        queryClient.setQueryData(queryKeys.me, next);
+      } else {
+        queryClient.removeQueries({ queryKey: queryKeys.me });
+      }
+    },
+    [queryClient]
+  );
+
   const fetchUser = useCallback(async () => {
     try {
       const data = await fetchMeDeduped();
-      setUser(data);
-      queryClient.setQueryData(queryKeys.me, data);
+      setAuthUser(data);
     } catch {
-      setUser(null);
-      queryClient.removeQueries({ queryKey: queryKeys.me });
+      setAuthUser(null);
     } finally {
       setLoading(false);
     }
-  }, [queryClient]);
+  }, [setAuthUser]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -79,34 +99,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await api.login(username, password);
     try {
       const me = data.user ?? (await api.getMe(data.access));
-      setUser(me);
-      queryClient.setQueryData(queryKeys.me, me);
+      setAuthUser(me);
+      return { ...data, user: me };
     } catch {
       await api.clearTokens();
-      setUser(null);
-      queryClient.removeQueries({ queryKey: queryKeys.me });
+      setAuthUser(null);
       throw new Error("Signed in, but the session could not be verified. Please try again.");
     } finally {
       setLoading(false);
     }
-    return data;
   };
 
   const loginWithGoogle = async (idToken: string) => {
     const data = await api.loginWithGoogle(idToken);
     try {
       const me = data.user ?? (await api.getMe(data.access));
-      setUser(me);
-      queryClient.setQueryData(queryKeys.me, me);
+      setAuthUser(me);
+      return { ...data, user: me };
     } catch {
       await api.clearTokens();
-      setUser(null);
-      queryClient.removeQueries({ queryKey: queryKeys.me });
+      setAuthUser(null);
       throw new Error("Signed in, but the session could not be verified. Please try again.");
     } finally {
       setLoading(false);
     }
-    return data;
   };
 
   const register = async (
@@ -117,17 +133,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await api.register(email, password, full_name);
     try {
       const me = data.user ?? (await api.getMe(data.tokens.access));
-      setUser(me);
-      queryClient.setQueryData(queryKeys.me, me);
+      setAuthUser(me);
+      return { ...data, user: me };
     } catch {
       await api.clearTokens();
-      setUser(null);
-      queryClient.removeQueries({ queryKey: queryKeys.me });
+      setAuthUser(null);
       throw new Error("Account created, but the session could not be verified. Please try again.");
     } finally {
       setLoading(false);
     }
-    return data;
   };
 
   const logout = () => {
@@ -140,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })();
     void api.clearTokens();
-    setUser(null);
+    setAuthUser(null);
     queryClient.clear();
   };
 

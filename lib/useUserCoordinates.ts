@@ -18,8 +18,8 @@ export function useUserCoordinates(
     const fallback = resolveProfileCoordinates(profileLocation, userId);
 
     getDevicePosition()
-      .then((position) => {
-        if (!cancelled) setCoords(position);
+      .then((fix) => {
+        if (!cancelled) setCoords(fix.coordinates);
       })
       .catch(() => {
         if (!cancelled) setCoords(fallback);

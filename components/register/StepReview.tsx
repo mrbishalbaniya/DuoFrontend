@@ -108,10 +108,10 @@ export function StepReview({ onSubmit, onBack, onEditStep, loading }: StepReview
         </ReviewSection>
 
         <ReviewSection title={REGISTRATION_STEP_LABELS[3]} step={3} onEdit={onEditStep}>
-          <ReviewRow
-            label="Location"
-            value={[data.municipality, data.district, data.province, data.country].filter(Boolean).join(", ")}
-          />
+          <ReviewRow label="Country" value={data.country || "—"} />
+          <ReviewRow label="Province" value={data.province || "—"} />
+          <ReviewRow label="District" value={data.district || "—"} />
+          <ReviewRow label="Municipality / City" value={data.municipality || "—"} />
           <ReviewRow label="Current location" value={data.currentLocation || "—"} />
         </ReviewSection>
 

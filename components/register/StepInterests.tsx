@@ -32,6 +32,7 @@ export function StepInterests({ onContinue, onBack }: StepInterestsProps) {
     <StepCard
       title="Interests"
       subtitle="Pick what you love. Matches connect faster when interests overlap."
+      onSkip={onContinue}
     >
       <form onSubmit={submit} className="space-y-5">
         <MultiChipSelect
@@ -42,7 +43,7 @@ export function StepInterests({ onContinue, onBack }: StepInterestsProps) {
           onChange={(values) => form.setValue("interests", values, { shouldValidate: true })}
           error={form.formState.errors.interests?.message}
         />
-        <StepNavigation onBack={onBack} onNext={() => submit()} onSkip={onContinue} />
+        <StepNavigation onBack={onBack} onNext={() => submit()} />
       </form>
     </StepCard>
   );

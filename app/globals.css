@@ -182,6 +182,130 @@
     border: 1px solid rgba(255,255,255,0.08);
   }
 
+  /* --- 404 / not-found --- */
+
+  .not-found-glow {
+    pointer-events: none;
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(80px);
+    opacity: 0.55;
+  }
+
+  .not-found-glow--primary {
+    top: -12%;
+    left: 50%;
+    width: min(70vw, 520px);
+    height: min(50vh, 380px);
+    transform: translateX(-50%);
+    background: color-mix(in srgb, var(--color-primary) 45%, transparent);
+    animation: not-found-glow-drift 10s ease-in-out infinite alternate;
+  }
+
+  .not-found-glow--accent {
+    right: -8%;
+    bottom: 8%;
+    width: min(50vw, 360px);
+    height: min(40vh, 280px);
+    background: color-mix(in srgb, var(--color-accent) 28%, transparent);
+    animation: not-found-glow-drift-accent 14s ease-in-out infinite alternate;
+  }
+
+  .not-found-grid {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    opacity: 0.35;
+    background-image:
+      linear-gradient(color-mix(in srgb, var(--color-outline) 12%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--color-outline) 12%, transparent) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 70% 55% at 50% 40%, #000 20%, transparent 75%);
+  }
+
+  .not-found-orbit {
+    position: relative;
+    border-radius: 9999px;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 28%, transparent);
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    box-shadow:
+      0 0 0 12px color-mix(in srgb, var(--color-primary) 6%, transparent),
+      0 20px 50px color-mix(in srgb, var(--color-primary) 18%, transparent);
+    animation: not-found-pulse 3.2s ease-in-out infinite;
+  }
+
+  .not-found-orbit::before {
+    content: "";
+    position: absolute;
+    inset: -14px;
+    border-radius: inherit;
+    border: 1px dashed color-mix(in srgb, var(--color-primary) 35%, transparent);
+    animation: not-found-spin 18s linear infinite;
+  }
+
+  .not-found-code {
+    animation: not-found-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes not-found-glow-drift {
+    from {
+      transform: translateX(-50%) translateY(0);
+    }
+    to {
+      transform: translateX(-46%) translateY(18px);
+    }
+  }
+
+  @keyframes not-found-glow-drift-accent {
+    from {
+      transform: translate(0, 0);
+    }
+    to {
+      transform: translate(-24px, -16px);
+    }
+  }
+
+  @keyframes not-found-pulse {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.04);
+    }
+  }
+
+  @keyframes not-found-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes not-found-rise {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .not-found-glow--primary,
+    .not-found-glow--accent,
+    .not-found-orbit,
+    .not-found-orbit::before,
+    .not-found-code {
+      animation: none;
+    }
+  }
+
+  html.light .not-found-page .not-found-grid {
+    opacity: 0.22;
+  }
+
   .glass-effect {
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);

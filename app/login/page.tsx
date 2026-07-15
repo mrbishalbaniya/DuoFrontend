@@ -95,7 +95,12 @@ function LoginPageContent() {
 
     setLoading(true);
     try {
-      await login(trimmedUsername, password);
+      const data = await login(trimmedUsername, password);
+      const onboarded = Boolean(data.user?.profile?.is_onboarded);
+      if (!onboarded) {
+        router.push("/register");
+        return;
+      }
       router.push(safeNext ?? "/match");
     } catch (err: unknown) {
       setError(
@@ -113,15 +118,13 @@ function LoginPageContent() {
     setLoading(true);
     try {
       const data = await loginWithGoogle(credential);
-      const onboarded = data.user?.profile?.is_onboarded;
+      const onboarded = Boolean(data.user?.profile?.is_onboarded);
       if (!onboarded) {
         sessionStorage.setItem("duo_register_via_google", "1");
+        router.push("/register");
+        return;
       }
-      if (safeNext) {
-        router.push(safeNext);
-      } else {
-        router.push(onboarded ? "/match" : "/register");
-      }
+      router.push(safeNext ?? "/match");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Google sign-in failed.");
     } finally {
