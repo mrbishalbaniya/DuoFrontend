@@ -4,6 +4,9 @@ import { HomePageShell } from "@/components/home/HomePageShell";
 import { BorderRotate } from "@/components/ui/animated-gradient-border";
 import { DuoTestimonialsSection } from "@/components/ui/testimonial-slider";
 import { HeroSection03 } from "@/components/ui/hero-03";
+import { ScrollingFeatureShowcase } from "@/components/ui/interactive-scrolling-story-component";
+import AnimatedTextSection from "@/components/home/AnimatedTextSection";
+import { CinematicHero } from "@/components/ui/cinematic-landing-hero";
 import Link from "next/link";
 import { ANDROID_APK_DOWNLOAD_URL } from "@/lib/mobileApp";
 
@@ -14,6 +17,9 @@ export default function LandingPage() {
       <Navbar />
       <main className="overflow-x-hidden mobile-bottom-nav-offset">
         <HeroSection03 />
+
+        {/* Scrolling Feature Showcase */}
+        <ScrollingFeatureShowcase />
 
         {/* Features */}
         <section className="pt-10 pb-14 sm:pb-16 md:pt-12 md:pb-24 px-4 sm:px-6 border-y border-white/[0.04]">
@@ -137,6 +143,12 @@ export default function LandingPage() {
         </section>
 
         <DuoTestimonialsSection />
+
+        {/* Cinematic Hero Section */}
+        <CinematicHero />
+
+        {/* Animated Text Section */}
+        <AnimatedTextSection />
 
         {/* CTA */}
         <section className="py-14 sm:py-16 md:py-24 px-4 sm:px-6">

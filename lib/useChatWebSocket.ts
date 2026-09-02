@@ -59,8 +59,11 @@ export function useChatWebSocket(
         const ticket = await api.getWsTicket(conversationId);
         if (cancelled) return;
 
+        const wsUrl = await getChatWebSocketUrl(conversationId, ticket);
+        if (cancelled) return;
+
         closeChatSocket(socketRef.current, "reconnect");
-        const socket = new WebSocket(getChatWebSocketUrl(conversationId, ticket));
+        const socket = new WebSocket(wsUrl);
         socketRef.current = socket;
 
         socket.onopen = () => {

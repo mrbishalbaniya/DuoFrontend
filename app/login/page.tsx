@@ -6,6 +6,7 @@ import Link from "next/link";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { getGoogleOAuthRedirectUri } from "@/lib/googleAuth";
 import { useAuth } from "@/contexts/AuthContext";
+import api, { TwoFactorRequiredError } from "@/lib/api";
 
 export default function LoginPage() {
   return (
@@ -22,7 +23,7 @@ export default function LoginPage() {
 }
 
 function LoginPageContent() {
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, completeTwoFactorLogin } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get("next");
@@ -33,10 +34,15 @@ function LoginPageContent() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [twoFactor, setTwoFactor] = useState<{ token: string; methods: string[] } | null>(null);
+  const [twoFactorCode, setTwoFactorCode] = useState("");
+  const [resendingOtp, setResendingOtp] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
   const googleRedirectUri = getGoogleOAuthRedirectUri();
   const googleAuthError = searchParams.get("error") === "google_auth";
   const googleAuthReason = searchParams.get("reason") ?? "";
   const passwordResetSuccess = searchParams.get("reset") === "success";
+  const accountDeleted = searchParams.get("deleted") === "1";
 
   useEffect(() => {
     if (passwordResetSuccess) {
@@ -103,6 +109,11 @@ function LoginPageContent() {
       }
       router.push(safeNext ?? "/match");
     } catch (err: unknown) {
+      if (err instanceof TwoFactorRequiredError) {
+        setTwoFactor({ token: err.challengeToken, methods: err.methods });
+        setLoading(false);
+        return;
+      }
       setError(
         err instanceof Error
           ? err.message
@@ -111,6 +122,47 @@ function LoginPageContent() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleTwoFactorSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!twoFactor) return;
+    setError("");
+    setLoading(true);
+    try {
+      const data = await completeTwoFactorLogin(twoFactor.token, twoFactorCode.trim());
+      const onboarded = Boolean(data.user?.profile?.is_onboarded);
+      if (!onboarded) {
+        router.push("/register");
+        return;
+      }
+      router.push(safeNext ?? "/match");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Invalid verification code.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (!twoFactor) return;
+    setResendingOtp(true);
+    setResendMessage("");
+    try {
+      await api.sendTwoFactorLoginOtp(twoFactor.token);
+      setResendMessage("A new code was sent to your email.");
+    } catch {
+      setResendMessage("Could not resend the code. Please try again.");
+    } finally {
+      setResendingOtp(false);
+    }
+  };
+
+  const handleBackToPassword = () => {
+    setTwoFactor(null);
+    setTwoFactorCode("");
+    setError("");
+    setResendMessage("");
   };
 
   const handleGoogleSuccess = async (credential: string) => {
@@ -147,16 +199,26 @@ function LoginPageContent() {
         <div className="glass-card rounded-[2rem] p-8 shadow-[0_40px_60px_-15px] shadow-primary/15">
           <div className="mb-8">
             <h2 className="font-[var(--font-headline)] text-2xl font-bold text-on-surface mb-1">
-              Welcome back
+              {twoFactor ? "Two-factor verification" : "Welcome back"}
             </h2>
             <p className="text-on-surface-variant text-sm">
-              Please enter your details to continue
+              {twoFactor
+                ? twoFactor.methods.includes("totp")
+                  ? "Enter the 6-digit code from your authenticator app."
+                  : "Enter the 6-digit code we emailed you."
+                : "Please enter your details to continue"}
             </p>
           </div>
 
           {passwordResetSuccess && (
             <div className="mb-6 p-4 bg-primary-container text-on-primary-container rounded-xl text-sm font-medium">
               Your password has been updated. Sign in with your new password.
+            </div>
+          )}
+
+          {accountDeleted && (
+            <div className="mb-6 p-4 bg-primary-container text-on-primary-container rounded-xl text-sm font-medium">
+              Your account has been deactivated. Sorry to see you go.
             </div>
           )}
 
@@ -193,92 +255,156 @@ function LoginPageContent() {
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-on-surface-variant ml-1" htmlFor="username">
-                Email
-              </label>
-              <div className="relative group">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
-                  person
-                </span>
-                <input
-                  className="w-full pl-12 pr-4 py-4 bg-surface-container-high rounded-[1rem] border-none ring-1 ring-outline-variant/30 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-on-surface placeholder:text-outline"
-                  id="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="you@example.com"
-                  type="email"
-                  required
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center px-1">
-                <label className="block text-sm font-semibold text-on-surface-variant" htmlFor="password">
-                  Password
+          {twoFactor ? (
+            <form onSubmit={handleTwoFactorSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-on-surface-variant ml-1" htmlFor="twoFactorCode">
+                  Verification code
                 </label>
-                <Link
-                  href="/login/forgot-password"
-                  className="text-xs font-semibold text-accent hover:underline underline-offset-4"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-              <div className="relative group">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
-                  lock
-                </span>
-                <input
-                  className="w-full pl-12 pr-12 py-4 bg-surface-container-high rounded-[1rem] border-none ring-1 ring-outline-variant/30 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-on-surface placeholder:text-outline"
-                  id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Your password"
-                  type={showPassword ? "text" : "password"}
-                  required
-                />
-                <button
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface"
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  <span className="material-symbols-outlined">
-                    {showPassword ? "visibility_off" : "visibility"}
+                <div className="relative group">
+                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
+                    password
                   </span>
-                </button>
+                  <input
+                    className="w-full pl-12 pr-4 py-4 bg-surface-container-high rounded-[1rem] border-none ring-1 ring-outline-variant/30 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-on-surface placeholder:text-outline tracking-[0.3em]"
+                    id="twoFactorCode"
+                    value={twoFactorCode}
+                    onChange={(e) => setTwoFactorCode(e.target.value)}
+                    placeholder="000000"
+                    inputMode="text"
+                    autoFocus
+                    required
+                  />
+                </div>
+                <p className="px-1 text-xs text-on-surface-variant">
+                  You can also enter one of your backup recovery codes.
+                </p>
               </div>
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full gradient-brand text-white py-4 rounded-full font-bold text-base shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 font-[var(--font-headline)] disabled:opacity-50"
-            >
-              {loading ? "Signing in..." : "Login"}
-            </button>
-          </form>
 
-          <div className="my-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-outline-variant/20" />
-            <span className="text-xs font-bold uppercase tracking-widest text-outline">or</span>
-            <div className="h-px flex-1 bg-outline-variant/20" />
+              {resendMessage && (
+                <p className="px-1 text-xs font-medium text-accent">{resendMessage}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading || !twoFactorCode.trim()}
+                className="w-full gradient-brand text-white py-4 rounded-full font-bold text-base shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 font-[var(--font-headline)] disabled:opacity-50"
+              >
+                {loading ? "Verifying..." : "Verify and sign in"}
+              </button>
+
+              <div className="flex items-center justify-between px-1 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={handleBackToPassword}
+                  className="text-on-surface-variant hover:text-on-surface"
+                >
+                  Back to login
+                </button>
+                {twoFactor.methods.includes("email") && (
+                  <button
+                    type="button"
+                    onClick={() => void handleResendOtp()}
+                    disabled={resendingOtp}
+                    className="text-accent hover:underline underline-offset-4 disabled:opacity-50"
+                  >
+                    {resendingOtp ? "Sending..." : "Resend code"}
+                  </button>
+                )}
+              </div>
+            </form>
+          ) : (
+            <>
+              <form onSubmit={handleLogin} className="space-y-6">
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-on-surface-variant ml-1" htmlFor="username">
+                    Email
+                  </label>
+                  <div className="relative group">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
+                      person
+                    </span>
+                    <input
+                      className="w-full pl-12 pr-4 py-4 bg-surface-container-high rounded-[1rem] border-none ring-1 ring-outline-variant/30 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-on-surface placeholder:text-outline"
+                      id="username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="you@example.com"
+                      type="email"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center px-1">
+                    <label className="block text-sm font-semibold text-on-surface-variant" htmlFor="password">
+                      Password
+                    </label>
+                    <Link
+                      href="/login/forgot-password"
+                      className="text-xs font-semibold text-accent hover:underline underline-offset-4"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
+                  <div className="relative group">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
+                      lock
+                    </span>
+                    <input
+                      className="w-full pl-12 pr-12 py-4 bg-surface-container-high rounded-[1rem] border-none ring-1 ring-outline-variant/30 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-on-surface placeholder:text-outline"
+                      id="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Your password"
+                      type={showPassword ? "text" : "password"}
+                      required
+                    />
+                    <button
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface"
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      <span className="material-symbols-outlined">
+                        {showPassword ? "visibility_off" : "visibility"}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full gradient-brand text-white py-4 rounded-full font-bold text-base shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 font-[var(--font-headline)] disabled:opacity-50"
+                >
+                  {loading ? "Signing in..." : "Login"}
+                </button>
+              </form>
+
+              <div className="my-6 flex items-center gap-3">
+                <div className="h-px flex-1 bg-outline-variant/20" />
+                <span className="text-xs font-bold uppercase tracking-widest text-outline">or</span>
+                <div className="h-px flex-1 bg-outline-variant/20" />
+              </div>
+
+              <GoogleSignInButton
+                onSuccess={handleGoogleSuccess}
+                onError={() => setError("Google sign-in was cancelled or failed.")}
+                disabled={loading}
+              />
+            </>
+          )}
+        </div>
+
+        {!twoFactor && (
+          <div className="mt-8 text-center">
+            <p className="text-on-surface-variant font-medium text-sm">
+              New to Duo?{" "}
+              <Link className="text-accent font-bold hover:underline underline-offset-4 ml-1" href="/register">
+                Create an account
+              </Link>
+            </p>
           </div>
-
-          <GoogleSignInButton
-            onSuccess={handleGoogleSuccess}
-            onError={() => setError("Google sign-in was cancelled or failed.")}
-            disabled={loading}
-          />
-        </div>
-
-        <div className="mt-8 text-center">
-          <p className="text-on-surface-variant font-medium text-sm">
-            New to Duo?{" "}
-            <Link className="text-accent font-bold hover:underline underline-offset-4 ml-1" href="/register">
-              Create an account
-            </Link>
-          </p>
-        </div>
+        )}
       </main>
 
       <footer className="mt-auto py-6 z-10">

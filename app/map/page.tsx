@@ -370,6 +370,17 @@ export default function MapPage() {
                   >
                     <span className="material-symbols-outlined text-xl">chat_bubble</span>
                   </Link>
+                  {focusedProfile.coordinates ? (
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${focusedProfile.coordinates[0]},${focusedProfile.coordinates[1]}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="map-focus-card__directions shrink-0"
+                      aria-label="Get directions"
+                    >
+                      <span className="material-symbols-outlined text-xl">directions</span>
+                    </a>
+                  ) : null}
                   <button
                     type="button"
                     aria-label="Close preview"

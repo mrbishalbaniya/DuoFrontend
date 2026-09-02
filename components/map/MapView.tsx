@@ -19,7 +19,6 @@ import MapLayersSettingsPanel from "./layers/MapLayersSettingsPanel";
 import MapDebugHud from "./layers/MapDebugHud";
 import WeatherBridge from "./weather/WeatherBridge";
 import WeatherClickBridge from "./weather/WeatherClickBridge";
-import GlobeAvatarBridge from "./globeAvatars/GlobeAvatarBridge";
 import ActivityHeatmapBridge from "./activityHeatmap/ActivityHeatmapBridge";
 import { isDuoLayerVisible } from "@/lib/mapLayers/layerEngine";
 import { useMapLayersStore } from "@/lib/mapLayers/store";
@@ -427,11 +426,6 @@ export default function MapView({
         <SpaceAtmosphereBridge />
         <WeatherBridge />
         <WeatherClickBridge />
-        <GlobeAvatarBridge
-          profiles={mappableProfiles}
-          focusProfileId={focusProfileId}
-          onProfileFocus={onProfileFocus}
-        />
         {showActivityHeatmap ? (
           <ActivityHeatmapBridge userCoordinates={userCoordinates} />
         ) : null}

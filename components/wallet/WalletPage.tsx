@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import BottomNav from "@/components/BottomNav";
 import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
 import { EsewaLogo } from "@/components/payment/EsewaLogo";
+import Loader from "@/components/ui/loader";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
 import { formatCoinDelta, formatCoins, formatNprPrice } from "@/lib/coins";
@@ -139,8 +140,8 @@ export function WalletPage() {
             ) : null}
 
             {loading ? (
-              <div className="flex justify-center py-16">
-                <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+              <div className="flex min-h-[50vh] items-center justify-center">
+                <Loader pageName="Wallet" />
               </div>
             ) : (
               <>

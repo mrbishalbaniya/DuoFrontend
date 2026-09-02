@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { CrossDeviceVerification } from "@/components/verification/CrossDeviceVerification";
 import { FaceVerificationOverlay } from "@/components/verification/FaceVerificationOverlay";
+import Loader from "@/components/ui/loader";
 import {
   autoCaptureStatusMessage,
   getAutoCaptureHoldMs,
@@ -441,8 +442,10 @@ export function VerificationFlow({
       {flowStep === "instructions" && (
         <div className="flex flex-col pb-2">
           {submitting && (
-            <div className="mb-4 flex flex-col items-center justify-center py-8 text-center">
-              <div className="mb-3 h-10 w-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+            <div className="mb-4 flex min-h-[50vh] flex-col items-center justify-center text-center">
+              <div className="mb-3">
+                <Loader pageName="Verification" />
+              </div>
               <p className="text-sm text-on-surface-variant">Starting verification…</p>
             </div>
           )}
@@ -538,7 +541,9 @@ export function VerificationFlow({
 
       {deviceLoading && (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
-          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+          <div className="mb-4">
+            <Loader pageName="Verification" />
+          </div>
           <p className="text-sm text-on-surface-variant">Loading verification session…</p>
         </div>
       )}
@@ -641,7 +646,9 @@ export function VerificationFlow({
 
       {flowStep === "processing" && (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
-          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+          <div className="mb-4">
+            <Loader pageName="Verification" />
+          </div>
           <h2 className="font-[var(--font-headline)] text-xl font-bold text-on-surface">
             Verifying your identity
           </h2>

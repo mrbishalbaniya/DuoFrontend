@@ -135,6 +135,8 @@ export interface Profile {
   subscription_expires_at?: string | null;
   wallet_balance?: number;
   preview_distance_km?: number;
+  app_language?: "en" | "ne";
+  app_region?: string;
 }
 
 export interface User {
@@ -386,4 +388,95 @@ export interface MatchSessionData {
   other_user_profile?: Profile;
   match_id?: number;
   compatibility_score?: number;
+}
+
+// ── Security Center ─────────────────────────────────────────────
+
+export type TwoFactorMethod = "email" | "totp" | "sms";
+
+export interface SecurityRecommendation {
+  id: string;
+  title: string;
+  description: string;
+  action: string;
+}
+
+export interface SecurityOverview {
+  two_factor_enabled: boolean;
+  two_factor_method: TwoFactorMethod | null;
+  biometric_enabled: boolean;
+  active_devices: number;
+  active_sessions: number;
+  unread_alerts: number;
+  remember_device_days: number;
+  current_device_id: string;
+  has_backup_codes: boolean;
+  backup_codes_remaining: number;
+  security_score: number;
+  recommendations: SecurityRecommendation[];
+  email_verified: boolean;
+  phone_verified: boolean;
+  trusted_device_active: boolean;
+  recent_suspicious: boolean;
+}
+
+export interface SecurityDevice {
+  id: number;
+  device_id: string;
+  device_name: string;
+  model: string;
+  platform: "android" | "ios" | "web" | "unknown";
+  platform_label: string;
+  os_version: string;
+  app_version: string;
+  browser: string;
+  ip_address: string | null;
+  location: string;
+  country: string;
+  city: string;
+  is_trusted: boolean;
+  is_trusted_active: boolean;
+  is_current: boolean;
+  last_active: string;
+  login_time: string;
+}
+
+export interface LoginHistoryEntry {
+  id: number;
+  success: boolean;
+  ip_address: string | null;
+  location: string;
+  country: string;
+  city: string;
+  device_name: string;
+  browser: string;
+  os_name: string;
+  failure_reason: string;
+  event_type: string;
+  is_current: boolean;
+  created_at: string;
+}
+
+export type SecurityAlertSeverity = "info" | "warning" | "critical";
+
+export interface BlockedUser {
+  id: number;
+  username: string;
+  full_name: string;
+  photo_url: string;
+  blocked_at: string;
+}
+
+export type SupportRequestCategory = "contact" | "bug";
+
+export interface SecurityEvent {
+  id: number;
+  event_type: string;
+  title: string;
+  message: string;
+  metadata: Record<string, unknown>;
+  ip_address: string | null;
+  severity: SecurityAlertSeverity;
+  is_read: boolean;
+  created_at: string;
 }

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
 import BottomNav from "@/components/BottomNav";
 import { VerificationFlow } from "@/components/verification/VerificationFlow";
+import Loader from "@/components/ui/loader";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function VerifyPage() {
@@ -21,7 +22,7 @@ export default function VerifyPage() {
   if (loading || !user) {
     return (
       <div className="flex h-[100dvh] items-center justify-center bg-surface">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+        <Loader pageName="Verification" />
       </div>
     );
   }
