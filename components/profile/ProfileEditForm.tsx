@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -69,6 +69,18 @@ const inputClassName =
 
 const selectClassName = inputClassName;
 
+const MIN_PROFILE_PHOTOS = 1;
+const MAX_PROFILE_PHOTOS = 3;
+
+interface PendingPhotoUpload {
+  id: string;
+  file: File;
+  previewUrl: string;
+  isPrimary: boolean;
+  status: "uploading" | "error";
+  errorMessage?: string;
+}
+
 export function ProfileEditForm({
   formData,
   onChange,
@@ -81,8 +93,7 @@ export function ProfileEditForm({
   onDetectLocation,
 }: ProfileEditFormProps) {
   const [dragActive, setDragActive] = useState(false);
-  const [photoError, setPhotoError] = useState<string | null>(null);
-  const [analyzingPhotos, setAnalyzingPhotos] = useState(false);
+  const [pendingUploads, setPendingUploads] = useState<PendingPhotoUpload[]>([]);
 
   const patch = useCallback(
     (patchData: Partial<ProfileEditFormData>) => {
@@ -91,67 +102,157 @@ export function ProfileEditForm({
     [formData, onChange]
   );
 
+  // Concurrent uploads can each finish around the same moment; if every
+  // completion read `formData.photos` from its own render-time closure and
+  // called patch(), a later completion would overwrite an earlier one's
+  // addition (lost update). This ref always holds the latest list
+  // synchronously, so each completion appends onto what the previous one
+  // just wrote, not a stale snapshot.
+  const photosRef = useRef(formData.photos);
+  useEffect(() => {
+    photosRef.current = formData.photos;
+  }, [formData.photos]);
+
+  const pendingUploadsRef = useRef(pendingUploads);
+  pendingUploadsRef.current = pendingUploads;
+  useEffect(
+    () => () => {
+      pendingUploadsRef.current.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+    },
+    []
+  );
+
+  const removePending = useCallback((id: string) => {
+    setPendingUploads((prev) => {
+      const target = prev.find((p) => p.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((p) => p.id !== id);
+    });
+  }, []);
+
+  const runUpload = useCallback(async (pending: PendingPhotoUpload) => {
+    setPendingUploads((prev) =>
+      prev.map((p) => (p.id === pending.id ? { ...p, status: "uploading", errorMessage: undefined } : p))
+    );
+
+    try {
+      const result = await api.uploadAndAnalyzePhoto(pending.file, { isPrimary: pending.isPrimary });
+      const uploadError = getPhotoUploadError(result, pending.file.name);
+      if (uploadError) throw new Error(uploadError);
+      if (!result.image_url) {
+        throw new Error(`${pending.file.name}: upload succeeded but no image URL was returned.`);
+      }
+
+      const photo: ProfileEditPhoto = {
+        id: `${Date.now()}-${pending.file.name}`,
+        url: result.image_url,
+        fileName: pending.file.name,
+        // A manual-review photo isn't approved yet — never default it to
+        // primary even if this was the user's first upload.
+        isProfile: pending.isPrimary && result.photo?.status === "APPROVED",
+        analysis: result.analysis,
+        photoId: result.photo?.id,
+        moderationStatus: result.photo?.status,
+      };
+      const nextPhotos = [...photosRef.current, photo];
+      photosRef.current = nextPhotos;
+      patch({ photos: nextPhotos });
+
+      URL.revokeObjectURL(pending.previewUrl);
+      setPendingUploads((prev) => prev.filter((p) => p.id !== pending.id));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : `${pending.file.name}: verification failed.`;
+      setPendingUploads((prev) =>
+        prev.map((p) => (p.id === pending.id ? { ...p, status: "error", errorMessage: message } : p))
+      );
+    }
+  }, [patch]);
+
   const addPhotoFiles = useCallback(
-    async (files: FileList | File[]) => {
+    (files: FileList | File[]) => {
       const list = Array.from(files).filter((file) => file.type.startsWith("image/"));
       if (!list.length) return;
 
-      const remaining = 9 - formData.photos.length;
-      const selected = list.slice(0, remaining);
+      const remaining = MAX_PROFILE_PHOTOS - formData.photos.length - pendingUploads.length;
+      const selected = list.slice(0, Math.max(0, remaining));
       if (!selected.length) return;
 
-      setPhotoError(null);
-      setAnalyzingPhotos(true);
+      const isFirstBatch = formData.photos.length === 0 && pendingUploads.length === 0;
+      const newPending: PendingPhotoUpload[] = selected.map((file, index) => ({
+        id: `${Date.now()}-${file.name}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+        isPrimary: isFirstBatch && index === 0,
+        status: "uploading",
+      }));
 
-      try {
-        const uploaded: ProfileEditPhoto[] = [];
-        const isFirstPhoto = formData.photos.length === 0;
+      setPendingUploads((prev) => [...prev, ...newPending]);
 
-        for (let index = 0; index < selected.length; index += 1) {
-          const file = selected[index];
-          const isPrimary = isFirstPhoto && index === 0;
-
-          const result = await api.uploadAndAnalyzePhoto(file, { isPrimary });
-
-          const uploadError = getPhotoUploadError(result, file.name);
-          if (uploadError) {
-            throw new Error(uploadError);
-          }
-          if (!result.image_url) {
-            throw new Error("Upload succeeded but no image URL was returned.");
-          }
-
-          uploaded.push({
-            id: `${Date.now()}-${file.name}-${index}`,
-            url: result.image_url,
-            fileName: file.name,
-            isProfile: isPrimary,
-            analysis: result.analysis,
-          });
-        }
-
-        patch({ photos: [...formData.photos, ...uploaded] });
-      } catch (error) {
-        setPhotoError(error instanceof Error ? error.message : "Photo verification failed.");
-      } finally {
-        setAnalyzingPhotos(false);
-      }
+      // Upload concurrently (a few at a time) instead of one-by-one — with N
+      // photos selected, this is close to N times faster than sequential
+      // awaits, since each upload+analysis is an independent server round trip.
+      const CONCURRENCY = 3;
+      let cursor = 0;
+      const runNext = async (): Promise<void> => {
+        const index = cursor;
+        cursor += 1;
+        if (index >= newPending.length) return;
+        await runUpload(newPending[index]);
+        return runNext();
+      };
+      void Promise.all(
+        Array.from({ length: Math.min(CONCURRENCY, newPending.length) }, () => runNext())
+      );
     },
-    [formData.photos, patch]
+    [formData.photos.length, pendingUploads.length, runUpload]
   );
 
+  const anyUploading = pendingUploads.some((p) => p.status === "uploading");
+
+  const isApprovedForPrimary = (photo: ProfileEditPhoto) =>
+    photo.moderationStatus === undefined || photo.moderationStatus === "APPROVED";
+  const approvedPhotoCount = formData.photos.filter(isApprovedForPrimary).length;
+
   const removePhoto = (id: string) => {
+    const removed = formData.photos.find((photo) => photo.id === id);
     const next = formData.photos.filter((photo) => photo.id !== id);
     if (next.length && !next.some((photo) => photo.isProfile)) {
-      next[0].isProfile = true;
+      const promoted = next.find(isApprovedForPrimary);
+      if (promoted) promoted.isProfile = true;
     }
     patch({ photos: next });
+    if (removed?.photoId) {
+      void api.deletePhoto(removed.photoId).catch(() => {});
+    }
   };
 
   const setProfilePhoto = (id: string) => {
+    const target = formData.photos.find((photo) => photo.id === id);
+    if (!target || !isApprovedForPrimary(target)) return;
     patch({
       photos: formData.photos.map((photo) => ({ ...photo, isProfile: photo.id === id })),
     });
+    if (target.photoId) {
+      void api.setPhotoPrimary(target.photoId).catch(() => {});
+    }
+  };
+
+  const movePhoto = (id: string, direction: -1 | 1) => {
+    const index = formData.photos.findIndex((photo) => photo.id === id);
+    if (index < 0) return;
+    const swapWith = index + direction;
+    if (swapWith < 0 || swapWith >= formData.photos.length) return;
+
+    const next = [...formData.photos];
+    [next[index], next[swapWith]] = [next[swapWith], next[index]];
+    patch({ photos: next });
+
+    const photoIds = next
+      .map((photo) => photo.photoId)
+      .filter((photoId): photoId is number => photoId != null);
+    if (photoIds.length === next.length) {
+      void api.reorderPhotos(photoIds).catch(() => {});
+    }
   };
 
   return (
@@ -188,13 +289,13 @@ export function ProfileEditForm({
           onDrop={(event) => {
             event.preventDefault();
             setDragActive(false);
-            void addPhotoFiles(event.dataTransfer.files);
+            addPhotoFiles(event.dataTransfer.files);
           }}
         >
           <p className="text-sm text-on-surface-variant">
-            {analyzingPhotos
-              ? "Analyzing photo quality and safety…"
-              : "Drag photos here or browse (max 9). Each photo is verified automatically."}
+            {anyUploading
+              ? "Uploading and verifying…"
+              : `Drag photos here or browse. Upload ${MIN_PROFILE_PHOTOS}–${MAX_PROFILE_PHOTOS} photos — each one is verified automatically.`}
           </p>
           <label className="mt-3 inline-flex cursor-pointer">
             <input
@@ -202,27 +303,22 @@ export function ProfileEditForm({
               accept="image/*"
               multiple
               className="hidden"
-              disabled={analyzingPhotos}
+              disabled={anyUploading}
               onChange={(event) => {
-                if (event.target.files) void addPhotoFiles(event.target.files);
+                if (event.target.files) addPhotoFiles(event.target.files);
+                event.target.value = "";
               }}
             />
             <span
               className={cn(
                 "rounded-full gradient-brand px-5 py-2 text-sm font-semibold text-white",
-                analyzingPhotos && "pointer-events-none opacity-60"
+                anyUploading && "pointer-events-none opacity-60"
               )}
             >
-              {analyzingPhotos ? "Analyzing…" : "Browse files"}
+              {anyUploading ? "Uploading…" : "Browse files"}
             </span>
           </label>
         </div>
-
-        {photoError ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {photoError}
-          </div>
-        ) : null}
 
         {formData.photos.some((photo) => photo.analysis) ? (
           <PhotoAnalysisResult
@@ -232,46 +328,132 @@ export function ProfileEditForm({
           />
         ) : null}
 
-        {formData.photos.length ? (
+        {formData.photos.length || pendingUploads.length ? (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {formData.photos.map((photo) => (
+            {pendingUploads.map((pending) => (
               <div
-                key={photo.id}
-                className={cn(
-                  "group relative overflow-hidden rounded-2xl border",
-                  photo.isProfile ? "border-primary ring-2 ring-primary/30" : "border-outline-variant/20"
-                )}
+                key={pending.id}
+                className="relative overflow-hidden rounded-2xl border border-outline-variant/20"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photo.url} alt={photo.fileName} className="aspect-[3/4] w-full object-cover" />
-                <div className="absolute inset-x-0 bottom-0 flex gap-2 bg-gradient-to-t from-black/80 to-transparent p-2">
-                  {!photo.isProfile ? (
+                <img
+                  src={pending.previewUrl}
+                  alt={pending.file.name}
+                  className={cn(
+                    "aspect-[3/4] w-full object-cover",
+                    pending.status === "uploading" && "opacity-50"
+                  )}
+                />
+                {pending.status === "uploading" ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/30">
+                    <span className="h-7 w-7 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                    <span className="text-xs font-semibold text-white drop-shadow">Verifying…</span>
+                  </div>
+                ) : (
+                  <div className="absolute inset-0 flex flex-col justify-end gap-1.5 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-2">
+                    <p className="line-clamp-3 text-[11px] leading-snug text-red-200">
+                      {pending.errorMessage}
+                    </p>
+                    <div className="flex gap-1.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        className="h-7 flex-1 rounded-full text-[11px]"
+                        onClick={() => void runUpload(pending)}
+                      >
+                        Retry
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        className="h-7 rounded-full px-2 text-[11px]"
+                        onClick={() => removePending(pending.id)}
+                      >
+                        Dismiss
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {formData.photos.map((photo, index) => {
+              const underReview = photo.moderationStatus === "MANUAL_REVIEW";
+              return (
+                <div
+                  key={photo.id}
+                  className={cn(
+                    "group relative overflow-hidden rounded-2xl border",
+                    photo.isProfile ? "border-primary ring-2 ring-primary/30" : "border-outline-variant/20"
+                  )}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={photo.url} alt={photo.fileName} className="aspect-[3/4] w-full object-cover" />
+
+                  {underReview ? (
+                    <span className="absolute left-2 top-2 rounded-full bg-amber-500/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                      Under review
+                    </span>
+                  ) : null}
+
+                  {formData.photos.length > 1 ? (
+                    <div className="absolute right-2 top-2 flex flex-col gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      <button
+                        type="button"
+                        aria-label="Move photo earlier"
+                        disabled={index === 0}
+                        onClick={() => movePhoto(photo.id, -1)}
+                        className="flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white disabled:opacity-30"
+                      >
+                        <span className="material-symbols-outlined text-base">arrow_upward</span>
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Move photo later"
+                        disabled={index === formData.photos.length - 1}
+                        onClick={() => movePhoto(photo.id, 1)}
+                        className="flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white disabled:opacity-30"
+                      >
+                        <span className="material-symbols-outlined text-base">arrow_downward</span>
+                      </button>
+                    </div>
+                  ) : null}
+
+                  <div className="absolute inset-x-0 bottom-0 flex gap-2 bg-gradient-to-t from-black/80 to-transparent p-2">
+                    {photo.isProfile ? (
+                      <span className="flex h-8 flex-1 items-center justify-center rounded-full bg-primary/90 text-xs font-semibold text-white">
+                        Profile photo
+                      </span>
+                    ) : underReview ? (
+                      <span className="flex h-8 flex-1 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-on-surface-variant">
+                        Pending review
+                      </span>
+                    ) : (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        className="h-8 flex-1 rounded-full text-xs"
+                        onClick={() => setProfilePhoto(photo.id)}
+                      >
+                        Set profile
+                      </Button>
+                    )}
                     <Button
                       type="button"
                       size="sm"
-                      variant="secondary"
-                      className="h-8 flex-1 rounded-full text-xs"
-                      onClick={() => setProfilePhoto(photo.id)}
+                      variant="destructive"
+                      className="h-8 rounded-full px-3 text-xs"
+                      onClick={() => removePhoto(photo.id)}
                     >
-                      Set profile
+                      Remove
                     </Button>
-                  ) : (
-                    <span className="flex h-8 flex-1 items-center justify-center rounded-full bg-primary/90 text-xs font-semibold text-white">
-                      Profile photo
-                    </span>
-                  )}
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="destructive"
-                    className="h-8 rounded-full px-3 text-xs"
-                    onClick={() => removePhoto(photo.id)}
-                  >
-                    Remove
-                  </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : null}
       </FormSection>
@@ -699,10 +881,17 @@ export function ProfileEditForm({
         </div>
       </FormSection>
 
+      {approvedPhotoCount < MIN_PROFILE_PHOTOS ? (
+        <p className="text-center text-sm text-on-surface-variant">
+          {approvedPhotoCount} of {MIN_PROFILE_PHOTOS} approved photos — add{" "}
+          {MIN_PROFILE_PHOTOS - approvedPhotoCount} more, or wait for review to finish, to save.
+        </p>
+      ) : null}
+
       <button
         type="button"
         onClick={onSave}
-        disabled={saving}
+        disabled={saving || approvedPhotoCount < MIN_PROFILE_PHOTOS}
         className="w-full rounded-full py-4 font-bold text-white shadow-lg shadow-primary/20 gradient-brand transition-all active:scale-95 disabled:opacity-50"
       >
         {saving ? "Saving..." : "Save Changes"}

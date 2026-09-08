@@ -21,10 +21,24 @@ export interface PhotoAnalysis {
   created_at: string;
 }
 
+export type ModerationStatus = "PENDING" | "APPROVED" | "REJECTED" | "MANUAL_REVIEW";
+
+export interface ProfilePhoto {
+  id: number;
+  url: string;
+  status: ModerationStatus;
+  rejection_reason: string;
+  uploaded_at: string;
+  moderated_at: string | null;
+  order: number;
+  is_primary: boolean;
+}
+
 export interface PhotoUploadAnalysisResponse {
   success: boolean;
   image_url?: string;
   analysis: PhotoAnalysis;
+  photo?: ProfilePhoto;
   detail?: string;
 }
 

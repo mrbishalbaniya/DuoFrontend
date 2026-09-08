@@ -60,7 +60,7 @@ export default function NotFound() {
         </h2>
         <p className="mt-3 max-w-md text-sm leading-relaxed text-on-surface-variant sm:text-base">
           The page you&apos;re looking for doesn&apos;t exist or moved. Your next connection is
-          still waiting — let&apos;s get you back on track.
+          still waiting. Let&apos;s get you back on track.
         </p>
 
         <div className="mt-10 flex w-full max-w-md flex-col gap-3 sm:mt-12 sm:flex-row sm:justify-center">
@@ -103,7 +103,7 @@ export default function NotFound() {
       </main>
 
       <footer className="relative z-10 px-6 pb-8 text-center text-xs text-on-surface-variant/70 sm:px-10">
-        Duo — Find your life partner, intuitively.
+        Duo. Find your life partner, intuitively.
       </footer>
     </div>
   );

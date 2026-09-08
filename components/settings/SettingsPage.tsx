@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useEffect, type FormEvent, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useLenis } from "lenis/react";
 import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
 import BottomNav from "@/components/BottomNav";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme, type ThemeMode } from "@/contexts/ThemeContext";
-import api from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const APP_VERSION = "0.1.0";
@@ -146,14 +145,6 @@ export function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const lenis = useLenis();
 
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordSaving, setPasswordSaving] = useState(false);
-  const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [passwordExpanded, setPasswordExpanded] = useState(false);
-
   const profile = user?.profile;
   const isVerified = profile?.is_verified;
 
@@ -167,30 +158,6 @@ export function SettingsPage() {
   const handleLogout = () => {
     logout();
     router.push("/login");
-  };
-
-  const handlePasswordChange = async (event: FormEvent) => {
-    event.preventDefault();
-    setPasswordError(null);
-    setPasswordMessage(null);
-
-    if (newPassword !== confirmPassword) {
-      setPasswordError("New passwords do not match.");
-      return;
-    }
-
-    setPasswordSaving(true);
-    try {
-      const result = await api.changePassword(currentPassword, newPassword);
-      setPasswordMessage(result.message);
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-    } catch (err) {
-      setPasswordError(err instanceof Error ? err.message : "Could not update password.");
-    } finally {
-      setPasswordSaving(false);
-    }
   };
 
   return (
@@ -334,57 +301,6 @@ export function SettingsPage() {
                     description="2FA, devices, login history & alerts"
                     href="/security"
                   />
-                  <SettingsDivider />
-                  <SettingsRow
-                    icon="key"
-                    title="Change password"
-                    description="Update your account password"
-                    onClick={() => setPasswordExpanded((v) => !v)}
-                    trailing={
-                      <span className="material-symbols-outlined shrink-0 text-on-surface-variant">
-                        {passwordExpanded ? "expand_less" : "expand_more"}
-                      </span>
-                    }
-                  />
-                  {passwordExpanded ? (
-                    <form onSubmit={(e) => void handlePasswordChange(e)} className="space-y-0">
-                      <div className="space-y-3 border-t border-outline-variant/20 px-4 py-4 md:px-5 md:py-5">
-                        <input
-                          type="password"
-                          value={currentPassword}
-                          onChange={(e) => setCurrentPassword(e.target.value)}
-                          placeholder="Current password"
-                          autoComplete="current-password"
-                          className="w-full rounded-xl border border-outline-variant/30 bg-surface-container-high px-4 py-3 text-sm text-on-surface outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/20 md:py-3.5"
-                        />
-                        <input
-                          type="password"
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          placeholder="New password"
-                          autoComplete="new-password"
-                          className="w-full rounded-xl border border-outline-variant/30 bg-surface-container-high px-4 py-3 text-sm text-on-surface outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/20 md:py-3.5"
-                        />
-                        <input
-                          type="password"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          placeholder="Confirm new password"
-                          autoComplete="new-password"
-                          className="w-full rounded-xl border border-outline-variant/30 bg-surface-container-high px-4 py-3 text-sm text-on-surface outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/20 md:py-3.5"
-                        />
-                        {passwordError ? <p className="text-sm text-red-500">{passwordError}</p> : null}
-                        {passwordMessage ? <p className="text-sm text-accent">{passwordMessage}</p> : null}
-                        <button
-                          type="submit"
-                          disabled={passwordSaving || !currentPassword || !newPassword || !confirmPassword}
-                          className="w-full rounded-xl py-3 text-sm font-bold text-white gradient-brand disabled:opacity-50 md:py-3.5"
-                        >
-                          {passwordSaving ? "Updating…" : "Update password"}
-                        </button>
-                      </div>
-                    </form>
-                  ) : null}
                 </SettingsSection>
 
                 <SettingsSection title="Language">

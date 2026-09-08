@@ -1,7 +1,7 @@
 import api from "@/lib/api";
 import { getPhotoUploadError } from "@/lib/photos/validatePhotoUpload";
 import { parsePrefValues, type ParsedPrefValues } from "@/lib/profile/formatProfile";
-import type { PhotoAnalysis, Profile } from "@/types";
+import type { ModerationStatus, PhotoAnalysis, Profile } from "@/types";
 
 export type ProfileEditPhoto = {
   id: string;
@@ -10,6 +10,12 @@ export type ProfileEditPhoto = {
   isProfile: boolean;
   file?: File;
   analysis?: PhotoAnalysis;
+  /** Backend ProfilePhoto id — needed for reorder/set-primary/delete calls. */
+  photoId?: number;
+  /** APPROVED unless the backend flagged it for manual review. Photos that
+   * predate this field (legacy profiles) are treated as approved since they
+   * were already visible before this system existed. */
+  moderationStatus?: ModerationStatus;
 };
 
 export type ProfileEditFormData = {
@@ -134,19 +140,29 @@ function buildPrefValues(form: ProfileEditFormData, existing?: ParsedPrefValues)
   });
 }
 
+/** Legacy photos (no moderationStatus recorded) are treated as approved —
+ * they were already visible before this system existed. */
+function isApprovedOrLegacy(photo: ProfileEditPhoto): boolean {
+  return photo.moderationStatus === undefined || photo.moderationStatus === "APPROVED";
+}
+
 export async function resolveProfilePhotoUrls(photos: ProfileEditPhoto[]): Promise<{
   photo_url: string;
   photo_urls: string[];
 }> {
-  if (!photos.length) {
+  // Never send a photo that isn't approved — the backend enforces this too
+  // (accounts.ProfileSerializer.validate), but filtering here keeps a
+  // pending/rejected photo from silently blocking the whole save.
+  const eligible = photos.filter(isApprovedOrLegacy);
+  if (!eligible.length) {
     return { photo_url: "", photo_urls: [] };
   }
 
-  const profilePhoto = photos.find((photo) => photo.isProfile) ?? photos[0];
+  const profilePhoto = eligible.find((photo) => photo.isProfile) ?? eligible[0];
   let photo_url = "";
   const photo_urls: string[] = [];
 
-  for (const photo of photos) {
+  for (const photo of eligible) {
     let url = photo.url;
     if (photo.file) {
       const isPrimary = photo.id === profilePhoto.id;

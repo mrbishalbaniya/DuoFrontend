@@ -1,6 +1,7 @@
 "use client";
 
 import NumberFlow from "@number-flow/react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import BottomNav from "@/components/BottomNav";
@@ -118,20 +119,27 @@ export function WalletPage() {
         }));
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-surface">
+    <div className="flex h-[100dvh] overflow-hidden bg-surface" data-lenis-prevent>
       <ChatSidebarNav />
       <div className="mobile-bottom-nav-offset flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:pb-8">
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-6 sm:px-6 md:px-8 md:py-10 lg:px-12">
+        <header className="flex shrink-0 items-center gap-3 border-b border-primary/10 px-4 py-3 md:px-6">
+          <Link
+            href="/settings"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-secondary"
+            aria-label="Back"
+          >
+            <span className="material-symbols-outlined text-xl">arrow_back</span>
+          </Link>
+          <h1 className="font-[var(--font-headline)] text-lg font-bold text-on-surface">Wallet</h1>
+        </header>
+        <div
+          className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-4 py-6 sm:px-6 md:px-8 md:py-10 lg:px-12"
+          data-lenis-prevent
+        >
           <div className="mx-auto w-full max-w-2xl space-y-6">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                Duo Coins
-              </p>
-              <h1 className="ios-large-title pb-0 pt-1 md:text-[2.5rem]">Wallet</h1>
-              <p className="mt-2 text-sm text-on-surface-variant">
-                Buy coins with eSewa and spend them on Duo Premium from Discover.
-              </p>
-            </div>
+            <p className="text-sm text-on-surface-variant">
+              Buy coins with eSewa and spend them on Duo Premium from Discover.
+            </p>
 
             {notice ? (
               <div className="rounded-xl border border-white/10 bg-surface-variant/50 px-4 py-3 text-sm text-on-surface">

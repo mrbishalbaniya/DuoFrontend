@@ -176,11 +176,14 @@ export const aboutSchema = z.object({
     .max(400, "Future goals must be 400 characters or less"),
 });
 
+export const MIN_REGISTRATION_PHOTOS = 1;
+export const MAX_REGISTRATION_PHOTOS = 3;
+
 export const photosSchema = z.object({
   photos: z
     .array(registrationPhotoSchema)
-    .min(2, "Upload at least 2 verified photos")
-    .max(9, "Maximum 9 photos allowed")
+    .min(MIN_REGISTRATION_PHOTOS, `Upload at least ${MIN_REGISTRATION_PHOTOS} verified photo`)
+    .max(MAX_REGISTRATION_PHOTOS, `Maximum ${MAX_REGISTRATION_PHOTOS} photos allowed`)
     .refine(
       (photos) => photos.every((photo) => photo.status === "approved" && Boolean(photo.imageUrl)),
       "Each photo must pass AI verification before continuing"

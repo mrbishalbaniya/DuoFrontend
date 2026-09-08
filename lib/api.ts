@@ -14,6 +14,7 @@ import type {
   Message,
   PhotoAnalysis,
   PhotoUploadAnalysisResponse,
+  ProfilePhoto,
   Profile,
   LivenessStep,
   LivenessStepResponse,
@@ -162,12 +163,15 @@ class ApiClient {
         }
       }
 
+      const firstFieldError = Object.values(errorData).find(
+        (value): value is string[] =>
+          Array.isArray(value) && value.length > 0 && typeof value[0] === "string"
+      )?.[0];
+
       const detail =
         errorData.detail ??
         errorData.error ??
-        (Array.isArray(errorData.non_field_errors)
-          ? errorData.non_field_errors[0]
-          : null) ??
+        firstFieldError ??
         (Object.keys(errorData).length > 0 ? JSON.stringify(errorData) : null);
 
       throw new Error(String(detail ?? `API Error: ${res.status}`));
@@ -542,6 +546,27 @@ class ApiClient {
 
   async getPhotoAnalysis(id: number): Promise<PhotoAnalysis> {
     return this.request<PhotoAnalysis>(`/photos/analysis/${id}/`);
+  }
+
+  async listMyPhotos(): Promise<ProfilePhoto[]> {
+    return this.request<ProfilePhoto[]>("/photos/mine/");
+  }
+
+  async reorderPhotos(photoIds: number[]): Promise<ProfilePhoto[]> {
+    return this.request<ProfilePhoto[]>("/photos/reorder/", {
+      method: "PATCH",
+      body: JSON.stringify({ photo_ids: photoIds }),
+    });
+  }
+
+  async setPhotoPrimary(id: number): Promise<ProfilePhoto[]> {
+    return this.request<ProfilePhoto[]>(`/photos/${id}/set-primary/`, {
+      method: "POST",
+    });
+  }
+
+  async deletePhoto(id: number): Promise<void> {
+    await this.request<void>(`/photos/${id}/`, { method: "DELETE" });
   }
 
   async startVerification(): Promise<VerificationStartResponse> {

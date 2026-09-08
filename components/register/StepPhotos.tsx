@@ -9,6 +9,8 @@ import { FieldError, StepCard, StepNavigation } from "@/components/register/Step
 import api from "@/lib/api";
 import { getPhotoUploadError } from "@/lib/photos/validatePhotoUpload";
 import {
+  MAX_REGISTRATION_PHOTOS,
+  MIN_REGISTRATION_PHOTOS,
   photosSchema,
   type PhotosFormValues,
 } from "@/lib/validation/registrationSchema";
@@ -52,7 +54,7 @@ export function StepPhotos({ onContinue, onBack }: StepPhotosProps) {
       const list = Array.from(files).filter((file) => file.type.startsWith("image/"));
       if (!list.length) return;
 
-      const remaining = 9 - photos.length;
+      const remaining = MAX_REGISTRATION_PHOTOS - photos.length;
       const selected = list.slice(0, remaining);
       if (!selected.length) return;
 
@@ -136,7 +138,7 @@ export function StepPhotos({ onContinue, onBack }: StepPhotosProps) {
   return (
     <StepCard
       title="Photos"
-      subtitle="Upload at least 2 photos. Each photo is checked instantly with AI for face, quality, and safety."
+      subtitle={`Upload ${MIN_REGISTRATION_PHOTOS}–${MAX_REGISTRATION_PHOTOS} photos. Each photo is checked instantly with AI for face, quality, and safety.`}
     >
       <form onSubmit={submit} className="space-y-5">
         <div
@@ -163,7 +165,7 @@ export function StepPhotos({ onContinue, onBack }: StepPhotosProps) {
           <p className="mt-1 text-sm text-on-surface-variant">
             {analyzingPhotos
               ? "Running AI verification (face, blur, AI-generated detection)…"
-              : "Minimum 2 verified photos, maximum 9"}
+              : `Upload ${MIN_REGISTRATION_PHOTOS}–${MAX_REGISTRATION_PHOTOS} verified photos`}
           </p>
           <label className="mt-4 inline-flex cursor-pointer">
             <input
@@ -252,7 +254,7 @@ export function StepPhotos({ onContinue, onBack }: StepPhotosProps) {
         {profileAnalysis ? <PhotoAnalysisResult analysis={profileAnalysis} /> : null}
 
         <p className="text-xs text-on-surface-variant">
-          {approvedCount} of 2 minimum verified photo{approvedCount === 1 ? "" : "s"}
+          {approvedCount} of {MIN_REGISTRATION_PHOTOS} required verified photos
           {analyzingPhotos ? " · verification in progress…" : ""}
         </p>
 

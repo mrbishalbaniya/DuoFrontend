@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
 import type { SecurityOverview } from "@/types";
@@ -92,6 +92,38 @@ export function SecurityCenterPage() {
   const [overview, setOverview] = useState<SecurityOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const [passwordExpanded, setPasswordExpanded] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  const handlePasswordChange = async (event: FormEvent) => {
+    event.preventDefault();
+    setPasswordError(null);
+    setPasswordMessage(null);
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New passwords do not match.");
+      return;
+    }
+
+    setPasswordSaving(true);
+    try {
+      const result = await api.changePassword(currentPassword, newPassword);
+      setPasswordMessage(result.message);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : "Could not update password.");
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -193,6 +225,70 @@ export function SecurityCenterPage() {
                 value={overview.unread_alerts > 0 ? `${overview.unread_alerts} unread` : "All caught up"}
                 tone={overview.unread_alerts > 0 ? "warning" : undefined}
               />
+              <div className="border-t border-outline-variant/20" />
+              <button
+                type="button"
+                onClick={() => setPasswordExpanded((v) => !v)}
+                className="flex w-full items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-surface-container-high/60 md:px-5"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <span className="material-symbols-outlined text-[22px]">key</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-on-surface">Change password</p>
+                  <p className="mt-0.5 text-sm text-on-surface-variant">Update your account password</p>
+                </div>
+                <span className="material-symbols-outlined shrink-0 text-on-surface-variant">
+                  {passwordExpanded ? "expand_less" : "expand_more"}
+                </span>
+              </button>
+              {passwordExpanded ? (
+                <form onSubmit={(e) => void handlePasswordChange(e)} className="space-y-0">
+                  <div className="space-y-3 border-t border-outline-variant/20 px-4 py-4 md:px-5 md:py-5">
+                    <input
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="Current password"
+                      autoComplete="current-password"
+                      className="w-full rounded-xl border border-outline-variant/30 bg-surface-container-high px-4 py-3 text-sm text-on-surface outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/20 md:py-3.5"
+                    />
+                    <div className="-mt-1 text-right">
+                      <Link
+                        href="/login/forgot-password"
+                        className="text-xs font-semibold text-primary hover:underline"
+                      >
+                        Forgot password?
+                      </Link>
+                    </div>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="New password"
+                      autoComplete="new-password"
+                      className="w-full rounded-xl border border-outline-variant/30 bg-surface-container-high px-4 py-3 text-sm text-on-surface outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/20 md:py-3.5"
+                    />
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirm new password"
+                      autoComplete="new-password"
+                      className="w-full rounded-xl border border-outline-variant/30 bg-surface-container-high px-4 py-3 text-sm text-on-surface outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/20 md:py-3.5"
+                    />
+                    {passwordError ? <p className="text-sm text-red-500">{passwordError}</p> : null}
+                    {passwordMessage ? <p className="text-sm text-accent">{passwordMessage}</p> : null}
+                    <button
+                      type="submit"
+                      disabled={passwordSaving || !currentPassword || !newPassword || !confirmPassword}
+                      className="w-full rounded-xl py-3 text-sm font-bold text-white gradient-brand disabled:opacity-50 md:py-3.5"
+                    >
+                      {passwordSaving ? "Updating…" : "Update password"}
+                    </button>
+                  </div>
+                </form>
+              ) : null}
             </div>
           </section>
 
