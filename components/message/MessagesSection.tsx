@@ -133,6 +133,8 @@ export default function MessagesSection() {
   const messagesCacheRef = useRef<Map<string, ChatMessage[]>>(new Map());
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadMessagesRequestRef = useRef(0);
+  /** Which conversation key we've already done the open-at-bottom scroll for. */
+  const initialScrollDoneForKeyRef = useRef<string | null>(null);
   /** Prevents URL sync from re-opening a thread while back navigation clears the query param. */
   const leavingThreadRef = useRef(false);
 
@@ -476,9 +478,16 @@ export default function MessagesSection() {
 
   useEffect(() => () => clearPendingImage(), [clearPendingImage]);
 
+  // Scroll to the bottom once when a conversation is first opened — but only
+  // once per conversation. Without the ref guard, this effect would also fire
+  // every time loadOlderMessages() prepends older messages (since that changes
+  // visibleMessages.length too), yanking the view back to the bottom right after
+  // the position-preservation logic in loadOlderMessages runs.
   useEffect(() => {
     if (!selectedKey || loadingMessages) return;
     if (visibleMessages.length === 0) return;
+    if (initialScrollDoneForKeyRef.current === selectedKey) return;
+    initialScrollDoneForKeyRef.current = selectedKey;
 
     const frame = window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => scrollToLatestMessage("auto"));
@@ -683,6 +692,16 @@ export default function MessagesSection() {
     if (!wsConnected || !selectedApiKey) return;
     sendWs({ type: "mark_read" });
   }, [wsConnected, selectedApiKey, sendWs, visibleMessages.length]);
+
+  const [showReconnecting, setShowReconnecting] = useState(false);
+  useEffect(() => {
+    if (wsConnected || !selectedApiKey) {
+      setShowReconnecting(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowReconnecting(true), 1500);
+    return () => clearTimeout(timer);
+  }, [wsConnected, selectedApiKey]);
 
   useEffect(() => {
     if (!selectedApiKey || wsConnected) return;
@@ -1405,46 +1424,78 @@ export default function MessagesSection() {
     requestAnimationFrame(() => messageInputRef.current?.focus());
   };
 
-  const handleReact = (messageId: number, emoji: string) => {
-    if (!user?.id) return;
+  const handleToggleMenu = useCallback((msg: ChatMessage) => {
+    setActiveMessageMenu((prev) => (prev === msg.id ? null : msg.id));
+  }, []);
 
-    setMessages((prev) => {
-      const next = prev.map((m) =>
-        m.id === messageId
-          ? {
-              ...m,
-              reactions: applyUserReaction(m.reactions, user.id, emoji),
-            }
-          : m
-      );
-      if (selectedApiKey) messagesCacheRef.current.set(selectedApiKey, next);
-      return next;
-    });
-    setActiveMessageMenu(null);
+  const handleReact = useCallback(
+    (msg: ChatMessage, emoji: string) => {
+      if (!user?.id) return;
+      const messageId = msg.id;
 
-    if (sendWs({ type: "message_reaction", id: messageId, user_id: user.id, emoji })) {
-      return;
-    }
-    void api.reactToMessage(messageId, emoji).catch(() => undefined);
-  };
+      setMessages((prev) => {
+        const next = prev.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                reactions: applyUserReaction(m.reactions, user.id, emoji),
+              }
+            : m
+        );
+        if (selectedApiKey) messagesCacheRef.current.set(selectedApiKey, next);
+        return next;
+      });
+      setActiveMessageMenu(null);
 
-  const handleDelete = (messageId: number, deleteType: "for_me" | "for_everyone") => {
-    setActiveMessageMenu(null);
-    if (replyingTo?.id === messageId) setReplyingTo(null);
-    if (
-      sendWs({
-        type: "delete_message",
-        id: messageId,
-        user_id: user?.id,
-        delete_type: deleteType,
-      })
-    ) {
-      return;
-    }
-    void api.deleteMessage(messageId, deleteType).catch(() => undefined);
-  };
+      if (sendWs({ type: "message_reaction", id: messageId, user_id: user.id, emoji })) {
+        return;
+      }
+      void api.reactToMessage(messageId, emoji).catch(() => undefined);
+    },
+    [user?.id, selectedApiKey, sendWs]
+  );
 
-  const handleCopyMessage = async (msg: ChatMessage) => {
+  const handleDeleteForMe = useCallback(
+    (msg: ChatMessage) => {
+      const messageId = msg.id;
+      setActiveMessageMenu(null);
+      if (replyingTo?.id === messageId) setReplyingTo(null);
+      if (
+        sendWs({
+          type: "delete_message",
+          id: messageId,
+          user_id: user?.id,
+          delete_type: "for_me",
+        })
+      ) {
+        return;
+      }
+      void api.deleteMessage(messageId, "for_me").catch(() => undefined);
+    },
+    [replyingTo, sendWs, user?.id]
+  );
+
+  const handleDeleteForEveryone = useCallback(
+    (msg: ChatMessage) => {
+      const messageId = msg.id;
+      setActiveMessageMenu(null);
+      if (replyingTo?.id === messageId) setReplyingTo(null);
+      if (
+        sendWs({
+          type: "delete_message",
+          id: messageId,
+          user_id: user?.id,
+          delete_type: "for_everyone",
+        })
+      ) {
+        return;
+      }
+      void api.deleteMessage(messageId, "for_everyone").catch(() => undefined);
+    },
+    [replyingTo, sendWs, user?.id]
+  );
+
+  const handleCopyMessage = useCallback(async (msg: ChatMessage) => {
     const text = getCopyableText(msg);
     if (!text) return;
     try {
@@ -1453,15 +1504,15 @@ export default function MessagesSection() {
       // Clipboard API may be unavailable.
     }
     setActiveMessageMenu(null);
-  };
+  }, []);
 
-  const handleReplyToMessage = (msg: ChatMessage) => {
+  const handleReplyToMessage = useCallback((msg: ChatMessage) => {
     setReplyingTo(msg);
     setActiveMessageMenu(null);
     setShowEmojiPicker(false);
     setAttachmentsExpanded(false);
     requestAnimationFrame(() => messageInputRef.current?.focus());
-  };
+  }, []);
 
   const handleTyping = useCallback(() => {
     if (!selectedApiKey) return;
@@ -1654,6 +1705,13 @@ export default function MessagesSection() {
                 }}
               />
 
+              {showReconnecting ? (
+                <div className="flex shrink-0 items-center justify-center gap-2 border-b border-amber-500/20 bg-amber-500/10 px-4 py-1.5 text-center text-xs font-medium text-amber-600 dark:text-amber-400">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
+                  Reconnecting…
+                </div>
+              ) : null}
+
               {chatActionNotice ? (
                 <div className="shrink-0 border-b border-white/10 bg-surface-variant/40 px-4 py-2 text-center text-xs text-on-surface">
                   {chatActionNotice}
@@ -1709,18 +1767,14 @@ export default function MessagesSection() {
                         otherAvatarSrc={otherAvatarSrc}
                         otherProfileName={otherProfile?.full_name}
                         menuOpen={activeMessageMenu === item.msg.id}
-                        onToggleMenu={() =>
-                          setActiveMessageMenu(
-                            activeMessageMenu === item.msg.id ? null : item.msg.id
-                          )
-                        }
-                        onCopy={() => void handleCopyMessage(item.msg)}
-                        onReply={() => handleReplyToMessage(item.msg)}
-                        onReact={(emoji) => handleReact(item.msg.id, emoji)}
-                        onDeleteForMe={() => handleDelete(item.msg.id, "for_me")}
-                        onDeleteForEveryone={() => handleDelete(item.msg.id, "for_everyone")}
-                        onImageClick={(src) => setLightboxSrc(src)}
-                        onRetry={() => retryFailedMessage(item.msg)}
+                        onToggleMenu={handleToggleMenu}
+                        onCopy={handleCopyMessage}
+                        onReply={handleReplyToMessage}
+                        onReact={handleReact}
+                        onDeleteForMe={handleDeleteForMe}
+                        onDeleteForEveryone={handleDeleteForEveryone}
+                        onImageClick={setLightboxSrc}
+                        onRetry={retryFailedMessage}
                       />
                     )
                   )

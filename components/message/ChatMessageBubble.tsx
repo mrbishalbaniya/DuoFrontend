@@ -104,21 +104,21 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
 
   menuOpen: boolean;
 
-  onToggleMenu: () => void;
+  onToggleMenu: (msg: ChatMessage) => void;
 
-  onCopy: () => void;
+  onCopy: (msg: ChatMessage) => void;
 
-  onReply: () => void;
+  onReply: (msg: ChatMessage) => void;
 
-  onReact: (emoji: string) => void;
+  onReact: (msg: ChatMessage, emoji: string) => void;
 
-  onDeleteForMe: () => void;
+  onDeleteForMe: (msg: ChatMessage) => void;
 
-  onDeleteForEveryone: () => void;
+  onDeleteForEveryone: (msg: ChatMessage) => void;
 
   onImageClick?: (src: string) => void;
 
-  onRetry?: () => void;
+  onRetry?: (msg: ChatMessage) => void;
 
 }) {
 
@@ -484,7 +484,7 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
 
                 type="button"
 
-                onClick={onRetry}
+                onClick={() => onRetry?.(msg)}
 
                 className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-red-200"
 
