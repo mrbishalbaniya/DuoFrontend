@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { GoogleOneTap } from "@/components/auth/google-one-tap";
 import { getGoogleOAuthRedirectUri } from "@/lib/googleAuth";
 import { useAuth } from "@/contexts/AuthContext";
 import api, { TwoFactorRequiredError } from "@/lib/api";
@@ -186,6 +187,13 @@ function LoginPageContent() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6">
+      {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
+        <GoogleOneTap
+          onSuccess={handleGoogleSuccess}
+          onError={() => setError("Google sign-in was cancelled or failed.")}
+          disabled={loading || Boolean(twoFactor)}
+        />
+      )}
       <header className="mb-12 z-10 text-center">
         <h1 className="text-3xl font-black text-gradient-brand font-[var(--font-headline)] tracking-tight mb-2">
           Duo

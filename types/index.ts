@@ -228,13 +228,27 @@ export interface InitiateSubscriptionResponse {
   form: EsewaPaymentForm;
 }
 
+export type WalletTransactionStatus = "complete" | "pending" | "failed";
+export type WalletTransactionPaymentMethod = "esewa" | "wallet" | "";
+
 export interface WalletTransaction {
+  id: number;
   type: "top_up" | "purchase" | "adjustment";
   amount: string;
   balance_after: string;
+  total_amount: string;
+  status: WalletTransactionStatus;
+  payment_method: WalletTransactionPaymentMethod;
   description: string;
   reference_id: string;
   created_at: string;
+  updated_at: string;
+}
+
+export interface WalletTransactionListResponse {
+  results: WalletTransaction[];
+  has_more: boolean;
+  next_before: number | null;
 }
 
 export interface CoinPack {

@@ -11,6 +11,8 @@ import type {
   SubscriptionStatus,
   WalletPurchaseResponse,
   WalletSummary,
+  WalletTransaction,
+  WalletTransactionListResponse,
   Message,
   PhotoAnalysis,
   PhotoUploadAnalysisResponse,
@@ -718,6 +720,29 @@ class ApiClient {
 
   async getWallet(): Promise<WalletSummary> {
     return this.request<WalletSummary>("/wallet/");
+  }
+
+  async getWalletTransactions(params?: {
+    dateFrom?: string;
+    dateTo?: string;
+    paymentMethod?: string;
+    before?: number;
+    limit?: number;
+  }): Promise<WalletTransactionListResponse> {
+    const query = new URLSearchParams();
+    if (params?.dateFrom) query.set("date_from", params.dateFrom);
+    if (params?.dateTo) query.set("date_to", params.dateTo);
+    if (params?.paymentMethod) query.set("payment_method", params.paymentMethod);
+    if (params?.before) query.set("before", String(params.before));
+    if (params?.limit) query.set("limit", String(params.limit));
+    const qs = query.toString();
+    return this.request<WalletTransactionListResponse>(
+      `/wallet/transactions/${qs ? `?${qs}` : ""}`
+    );
+  }
+
+  async getWalletTransaction(id: number): Promise<WalletTransaction> {
+    return this.request<WalletTransaction>(`/wallet/transactions/${id}/`);
   }
 
   async initiateWalletTopUp(amount: number): Promise<InitiateSubscriptionResponse> {

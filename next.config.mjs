@@ -49,7 +49,7 @@ function buildContentSecurityPolicy() {
   return [
     "default-src 'self'",
     "base-uri 'self'",
-    "form-action 'self' https://esewa.com.np https://rc.esewa.com.np",
+    "form-action 'self' https://esewa.com.np https://rc.esewa.com.np https://epay.esewa.com.np https://rc-epay.esewa.com.np",
     "frame-ancestors 'none'",
     "object-src 'none'",
     "worker-src 'self' blob:",

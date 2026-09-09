@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import type { CSSProperties } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { useUnreadMessagesBadge } from "@/hooks/useUnreadMessagesBadge";
 
 type NavItem = {
@@ -18,6 +18,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/discover", icon: "group", label: "Discover" },
   { href: "/chat", icon: "chat_bubble", label: "Chat" },
   { href: "/map", icon: "map", label: "Map" },
+  { href: "/profile", icon: "person", label: "Profile" },
 ];
 
 const filledIconStyle: CSSProperties = { fontVariationSettings: "'FILL' 1" };
@@ -115,13 +116,11 @@ function SidebarIconButton({
 
 export function ChatSidebarNav({ className = "" }: ChatSidebarNavProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { logout } = useAuth();
+  const { resolvedTheme, setTheme } = useTheme();
   const { badgeLabel } = useUnreadMessagesBadge();
 
-  const handleLogout = () => {
-    logout();
-    router.push("/login");
+  const handleToggleTheme = () => {
+    setTheme(resolvedTheme === "dark" ? "light" : "dark");
   };
 
   return (
@@ -158,16 +157,9 @@ export function ChatSidebarNav({ className = "" }: ChatSidebarNavProps) {
 
       <div className="mt-2 flex flex-col items-center gap-1.5 border-t border-outline-variant/30 pt-3">
         <SidebarIconButton
-          href="/wallet"
-          icon="account_balance_wallet"
-          label="Wallet"
-          active={pathname === "/wallet"}
-        />
-        <SidebarIconButton
-          href="/profile"
-          icon="person"
-          label="Profile"
-          active={pathname === "/profile"}
+          icon={resolvedTheme === "dark" ? "dark_mode" : "light_mode"}
+          label={resolvedTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          onClick={handleToggleTheme}
         />
         <SidebarIconButton
           href="/settings"
@@ -175,7 +167,6 @@ export function ChatSidebarNav({ className = "" }: ChatSidebarNavProps) {
           label="Settings"
           active={pathname === "/settings" || pathname.startsWith("/settings/")}
         />
-        <SidebarIconButton icon="logout" label="Logout" onClick={handleLogout} />
       </div>
     </nav>
   );

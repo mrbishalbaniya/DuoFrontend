@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect, type ReactNode } from "react";
 import { useLenis } from "lenis/react";
 import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
+import { ChatConfirmDialog } from "@/components/chat/ChatConversationMenu";
 import BottomNav from "@/components/BottomNav";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme, type ThemeMode } from "@/contexts/ThemeContext";
@@ -147,6 +148,7 @@ export function SettingsPage() {
 
   const profile = user?.profile;
   const isVerified = profile?.is_verified;
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
 
   useEffect(() => {
     lenis?.stop();
@@ -385,7 +387,7 @@ export function SettingsPage() {
                     title="Log out"
                     destructive
                     trailing={<span />}
-                    onClick={handleLogout}
+                    onClick={() => setLogoutConfirmOpen(true)}
                   />
                 </SettingsSection>
               </div>
@@ -393,6 +395,19 @@ export function SettingsPage() {
           </div>
         </div>
       </div>
+
+      <ChatConfirmDialog
+        open={logoutConfirmOpen}
+        title="Log out?"
+        description="You'll need to sign in again to access your account."
+        confirmLabel="Log out"
+        destructive
+        onClose={() => setLogoutConfirmOpen(false)}
+        onConfirm={() => {
+          setLogoutConfirmOpen(false);
+          handleLogout();
+        }}
+      />
       <BottomNav />
     </div>
   );

@@ -23,33 +23,43 @@ function formatTxnDate(iso: string): string {
   }).format(new Date(iso));
 }
 
-function TransactionRow({ txn }: { txn: WalletTransaction }) {
+function LatestTransactionRow({ txn }: { txn: WalletTransaction }) {
   const num = Number(txn.amount);
   const isCredit = num >= 0;
 
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3.5 md:px-5">
+    <Link
+      href="/wallet/transactions"
+      className="flex items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-surface-container-high/40 md:px-5"
+    >
       <div className="min-w-0">
         <p className="truncate font-medium text-on-surface">
           {txn.description || (txn.type === "top_up" ? "Coin pack purchase" : "Purchase")}
         </p>
         <p className="mt-0.5 text-xs text-on-surface-variant">{formatTxnDate(txn.created_at)}</p>
       </div>
-      <p
-        className={`shrink-0 text-sm font-semibold tabular-nums ${
-          isCredit ? "text-[#60bb46]" : "text-on-surface"
-        }`}
-      >
-        {formatCoinDelta(txn.amount)}
-      </p>
-    </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <p
+          className={`text-sm font-semibold tabular-nums ${
+            isCredit ? "text-[#60bb46]" : "text-on-surface"
+          }`}
+        >
+          {formatCoinDelta(txn.amount)}
+        </p>
+        <span className="material-symbols-outlined text-on-surface-variant">chevron_right</span>
+      </div>
+    </Link>
   );
 }
 
 const DEFAULT_COIN_PACKS: CoinPack[] = [
+  { id: "coins_50", coins: 50, price_npr: 50, label: "50 Coins" },
+  { id: "coins_100", coins: 100, price_npr: 100, label: "100 Coins" },
+  { id: "coins_250", coins: 250, price_npr: 250, label: "250 Coins" },
   { id: "coins_500", coins: 500, price_npr: 500, label: "500 Coins" },
   { id: "coins_1000", coins: 1000, price_npr: 1000, label: "1,000 Coins" },
   { id: "coins_2000", coins: 2000, price_npr: 2000, label: "2,000 Coins" },
+  { id: "coins_3000", coins: 3000, price_npr: 3000, label: "3,000 Coins" },
   { id: "coins_5000", coins: 5000, price_npr: 5000, label: "5,000 Coins" },
 ];
 
@@ -156,7 +166,7 @@ export function WalletPage() {
                 <div className="overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/10 to-surface-variant/40 p-6">
                   <p className="text-sm font-medium text-on-surface-variant">Your coins</p>
                   <p className="mt-2 flex items-baseline gap-2 text-4xl font-bold tabular-nums text-on-surface">
-                    <span className="material-symbols-outlined text-3xl text-primary">toll</span>
+                    <span className="text-3xl" aria-hidden>🪙</span>
                     <NumberFlow value={balance} />
                   </p>
                   {user?.profile.is_premium && user.profile.subscription_expires_at ? (
@@ -186,7 +196,7 @@ export function WalletPage() {
                           className="flex flex-col items-center justify-center gap-1 rounded-xl border border-white/10 bg-background/50 px-3 py-3 text-sm transition hover:border-[#60bb46]/40 hover:bg-[#60bb46]/10 disabled:opacity-60"
                         >
                           <span className="flex items-center gap-1 font-semibold text-on-surface">
-                            <span className="material-symbols-outlined text-base text-primary">toll</span>
+                            <span className="text-base" aria-hidden>🪙</span>
                             {pack.coins.toLocaleString("en-NP")}
                           </span>
                           <span className="flex items-center gap-1 text-[11px] text-on-surface-variant">
@@ -196,26 +206,37 @@ export function WalletPage() {
                         </button>
                       ))}
                     </div>
-                    <p className="mt-3 text-center text-[11px] text-on-surface-variant/70">
-                      {toppingUp
-                        ? "Redirecting to eSewa…"
-                        : "1 NPR via eSewa = 1 Duo Coin · Secure payment with eSewa ePay"}
-                    </p>
                   </div>
                 </section>
 
-                {wallet?.transactions.length ? (
-                  <section className="space-y-3">
-                    <h2 className="px-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between px-1">
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                       Recent activity
                     </h2>
-                    <div className="overflow-hidden rounded-2xl border border-primary/10 bg-secondary/30 divide-y divide-outline-variant/20">
-                      {wallet.transactions.map((txn, index) => (
-                        <TransactionRow key={`${txn.created_at}-${index}`} txn={txn} />
-                      ))}
-                    </div>
-                  </section>
-                ) : null}
+                    <Link
+                      href="/wallet/transactions"
+                      className="text-xs font-semibold text-primary hover:underline"
+                    >
+                      View all
+                    </Link>
+                  </div>
+                  <div className="overflow-hidden rounded-2xl border border-primary/10 bg-secondary/30">
+                    {wallet?.transactions.length ? (
+                      <LatestTransactionRow txn={wallet.transactions[0]} />
+                    ) : (
+                      <Link
+                        href="/wallet/transactions"
+                        className="flex items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-surface-container-high/40 md:px-5"
+                      >
+                        <span className="text-sm text-on-surface-variant">No transactions yet</span>
+                        <span className="material-symbols-outlined text-on-surface-variant">
+                          chevron_right
+                        </span>
+                      </Link>
+                    )}
+                  </div>
+                </section>
               </>
             )}
           </div>
