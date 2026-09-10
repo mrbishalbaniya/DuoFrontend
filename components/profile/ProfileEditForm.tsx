@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhotoAnalysisResult } from "@/components/photos/PhotoAnalysisResult";
 import api from "@/lib/api";
+import { screenImageForNsfw } from "@/lib/photos/nsfwScreen";
 import { getPhotoUploadError } from "@/lib/photos/validatePhotoUpload";
 import {
   CASTE_OPTIONS,
@@ -79,6 +80,9 @@ interface PendingPhotoUpload {
   isPrimary: boolean;
   status: "uploading" | "error";
   errorMessage?: string;
+  /** Rejected by the client-side content screen, not the backend — the
+   * preview must never be shown for these, even blurred-then-revealed. */
+  nsfwBlocked?: boolean;
 }
 
 export function ProfileEditForm({
@@ -132,10 +136,30 @@ export function ProfileEditForm({
 
   const runUpload = useCallback(async (pending: PendingPhotoUpload) => {
     setPendingUploads((prev) =>
-      prev.map((p) => (p.id === pending.id ? { ...p, status: "uploading", errorMessage: undefined } : p))
+      prev.map((p) =>
+        p.id === pending.id
+          ? { ...p, status: "uploading", errorMessage: undefined, nsfwBlocked: false }
+          : p
+      )
     );
 
     try {
+      // Best-effort client-side screen, run before the file ever leaves the
+      // browser. The backend's own check only verifies face/quality, not
+      // content — see lib/photos/nsfwScreen.ts for why this is a stopgap,
+      // not a real security boundary.
+      const nsfw = await screenImageForNsfw(pending.file);
+      if (nsfw.blocked) {
+        setPendingUploads((prev) =>
+          prev.map((p) =>
+            p.id === pending.id
+              ? { ...p, status: "error", errorMessage: nsfw.reason, nsfwBlocked: true }
+              : p
+          )
+        );
+        return;
+      }
+
       const result = await api.uploadAndAnalyzePhoto(pending.file, { isPrimary: pending.isPrimary });
       const uploadError = getPhotoUploadError(result, pending.file.name);
       if (uploadError) throw new Error(uploadError);
@@ -335,40 +359,50 @@ export function ProfileEditForm({
                 key={pending.id}
                 className="relative overflow-hidden rounded-2xl border border-outline-variant/20"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={pending.previewUrl}
-                  alt={pending.file.name}
-                  className={cn(
-                    "aspect-[3/4] w-full object-cover",
-                    pending.status === "uploading" && "opacity-50"
-                  )}
-                />
+                {pending.nsfwBlocked ? (
+                  // Never render even a blurred preview of content our own
+                  // screen flagged as explicit — show a plain placeholder.
+                  <div className="flex aspect-[3/4] w-full flex-col items-center justify-center gap-2 bg-surface-container-high p-3 text-center">
+                    <span className="material-symbols-outlined text-3xl text-red-300">block</span>
+                  </div>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={pending.previewUrl}
+                    alt={pending.file.name}
+                    className={cn(
+                      "aspect-[3/4] w-full object-cover",
+                      pending.status === "uploading" && "opacity-50"
+                    )}
+                  />
+                )}
                 {pending.status === "uploading" ? (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/30">
                     <span className="h-7 w-7 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                     <span className="text-xs font-semibold text-white drop-shadow">Verifying…</span>
                   </div>
                 ) : (
-                  <div className="absolute inset-0 flex flex-col justify-end gap-1.5 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-2">
+                  <div className="absolute inset-x-0 bottom-0 flex flex-col justify-end gap-1.5 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-2">
                     <p className="line-clamp-3 text-[11px] leading-snug text-red-200">
                       {pending.errorMessage}
                     </p>
                     <div className="flex gap-1.5">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        className="h-7 flex-1 rounded-full text-[11px]"
-                        onClick={() => void runUpload(pending)}
-                      >
-                        Retry
-                      </Button>
+                      {pending.nsfwBlocked ? null : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="h-7 flex-1 rounded-full text-[11px]"
+                          onClick={() => void runUpload(pending)}
+                        >
+                          Retry
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         size="sm"
                         variant="destructive"
-                        className="h-7 rounded-full px-2 text-[11px]"
+                        className={cn("h-7 rounded-full px-2 text-[11px]", pending.nsfwBlocked && "flex-1")}
                         onClick={() => removePending(pending.id)}
                       >
                         Dismiss
@@ -390,12 +424,29 @@ export function ProfileEditForm({
                   )}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={photo.url} alt={photo.fileName} className="aspect-[3/4] w-full object-cover" />
+                  <img
+                    src={photo.url}
+                    alt={photo.fileName}
+                    className={cn(
+                      "aspect-[3/4] w-full object-cover",
+                      // The automated face/quality checks don't screen for
+                      // inappropriate content, so a photo pending human
+                      // moderation stays blurred client-side until approved.
+                      underReview && "scale-110 blur-2xl"
+                    )}
+                  />
 
                   {underReview ? (
-                    <span className="absolute left-2 top-2 rounded-full bg-amber-500/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                      Under review
-                    </span>
+                    <>
+                      <span className="absolute left-2 top-2 rounded-full bg-amber-500/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                        Under review
+                      </span>
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 p-3 text-center">
+                        <p className="text-xs font-semibold text-white drop-shadow">
+                          Photo hidden pending moderator review
+                        </p>
+                      </div>
+                    </>
                   ) : null}
 
                   {formData.photos.length > 1 ? (

@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ChipSelect } from "@/components/register/ChipSelect";
 import { SelectField } from "@/components/register/SelectField";
 import { FieldError, StepCard, StepNavigation } from "@/components/register/StepNavigation";
 import { Input } from "@/components/ui/input";
@@ -63,11 +62,17 @@ export function StepBasicInfo({ onContinue, onBack }: StepBasicInfoProps) {
           </div>
         </div>
 
-        <ChipSelect
+        <SelectField
           label="Gender"
-          value={form.watch("gender") ?? ""}
           options={GENDER_OPTIONS}
-          onChange={(value) => form.setValue("gender", value, { shouldValidate: true })}
+          value={form.watch("gender") ?? ""}
+          onChange={(event) =>
+            form.setValue(
+              "gender",
+              event.target.value as BasicInfoFormValues["gender"],
+              { shouldValidate: true }
+            )
+          }
           error={form.formState.errors.gender?.message}
         />
 
@@ -104,21 +109,32 @@ export function StepBasicInfo({ onContinue, onBack }: StepBasicInfoProps) {
           />
         </div>
 
-        <ChipSelect
-          label="Marital status"
-          value={form.watch("maritalStatus") ?? ""}
+        <SelectField
+          label="Marital status (optional)"
           options={MARITAL_STATUS_OPTIONS}
-          onChange={(value) => form.setValue("maritalStatus", value, { shouldValidate: true })}
+          value={form.watch("maritalStatus") ?? ""}
+          onChange={(event) =>
+            form.setValue(
+              "maritalStatus",
+              (event.target.value || undefined) as BasicInfoFormValues["maritalStatus"],
+              { shouldValidate: true }
+            )
+          }
           error={form.formState.errors.maritalStatus?.message}
         />
 
-        <ChipSelect
-          label="Relationship goal"
-          value={form.watch("relationshipGoal") ?? ""}
+        <SelectField
+          label="Relationship goal (optional)"
           options={RELATIONSHIP_GOAL_OPTIONS}
-          onChange={(value) => form.setValue("relationshipGoal", value, { shouldValidate: true })}
+          value={form.watch("relationshipGoal") ?? ""}
+          onChange={(event) =>
+            form.setValue(
+              "relationshipGoal",
+              (event.target.value || undefined) as BasicInfoFormValues["relationshipGoal"],
+              { shouldValidate: true }
+            )
+          }
           error={form.formState.errors.relationshipGoal?.message}
-          columns={2}
         />
 
         <StepNavigation onBack={onBack} onNext={() => submit()} />

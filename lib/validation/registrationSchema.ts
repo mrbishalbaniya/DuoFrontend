@@ -13,7 +13,8 @@ export const registrationPhotoSchema = z.object({
   previewUrl: z.string(),
   isProfile: z.boolean(),
   imageUrl: z.string().optional(),
-  status: z.enum(["analyzing", "approved", "rejected"]).optional(),
+  status: z.enum(["analyzing", "approved", "pending_review", "rejected"]).optional(),
+  moderationStatus: z.enum(["PENDING", "APPROVED", "REJECTED", "MANUAL_REVIEW"]).optional(),
   error: z.string().optional(),
   analysis: registrationPhotoAnalysisSchema.optional(),
 });
@@ -60,12 +61,16 @@ export const basicInfoSchema = z
     dateOfBirth: z.string().min(1, "Date of birth is required"),
     heightFeet: z.number().min(4).max(7),
     heightInches: z.number().min(0).max(11),
-    maritalStatus: z.enum(["never_married", "divorced", "widowed"], {
-      message: "Select marital status",
-    }),
-    relationshipGoal: z.enum(["dating", "serious", "marriage", "friendship"], {
-      message: "Select relationship goal",
-    }),
+    maritalStatus: z
+      .enum(["never_married", "divorced", "widowed"], {
+        message: "Select marital status",
+      })
+      .optional(),
+    relationshipGoal: z
+      .enum(["dating", "serious", "marriage", "friendship"], {
+        message: "Select relationship goal",
+      })
+      .optional(),
   })
   .superRefine((data, ctx) => {
     const age = calculateAgeFromDob(data.dateOfBirth);

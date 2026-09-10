@@ -1,15 +1,4 @@
-export type RegistrationStep =
-  | 1
-  | 2
-  | 3
-  | 4
-  | 5
-  | 6
-  | 7
-  | 8
-  | 9
-  | 10
-  | 11;
+export type RegistrationStep = 1 | 2 | 3 | 4 | 5;
 
 export type GenderOption = "male" | "female" | "other";
 export type MaritalStatus = "never_married" | "divorced" | "widowed";
@@ -73,9 +62,9 @@ export type DistancePreference =
   | "anywhere";
 export type MarriagePreference = "yes" | "no" | "depends";
 
-import type { PhotoAnalysis } from "@/types";
+import type { ModerationStatus, PhotoAnalysis } from "@/types";
 
-export type RegistrationPhotoStatus = "analyzing" | "approved" | "rejected";
+export type RegistrationPhotoStatus = "analyzing" | "approved" | "pending_review" | "rejected";
 
 export interface RegistrationPhoto {
   id: string;
@@ -86,6 +75,8 @@ export interface RegistrationPhoto {
   imageUrl?: string;
   analysis?: PhotoAnalysis;
   status?: RegistrationPhotoStatus;
+  /** Raw backend moderation status — APPROVED unless flagged for manual review. */
+  moderationStatus?: ModerationStatus;
   error?: string;
 }
 
@@ -159,17 +150,11 @@ export const REGISTRATION_STEP_LABELS: Record<RegistrationStep, string> = {
   1: "Account",
   2: "Basic Info",
   3: "Location",
-  4: "Education",
-  5: "Religion",
-  6: "Lifestyle",
-  7: "Interests",
-  8: "Preferences",
-  9: "About",
-  10: "Photos",
-  11: "Review",
+  4: "Photos",
+  5: "Review",
 };
 
-export const TOTAL_REGISTRATION_STEPS = 11;
+export const TOTAL_REGISTRATION_STEPS = 5;
 
 export const initialRegistrationData = (): RegistrationData => ({
   phone: "",

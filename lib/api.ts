@@ -502,14 +502,31 @@ class ApiClient {
       formData.append("is_primary", "true");
     }
 
-    const doUpload = () =>
-      fetch(`${this.baseUrl}/photos/upload/`, {
+    // AI verification (face detection, quality checks) can legitimately take
+    // a few seconds, but the request must not hang forever — a stalled
+    // network call or a wedged backend would otherwise leave the photo tile
+    // spinning indefinitely with no way for the user to retry.
+    const UPLOAD_TIMEOUT_MS = 45_000;
+    const doUpload = () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+      return fetch(`${this.baseUrl}/photos/upload/`, {
         method: "POST",
         credentials: "include",
         body: formData,
-      });
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeout));
+    };
 
-    let response = await doUpload();
+    let response: Response;
+    try {
+      response = await doUpload();
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw new Error("Upload timed out. Check your connection and try again.");
+      }
+      throw error;
+    }
     if (response.status === 401) {
       const refreshed = await this.refreshSession();
       if (!refreshed) {
@@ -517,7 +534,14 @@ class ApiClient {
         if (shouldRedirectToLogin()) window.location.href = "/login";
         throw new Error("Authentication failed");
       }
-      response = await doUpload();
+      try {
+        response = await doUpload();
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          throw new Error("Upload timed out. Check your connection and try again.");
+        }
+        throw error;
+      }
     }
 
     const data = (await response.json().catch(() => ({}))) as PhotoUploadAnalysisResponse & {
