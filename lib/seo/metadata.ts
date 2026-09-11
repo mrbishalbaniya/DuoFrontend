@@ -61,9 +61,12 @@ export const rootMetadata: Metadata = {
   description: siteConfig.description,
   applicationName: siteConfig.name,
   icons: {
-    icon: [{ url: "/logo.png", type: "image/png" }],
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/logo.png", type: "image/png" }
+    ],
     apple: [{ url: "/logo.png", type: "image/png" }],
-    shortcut: ["/logo.png"],
+    shortcut: ["/favicon.svg"],
   },
   openGraph: {
     type: "website",

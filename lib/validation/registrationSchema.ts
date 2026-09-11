@@ -14,6 +14,7 @@ export const registrationPhotoSchema = z.object({
   isProfile: z.boolean(),
   imageUrl: z.string().optional(),
   status: z.enum(["analyzing", "approved", "rejected"]).optional(),
+  moderationStatus: z.enum(["PENDING", "APPROVED", "REJECTED", "MANUAL_REVIEW"]).optional(),
   error: z.string().optional(),
   analysis: registrationPhotoAnalysisSchema.optional(),
 });
@@ -60,12 +61,16 @@ export const basicInfoSchema = z
     dateOfBirth: z.string().min(1, "Date of birth is required"),
     heightFeet: z.number().min(4).max(7),
     heightInches: z.number().min(0).max(11),
-    maritalStatus: z.enum(["never_married", "divorced", "widowed"], {
-      message: "Select marital status",
-    }),
-    relationshipGoal: z.enum(["dating", "serious", "marriage", "friendship"], {
-      message: "Select relationship goal",
-    }),
+    maritalStatus: z
+      .enum(["never_married", "divorced", "widowed"], {
+        message: "Select marital status",
+      })
+      .optional(),
+    relationshipGoal: z
+      .enum(["dating", "serious", "marriage", "friendship"], {
+        message: "Select relationship goal",
+      })
+      .optional(),
   })
   .superRefine((data, ctx) => {
     const age = calculateAgeFromDob(data.dateOfBirth);
@@ -87,11 +92,27 @@ export const locationSchema = z.object({
 });
 
 export const educationSchema = z.object({
-  educationLevel: z.enum(["see", "plus_two", "diploma", "bachelor", "master", "phd"], {
-    message: "Select education level",
-  }),
+  educationLevel: z.enum(
+    ["below_see", "see", "plus_two", "diploma", "bachelor", "master", "mphil", "phd", "other"],
+    { message: "Select education level" }
+  ),
   fieldOfStudy: z.enum(
-    ["it", "engineering", "medical", "business", "law", "arts", "agriculture", "other"],
+    [
+      "it",
+      "engineering",
+      "medical",
+      "business",
+      "law",
+      "science",
+      "arts",
+      "education",
+      "agriculture",
+      "hospitality",
+      "social_work",
+      "journalism",
+      "fine_arts",
+      "other",
+    ],
     { message: "Select field of study" }
   ),
   employment: z.enum(
@@ -106,9 +127,10 @@ export const educationSchema = z.object({
 });
 
 export const religionSchema = z.object({
-  religion: z.enum(["hindu", "buddhist", "muslim", "christian", "kirat", "other"], {
-    message: "Select religion",
-  }),
+  religion: z.enum(
+    ["hindu", "buddhist", "muslim", "christian", "kirat", "sikh", "jain", "jewish", "non_religious", "other"],
+    { message: "Select religion" }
+  ),
   caste: z.string().min(1, "Select caste"),
   gotra: z.string().min(1, "Select gotra"),
   horoscope: z.enum(["required", "not_required"], {
@@ -146,9 +168,10 @@ export const preferencesSchema = z
     distancePreference: z.enum(["5", "10", "25", "50", "anywhere"], {
       message: "Select distance preference",
     }),
-    preferredReligion: z.enum(["hindu", "buddhist", "muslim", "christian", "kirat", "other"], {
-      message: "Select preferred religion",
-    }),
+    preferredReligion: z.enum(
+      ["hindu", "buddhist", "muslim", "christian", "kirat", "sikh", "jain", "jewish", "non_religious", "other"],
+      { message: "Select preferred religion" }
+    ),
     interCaste: z.enum(["yes", "no", "depends"], {
       message: "Select inter-caste preference",
     }),
@@ -176,11 +199,14 @@ export const aboutSchema = z.object({
     .max(400, "Future goals must be 400 characters or less"),
 });
 
+export const MIN_REGISTRATION_PHOTOS = 1;
+export const MAX_REGISTRATION_PHOTOS = 3;
+
 export const photosSchema = z.object({
   photos: z
     .array(registrationPhotoSchema)
-    .min(2, "Upload at least 2 verified photos")
-    .max(9, "Maximum 9 photos allowed")
+    .min(MIN_REGISTRATION_PHOTOS, `Upload at least ${MIN_REGISTRATION_PHOTOS} verified photo`)
+    .max(MAX_REGISTRATION_PHOTOS, `Maximum ${MAX_REGISTRATION_PHOTOS} photos allowed`)
     .refine(
       (photos) => photos.every((photo) => photo.status === "approved" && Boolean(photo.imageUrl)),
       "Each photo must pass AI verification before continuing"

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { CrossDeviceVerification } from "@/components/verification/CrossDeviceVerification";
 import { FaceVerificationOverlay } from "@/components/verification/FaceVerificationOverlay";
+import Loader from "@/components/ui/loader";
 import {
   autoCaptureStatusMessage,
   getAutoCaptureHoldMs,
@@ -58,6 +59,8 @@ const LIVENESS_LABELS: Record<LivenessStep, { title: string; hint: string; icon:
 
 const AUTO_CAPTURE_COOLDOWN_MS = 900;
 const AUTO_CAPTURE_RETRY_COOLDOWN_MS = 350;
+/** How long "not ready" must persist before it interrupts an in-progress hold. */
+const HOLD_GRACE_MS = 350;
 
 function captureFrame(video: HTMLVideoElement): Promise<File | null> {
   const canvas = document.createElement("canvas");
@@ -111,6 +114,7 @@ export function VerificationFlow({
   const overlayStateRef = useRef<FaceOverlayState | null>(null);
   const actionBaselineRef = useRef<ActionBaseline | null>(null);
   const holdStartRef = useRef<number | null>(null);
+  const notReadySinceRef = useRef<number | null>(null);
   const lastCaptureRef = useRef(0);
   const captureLivenessRef = useRef<() => Promise<void>>(async () => {});
   const captureSelfieRef = useRef<() => Promise<void>>(async () => {});
@@ -124,6 +128,7 @@ export function VerificationFlow({
     setAutoStatus(null);
     actionBaselineRef.current = null;
     holdStartRef.current = null;
+    notReadySinceRef.current = null;
   }, [livenessIndex, currentLivenessStep]);
 
   const stopCamera = useCallback(() => {
@@ -292,6 +297,7 @@ export function VerificationFlow({
 
       if (response.passed) {
         holdStartRef.current = null;
+        notReadySinceRef.current = null;
         lastCaptureRef.current = Date.now();
         const nextIndex = livenessIndex + 1;
         if (nextIndex >= session.liveness_steps.length) {
@@ -365,9 +371,17 @@ export function VerificationFlow({
       setAutoStatus(autoCaptureStatusMessage(input));
 
       if (!isAutoCaptureReady(input)) {
-        holdStartRef.current = null;
+        // Tolerate brief flicker (a blink, a momentary lighting/webcam noise
+        // frame) instead of nuking the whole hold timer on a single bad
+        // frame — only reset once "not ready" has persisted for a bit.
+        if (notReadySinceRef.current === null) {
+          notReadySinceRef.current = now;
+        } else if (now - notReadySinceRef.current >= HOLD_GRACE_MS) {
+          holdStartRef.current = null;
+        }
         return;
       }
+      notReadySinceRef.current = null;
 
       const requiredMs = getAutoCaptureHoldMs(input);
       if (holdStartRef.current === null) {
@@ -416,7 +430,7 @@ export function VerificationFlow({
     flowStep === "instructions" || flowStep === "cross_device" || flowStep === "result";
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-lg flex-col overflow-hidden px-4 py-3 sm:px-5 sm:py-4">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-lg flex-col overflow-hidden px-4 py-3 sm:px-5 sm:py-4 lg:max-w-3xl">
       <div className="mb-2 shrink-0 sm:mb-3">
         <div className="mb-1.5 flex items-center justify-between text-sm text-on-surface-variant">
           <span>Profile verification</span>
@@ -434,15 +448,17 @@ export function VerificationFlow({
         className={
           scrollableStep
             ? "min-h-0 flex-1 overflow-y-auto overscroll-y-contain hide-scrollbar"
-            : "flex min-h-0 flex-1 flex-col overflow-hidden"
+            : "flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain hide-scrollbar"
         }
         data-lenis-prevent
       >
       {flowStep === "instructions" && (
         <div className="flex flex-col pb-2">
           {submitting && (
-            <div className="mb-4 flex flex-col items-center justify-center py-8 text-center">
-              <div className="mb-3 h-10 w-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+            <div className="mb-4 flex min-h-[50vh] flex-col items-center justify-center text-center">
+              <div className="mb-3">
+                <Loader pageName="Verification" />
+              </div>
               <p className="text-sm text-on-surface-variant">Starting verification…</p>
             </div>
           )}
@@ -462,7 +478,7 @@ export function VerificationFlow({
             <ul className="mt-4 space-y-2">
               {[
                 "Use good lighting and face the front camera",
-                "Complete smile, blink, and head-turn steps",
+                "Smile, then blink — takes about 10 seconds",
                 "Take a clear front-facing selfie at the end",
                 "Only one person should be visible",
               ].map((item) => (
@@ -538,40 +554,42 @@ export function VerificationFlow({
 
       {deviceLoading && (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
-          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+          <div className="mb-4">
+            <Loader pageName="Verification" />
+          </div>
           <p className="text-sm text-on-surface-variant">Loading verification session…</p>
         </div>
       )}
 
       {!deviceLoading && (flowStep === "liveness" || flowStep === "selfie") && (
-        <div className="flex min-h-0 flex-1 flex-col gap-3">
+        <div className="flex min-h-0 flex-1 flex-col gap-2">
           <div className="shrink-0 text-center">
             {flowStep === "liveness" && livenessInfo ? (
               <>
-                <span className="material-symbols-outlined mb-1 text-3xl text-primary sm:text-4xl">
+                <span className="material-symbols-outlined text-2xl text-primary sm:text-3xl">
                   {livenessInfo.icon}
                 </span>
-                <h2 className="font-[var(--font-headline)] text-lg font-bold text-on-surface sm:text-xl">
+                <h2 className="font-[var(--font-headline)] text-base font-bold text-on-surface sm:text-lg">
                   {livenessInfo.title}
                 </h2>
-                <p className="mt-0.5 text-sm text-on-surface-variant">{livenessInfo.hint}</p>
-                <p className="mt-1 text-xs text-on-surface-variant">
+                <p className="text-xs text-on-surface-variant sm:text-sm">{livenessInfo.hint}</p>
+                <p className="text-[11px] text-on-surface-variant">
                   Step {livenessIndex + 1} of {session?.liveness_steps.length ?? 4}
                 </p>
               </>
             ) : (
               <>
-                <h2 className="font-[var(--font-headline)] text-lg font-bold text-on-surface sm:text-xl">
+                <h2 className="font-[var(--font-headline)] text-base font-bold text-on-surface sm:text-lg">
                   Take your selfie
                 </h2>
-                <p className="mt-0.5 text-sm text-on-surface-variant">
+                <p className="text-xs text-on-surface-variant sm:text-sm">
                   Look straight at the camera — we capture automatically.
                 </p>
               </>
             )}
           </div>
 
-          <div className="relative min-h-[200px] flex-1 overflow-hidden rounded-2xl border border-primary/15 bg-black sm:min-h-[240px]">
+          <div className="relative mx-auto aspect-[3/4] h-[62vh] w-auto max-w-full overflow-hidden rounded-2xl border border-primary/15 bg-black sm:h-[72vh] lg:h-[78vh]">
             <video
               ref={videoRef}
               playsInline
@@ -641,7 +659,9 @@ export function VerificationFlow({
 
       {flowStep === "processing" && (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
-          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+          <div className="mb-4">
+            <Loader pageName="Verification" />
+          </div>
           <h2 className="font-[var(--font-headline)] text-xl font-bold text-on-surface">
             Verifying your identity
           </h2>
@@ -696,26 +716,12 @@ export function VerificationFlow({
             </p>
           </div>
 
-          <div className="mb-6 space-y-3 rounded-2xl border border-primary/10 bg-background p-5 text-sm">
-            <div className="flex justify-between">
-              <span className="text-on-surface-variant">Face match</span>
-              <span className="font-semibold text-on-surface">
-                {(result.similarity_score * 100).toFixed(0)}%
-              </span>
+          {result.status === "VERIFIED" && (
+            <div className="mb-6 flex items-center justify-center gap-2 rounded-2xl border border-primary/10 bg-background p-4 text-sm text-on-surface-variant">
+              <span className="material-symbols-outlined text-base text-accent">face</span>
+              Matched your profile photos with high confidence
             </div>
-            <div className="flex justify-between">
-              <span className="text-on-surface-variant">Liveness</span>
-              <span className="font-semibold text-on-surface">
-                {(result.liveness_score * 100).toFixed(0)}%
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-on-surface-variant">Fraud risk</span>
-              <span className="font-semibold text-on-surface">
-                {(result.fraud_probability * 100).toFixed(0)}%
-              </span>
-            </div>
-          </div>
+          )}
 
           {result.rejection_reasons && result.rejection_reasons.length > 0 && (
             <ul className="mb-6 space-y-2 text-sm text-on-surface-variant">

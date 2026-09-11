@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { VerificationFlow } from "@/components/verification/VerificationFlow";
+import Loader from "@/components/ui/loader";
 
 function VerifyDeviceContent() {
   const searchParams = useSearchParams();
@@ -50,7 +51,7 @@ export default function VerifyDevicePage() {
     <Suspense
       fallback={
         <div className="flex min-h-[100dvh] items-center justify-center bg-surface">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+          <Loader pageName="Verification" />
         </div>
       }
     >

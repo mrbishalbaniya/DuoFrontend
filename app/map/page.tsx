@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
 import BottomNav from "@/components/BottomNav";
@@ -73,6 +74,7 @@ function matchesToMapProfiles(
 }
 
 export default function MapPage() {
+  const t = useTranslations("map.page");
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [rawMatches, setRawMatches] = useState<Match[]>([]);
@@ -154,13 +156,13 @@ export default function MapPage() {
       setRawMatches(data);
     } catch {
       if (!silent) {
-        setError("Could not load your matches.");
+        setError(t("couldNotLoadMatches"));
         setRawMatches([]);
       }
     } finally {
       if (!silent) setLoadingMatches(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (user) {
@@ -230,7 +232,7 @@ export default function MapPage() {
           {isDesktop ? (
             <button
               type="button"
-              aria-label={friendsPanelOpen ? "Hide friends panel" : "Show friends panel"}
+              aria-label={friendsPanelOpen ? t("hideFriendsPanel") : t("showFriendsPanel")}
               aria-expanded={friendsPanelOpen}
               className={`map-friends-edge-handle ${friendsPanelOpen ? "map-friends-edge-handle--open" : ""}`}
               onClick={handleFriendsPanelToggle}
@@ -255,14 +257,14 @@ export default function MapPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[16px] font-semibold leading-tight text-on-surface sm:text-[17px]">
-                    Friends Map
+                    {t("title")}
                   </p>
                   <p className="truncate text-[12px] text-on-surface-variant sm:text-[13px]">
                     {loadingMatches
-                      ? "Loading…"
+                      ? t("loading")
                       : waitingForLocation
-                        ? "Finding your location…"
-                        : `${matches.length} ${matches.length === 1 ? "match" : "matches"} nearby`}
+                        ? t("findingLocation")
+                        : t("matchesNearby", { count: matches.length })}
                   </p>
                 </div>
               </div>
@@ -272,11 +274,11 @@ export default function MapPage() {
             {isDesktop && !friendsPanelOpen ? (
               <div className="pointer-events-none absolute left-4 top-4 z-[25] hidden md:block">
                 <div className="ios-glass pointer-events-auto rounded-2xl px-4 py-2.5 shadow-lg">
-                  <p className="text-[15px] font-semibold text-on-surface">Friends Map</p>
+                  <p className="text-[15px] font-semibold text-on-surface">{t("title")}</p>
                   <p className="text-[12px] text-on-surface-variant">
                     {loadingMatches
-                      ? "Loading…"
-                      : `${matches.length} ${matches.length === 1 ? "match" : "matches"} nearby`}
+                      ? t("loading")
+                      : t("matchesNearby", { count: matches.length })}
                   </p>
                 </div>
               </div>
@@ -293,7 +295,7 @@ export default function MapPage() {
             {waitingForLocation ? (
               <div className="pointer-events-none absolute inset-0 z-[18] flex items-center justify-center px-6 text-center">
                 <div className="ios-glass rounded-2xl px-5 py-3 shadow-lg">
-                  <p className="text-[15px] text-on-surface-variant">Finding your location…</p>
+                  <p className="text-[15px] text-on-surface-variant">{t("findingLocation")}</p>
                 </div>
               </div>
             ) : error && matches.length === 0 && !loadingMatches ? (
@@ -305,7 +307,7 @@ export default function MapPage() {
                     onClick={() => void loadMatches()}
                     className="mt-3 rounded-full bg-primary px-6 py-2.5 text-[15px] font-semibold text-white active:scale-[0.98]"
                   >
-                    Try again
+                    {t("tryAgain")}
                   </button>
                 </div>
               </div>
@@ -315,13 +317,13 @@ export default function MapPage() {
               <div className="map-page__empty pointer-events-none absolute inset-x-0 z-[20] flex justify-center px-4 sm:px-6">
                 <div className="ios-glass pointer-events-auto w-full max-w-sm rounded-2xl px-5 py-4 text-center shadow-lg">
                   <p className="text-[14px] leading-snug text-on-surface-variant sm:text-[15px]">
-                    Match with someone to see them on the map.
+                    {t("emptyState")}
                   </p>
                   <Link
                     href="/match"
                     className="mt-3 inline-flex rounded-full bg-primary px-6 py-2.5 text-[15px] font-semibold text-white active:scale-[0.98]"
                   >
-                    Start matching
+                    {t("startMatching")}
                   </Link>
                 </div>
               </div>
@@ -360,19 +362,30 @@ export default function MapPage() {
                       {formatDistanceAway(focusedProfile.distanceMeters)}
                     </p>
                     <p className="truncate text-[12px] text-on-surface-variant sm:text-[13px]">
-                      {focusedProfile.location || "Nepal"}
+                      {focusedProfile.location || t("locationFallback")}
                     </p>
                   </div>
                   <Link
                     href="/chat"
                     className="map-focus-card__action shrink-0"
-                    aria-label="Open chat"
+                    aria-label={t("openChat")}
                   >
                     <span className="material-symbols-outlined text-xl">chat_bubble</span>
                   </Link>
+                  {focusedProfile.coordinates ? (
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${focusedProfile.coordinates[0]},${focusedProfile.coordinates[1]}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="map-focus-card__directions shrink-0"
+                      aria-label={t("getDirections")}
+                    >
+                      <span className="material-symbols-outlined text-xl">directions</span>
+                    </a>
+                  ) : null}
                   <button
                     type="button"
-                    aria-label="Close preview"
+                    aria-label={t("closePreview")}
                     onClick={() => setFocusProfileId(null)}
                     className="map-focus-card__close shrink-0"
                   >
@@ -386,7 +399,7 @@ export default function MapPage() {
           {isDesktop ? (
             <button
               type="button"
-              aria-label={settingsPanelOpen ? "Hide settings panel" : "Show settings panel"}
+              aria-label={settingsPanelOpen ? t("hideSettingsPanel") : t("showSettingsPanel")}
               aria-expanded={settingsPanelOpen}
               aria-controls="map-layers-settings-panel"
               className={`map-settings-edge-handle ${settingsPanelOpen ? "map-settings-edge-handle--open" : ""}`}

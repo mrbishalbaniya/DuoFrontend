@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
 import BottomNav from "@/components/BottomNav";
 import { VerificationFlow } from "@/components/verification/VerificationFlow";
+import Loader from "@/components/ui/loader";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function VerifyPage() {
@@ -21,7 +22,7 @@ export default function VerifyPage() {
   if (loading || !user) {
     return (
       <div className="flex h-[100dvh] items-center justify-center bg-surface">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+        <Loader pageName="Verification" />
       </div>
     );
   }
@@ -29,7 +30,13 @@ export default function VerifyPage() {
   return (
     <div className="flex h-[100dvh] overflow-hidden overscroll-none bg-surface" data-lenis-prevent>
       <ChatSidebarNav />
-      <div className="mobile-bottom-nav-offset flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:pb-0">
+      <div
+        className="mobile-bottom-nav-offset relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:pb-0"
+        style={{
+          backgroundImage:
+            "radial-gradient(ellipse 60% 50% at 50% 0%, color-mix(in srgb, var(--color-primary) 9%, transparent), transparent 70%)",
+        }}
+      >
         <header className="flex shrink-0 items-center gap-3 border-b border-primary/10 px-4 py-3 md:px-6">
           <Link
             href="/settings"

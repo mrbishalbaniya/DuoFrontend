@@ -2,15 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { StepCard, StepNavigation } from "@/components/register/StepNavigation";
-import {
-  DISTANCE_OPTIONS,
-  EDUCATION_LEVEL_OPTIONS,
-  EMPLOYMENT_OPTIONS,
-  GENDER_OPTIONS,
-  LOOKING_FOR_OPTIONS,
-  RELATIONSHIP_GOAL_OPTIONS,
-  RELIGION_OPTIONS,
-} from "@/lib/register/constants";
+import { GENDER_OPTIONS, RELATIONSHIP_GOAL_OPTIONS } from "@/lib/register/constants";
 import { useRegistrationStore } from "@/store/registrationStore";
 import {
   REGISTRATION_STEP_LABELS,
@@ -116,40 +108,18 @@ export function StepReview({ onSubmit, onBack, onEditStep, loading }: StepReview
         </ReviewSection>
 
         <ReviewSection title={REGISTRATION_STEP_LABELS[4]} step={4} onEdit={onEditStep}>
-          <ReviewRow label="Education" value={labelFor(EDUCATION_LEVEL_OPTIONS, data.educationLevel)} />
-          <ReviewRow label="Employment" value={labelFor(EMPLOYMENT_OPTIONS, data.employment)} />
-          <ReviewRow label="Occupation" value={data.occupation} />
-        </ReviewSection>
-
-        <ReviewSection title={REGISTRATION_STEP_LABELS[5]} step={5} onEdit={onEditStep}>
-          <ReviewRow label="Religion" value={labelFor(RELIGION_OPTIONS, data.religion)} />
-          <ReviewRow label="Caste" value={data.caste} />
-          <ReviewRow label="Gotra" value={data.gotra} />
-        </ReviewSection>
-
-        <ReviewSection title={REGISTRATION_STEP_LABELS[7]} step={7} onEdit={onEditStep}>
-          <ReviewRow label="Interests" value={data.interests.join(", ") || "—"} />
-        </ReviewSection>
-
-        <ReviewSection title={REGISTRATION_STEP_LABELS[8]} step={8} onEdit={onEditStep}>
-          <ReviewRow label="Looking for" value={labelFor(LOOKING_FOR_OPTIONS, data.lookingFor)} />
-          <ReviewRow label="Age range" value={`${data.prefAgeMin} - ${data.prefAgeMax}`} />
-          <ReviewRow
-            label="Distance"
-            value={labelFor(DISTANCE_OPTIONS, data.distancePreference)}
-          />
-        </ReviewSection>
-
-        <ReviewSection title={REGISTRATION_STEP_LABELS[9]} step={9} onEdit={onEditStep}>
-          <ReviewRow label="Bio" value={data.bio} />
-        </ReviewSection>
-
-        <ReviewSection title={REGISTRATION_STEP_LABELS[10]} step={10} onEdit={onEditStep}>
           <ReviewRow
             label="Verified photos"
             value={`${data.photos.filter((photo) => photo.status === "approved").length} photo(s)`}
           />
         </ReviewSection>
+
+        <div className="rounded-2xl border border-outline-variant/15 bg-surface-container/40 p-4">
+          <p className="text-sm text-on-surface-variant">
+            You can add your education, religion, lifestyle, interests, partner preferences, and
+            bio anytime from your profile after you finish signing up.
+          </p>
+        </div>
       </div>
 
       <StepNavigation

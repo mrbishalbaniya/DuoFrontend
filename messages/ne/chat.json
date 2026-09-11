@@ -1,0 +1,207 @@
+{
+  "chat": {
+    "common": {
+      "typing": "टाइप गर्दै…",
+      "verified": "प्रमाणित",
+      "muted": "म्युट गरिएको",
+      "pinned": "पिन गरिएको",
+      "cancel": "रद्द गर्नुहोस्",
+      "you": "तपाईं",
+      "them": "उनीहरू",
+      "thisMatch": "यो म्याच",
+      "match": "म्याच",
+      "photo": "फोटो",
+      "message": "म्यासेज",
+      "voiceMessage": "भ्वाइस म्यासेज"
+    },
+    "skeleton": {
+      "loading": "च्याट लोड हुँदैछ"
+    },
+    "menu": {
+      "optionsLabel": "कुराकानी विकल्पहरू",
+      "closeMenu": "मेनु बन्द गर्नुहोस्",
+      "cancel": "रद्द गर्नुहोस्",
+      "items": {
+        "profile": "प्रोफाइल हेर्नुहोस्",
+        "nickname": "उपनाम सम्पादन गर्नुहोस्",
+        "block": "ब्लक गर्नुहोस्",
+        "unmatch": "अनम्याच गर्नुहोस्",
+        "unmatchBlock": "अनम्याच र ब्लक गर्नुहोस्",
+        "clear": "च्याट इतिहास मेटाउनुहोस्",
+        "report": "रिपोर्ट गर्नुहोस्"
+      },
+      "closeDialog": "डायलग बन्द गर्नुहोस्"
+    },
+    "insights": {
+      "title": "म्याच इनसाइट्स",
+      "backToMessages": "म्यासेजहरूमा फर्कनुहोस्",
+      "loading": "मेल खान्छ कि जाँच गर्दै…",
+      "couldNotLoad": "म्याच इनसाइट्स लोड गर्न सकिएन।",
+      "compatibilityOverview": "अनुकूलता सिंहावलोकन",
+      "matchScore": "म्याच स्कोर",
+      "defaultSummary": "तपाईंहरूका साझा मूल्य र जीवनशैलीका छनोटहरूले तपाईंहरू दुई बीच बलियो अनुकूलता देखाउँछन्।",
+      "analysis": "विश्लेषण",
+      "compatibilityPillars": "अनुकूलताका आधारहरू",
+      "pillars": {
+        "coreValues": "मुख्य मूल्यहरू",
+        "lifestyleHabit": "जीवनशैली र बानी",
+        "careerAmbition": "करियर महत्वाकांक्षा",
+        "hobbiesLeisure": "सोख र फुर्सद"
+      },
+      "sparkFactors": "स्पार्क तत्वहरू",
+      "sharedInterests": "साझा रुचिहरू",
+      "deepDive": "गहिरो जानकारी",
+      "visionForFuture": "भविष्यको दृष्टिकोण",
+      "communicationStyle": "संवाद शैली"
+    },
+    "call": {
+      "decline": "अस्वीकार गर्नुहोस्",
+      "accept": "स्वीकार गर्नुहोस्",
+      "mic": "माइक",
+      "video": "भिडियो",
+      "flip": "क्यामेरा फर्काउनुहोस्",
+      "end": "समाप्त गर्नुहोस्"
+    },
+    "composer": {
+      "replyingTo": "{name} लाई जवाफ दिँदै",
+      "cancelReply": "जवाफ रद्द गर्नुहोस्",
+      "writeReply": "जवाफ लेख्नुहोस्…",
+      "messagePlaceholder": "आ",
+      "hideAttachments": "क्यामेरा, फोटो र भ्वाइस विकल्पहरू लुकाउनुहोस्",
+      "showAttachments": "क्यामेरा, फोटो र भ्वाइस विकल्पहरू देखाउनुहोस्",
+      "takePhoto": "क्यामेराबाट फोटो खिच्नुहोस्",
+      "chooseImage": "ग्यालेरीबाट फोटो छान्नुहोस्",
+      "cancelVoiceRecording": "भ्वाइस रेकर्डिङ रद्द गर्नुहोस्",
+      "sendVoiceMessage": "भ्वाइस म्यासेज पठाउनुहोस्",
+      "sendMessage": "म्यासेज पठाउनुहोस्",
+      "closeCamera": "क्यामेरा बन्द गर्नुहोस्",
+      "takePhotoTitle": "फोटो खिच्नुहोस्",
+      "switchCamera": "क्यामेरा बदल्नुहोस्",
+      "startingCamera": "क्यामेरा सुरु हुँदैछ…",
+      "capturePhoto": "फोटो खिच्नुहोस्"
+    },
+    "thread": {
+      "matched": "{time} मा म्याच भयो",
+      "backToConversations": "कुराकानीहरूमा फर्कनुहोस्",
+      "yourMatch": "तपाईंको म्याच",
+      "voiceCall": "भ्वाइस कल",
+      "videoCall": "भिडियो कल",
+      "matchInsights": "म्याच इनसाइट्स"
+    },
+    "rowMenu": {
+      "optionsLabel": "कुराकानी विकल्पहरू",
+      "pin": "पिन गर्नुहोस्",
+      "unpin": "अनपिन गर्नुहोस्",
+      "mute": "म्युट गर्नुहोस्",
+      "unmute": "अनम्युट गर्नुहोस्",
+      "archive": "आर्काइभ गर्नुहोस्",
+      "unarchive": "आर्काइभबाट हटाउनुहोस्",
+      "delete": "मेटाउनुहोस्"
+    },
+    "sidebar": {
+      "messagesTitle": "म्यासेजहरू",
+      "refresh": "रिफ्रेस गर्नुहोस्",
+      "searchPlaceholder": "कुराकानी खोज्नुहोस्...",
+      "unreadFilter": "नपढिएका",
+      "archivedFilter": "आर्काइभ गरिएका",
+      "noArchivedConversations": "आर्काइभ गरिएका कुराकानी छैनन्।",
+      "noSearchMatches": "तपाईंको खोजसँग मिल्दो केही भेटिएन।"
+    },
+    "lightbox": {
+      "closePreview": "फोटो पूर्वावलोकन बन्द गर्नुहोस्",
+      "close": "बन्द गर्नुहोस्",
+      "alt": "फोटो पूर्वावलोकन"
+    },
+    "actionMenu": {
+      "optionsLabel": "म्यासेज विकल्पहरू",
+      "copy": "कपी गर्नुहोस्",
+      "reply": "जवाफ दिनुहोस्",
+      "react": "प्रतिक्रिया दिनुहोस्",
+      "deleteForMe": "मबाट मेटाउनुहोस्",
+      "deleteForEveryone": "सबैबाट मेटाउनुहोस्"
+    },
+    "status": {
+      "sending": "पठाउँदै",
+      "failed": "पठाउन असफल",
+      "read": "पढियो",
+      "delivered": "डेलिभर भयो",
+      "sent": "पठाइयो"
+    },
+    "reaction": {
+      "label": "प्रतिक्रिया {emoji}"
+    },
+    "avatar": {
+      "fallback": "प्रयोगकर्ता एभटार"
+    },
+    "bubble": {
+      "tapToRetry": "फेरि प्रयास गर्न ट्याप गर्नुहोस्"
+    },
+    "section": {
+      "cameraNotSupported": "यो ब्राउजरमा क्यामेरा प्रयोग गर्न मिल्दैन।",
+      "cameraPermissionRequired": "फोटो खिच्नका लागि क्यामेराको अनुमति आवश्यक छ।",
+      "nicknameUpdated": "उपनाम अपडेट भयो।",
+      "nicknameRemoved": "उपनाम हटाइयो।",
+      "couldNotUpdateNickname": "उपनाम अपडेट गर्न सकिएन।",
+      "chatHistoryCleared": "च्याट इतिहास मेटाइयो।",
+      "couldNotClearHistory": "च्याट इतिहास मेटाउन सकिएन।",
+      "userBlocked": "प्रयोगकर्तालाई ब्लक गरियो।",
+      "couldNotBlockUser": "प्रयोगकर्तालाई ब्लक गर्न सकिएन। फेरि प्रयास गर्नुहोस्।",
+      "unmatchedSuccessfully": "सफलतापूर्वक अनम्याच भयो।",
+      "couldNotUnmatch": "अनम्याच गर्न सकिएन। फेरि प्रयास गर्नुहोस्।",
+      "unmatchedAndBlocked": "अनम्याच र ब्लक गरियो।",
+      "couldNotUnmatchBlock": "अनम्याच र ब्लक गर्न सकिएन। फेरि प्रयास गर्नुहोस्।",
+      "reportSubmitted": "रिपोर्ट पठाइयो। धन्यवाद।",
+      "couldNotSubmitReport": "रिपोर्ट पठाउन सकिएन।",
+      "couldNotUpdateArchive": "आर्काइभ सेटिङ अपडेट गर्न सकिएन।",
+      "couldNotUpdateMute": "म्युट सेटिङ अपडेट गर्न सकिएन।",
+      "couldNotUpdatePin": "पिन सेटिङ अपडेट गर्न सकिएन।",
+      "conversationDeleted": "कुराकानी मेटाइयो।",
+      "couldNotDeleteConversation": "कुराकानी मेटाउन सकिएन।",
+      "voiceRecordingNotSupported": "यो ब्राउजरमा भ्वाइस रेकर्डिङ प्रयोग गर्न मिल्दैन।",
+      "microphonePermissionRequired": "भ्वाइस म्यासेज पठाउनका लागि माइक्रोफोनको अनुमति आवश्यक छ।",
+      "couldNotLoadConversations": "कुराकानीहरू लोड गर्न सकिएन।",
+      "couldNotLoadChatsTitle": "च्याटहरू लोड गर्न सकिएन",
+      "tryAgain": "फेरि प्रयास गर्नुहोस्",
+      "matchesReadyTitle": "तपाईंका म्याचहरू तयार छन्",
+      "noConversationsTitle": "अहिलेसम्म कुनै कुराकानी छैन",
+      "matchesReadyDescription": "तपाईंसँग {count, plural, one {# म्याच} other {# म्याचहरू}} छन्। आफ्नो च्याट थ्रेड खोल्न रिफ्रेस गर्नुहोस्।",
+      "startSwipingDescription": "म्याचहरू भेट्टाउन र च्याट सुरु गर्न स्वाइप गर्न थाल्नुहोस्!",
+      "refreshChats": "च्याटहरू रिफ्रेस गर्नुहोस्",
+      "findMatches": "म्याचहरू खोज्नुहोस्",
+      "dragToResize": "साइज मिलाउन तान्नुहोस्",
+      "selectConversationPrompt": "म्यासेज पठाउन सुरु गर्न कुराकानी छान्नुहोस्",
+      "reconnecting": "फेरि जोड्दै…",
+      "loadingEarlier": "लोड हुँदैछ…",
+      "loadEarlierMessages": "पुराना म्यासेजहरू लोड गर्नुहोस्",
+      "startOfConversation": "कुराकानीको सुरुवात",
+      "cancelSendingPhoto": "फोटो पठाउने रद्द गर्नुहोस्",
+      "sendPhotoTitle": "यो फोटो पठाउने हो?",
+      "confirmBeforeSending": "{name} लाई पठाउनुअघि पुष्टि गर्नुहोस्।",
+      "sending": "पठाउँदै…",
+      "send": "पठाउनुहोस्",
+      "editNicknameTitle": "उपनाम सम्पादन गर्नुहोस्",
+      "editNicknameDescription": "{name} का लागि एउटा निजी उपनाम छान्नुहोस्। यो केवल तपाईंले मात्र देख्नुहुनेछ।",
+      "enterNickname": "उपनाम लेख्नुहोस्",
+      "save": "सुरक्षित गर्नुहोस्",
+      "reportUserTitle": "प्रयोगकर्ता रिपोर्ट गर्नुहोस्",
+      "reportUserDescription": "के भयो हामीलाई बताउनुहोस्। हाम्रो टिमले तपाईंको रिपोर्ट समीक्षा गर्नेछ।",
+      "describeIssue": "समस्या वर्णन गर्नुहोस्…",
+      "submitReport": "रिपोर्ट पठाउनुहोस्",
+      "clearHistoryTitle": "च्याट इतिहास मेटाउने हो?",
+      "clearHistoryDescription": "यसले तपाईंको यन्त्रबाट यो च्याटका सबै म्यासेजहरू हटाउँछ। अर्को व्यक्तिले भने कुराकानी देख्न सक्नेछन्।",
+      "clearHistoryConfirm": "इतिहास मेटाउनुहोस्",
+      "deleteConversationTitle": "कुराकानी मेटाउने हो?",
+      "deleteConversationDescription": "यसले {name} सँगको तपाईंको च्याट इतिहास मेटाउँछ र यसलाई तपाईंको इनबक्सबाट हटाउँछ। अर्को व्यक्तिले भने म्यासेजहरू देख्न सक्नेछन्।",
+      "deleteConfirm": "मेटाउनुहोस्",
+      "blockUserTitle": "यो प्रयोगकर्तालाई ब्लक गर्ने हो?",
+      "blockUserDescription": "{name} ले तपाईंलाई अब म्यासेज पठाउन सक्नेछैनन्, र तपाईंले उनीहरूलाई आफ्ना म्याचहरूमा देख्नुहुनेछैन।",
+      "blockConfirm": "ब्लक गर्नुहोस्",
+      "unmatchTitle": "अनम्याच गर्ने हो?",
+      "unmatchDescription": "तपाईं {name} सँग अनम्याच हुनुहुनेछ र यो कुराकानी हटाइनेछ।",
+      "unmatchConfirm": "अनम्याच गर्नुहोस्",
+      "unmatchBlockTitle": "अनम्याच र ब्लक गर्ने हो?",
+      "unmatchBlockDescription": "तपाईं {name} सँग अनम्याच हुनुहुनेछ, उनीहरूलाई ब्लक गर्नुहुनेछ, र यो कुराकानी मेटाइनेछ।",
+      "unmatchBlockConfirm": "अनम्याच र ब्लक गर्नुहोस्"
+    }
+  }
+}

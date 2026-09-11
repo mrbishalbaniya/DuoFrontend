@@ -20,6 +20,7 @@ interface AuthContextValue {
   loading: boolean;
   login: (username: string, password: string) => Promise<LoginResponse>;
   loginWithGoogle: (idToken: string) => Promise<LoginResponse>;
+  completeTwoFactorLogin: (challengeToken: string, code: string) => Promise<LoginResponse>;
   register: (
     email: string,
     password: string,
@@ -83,11 +84,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (typeof window === "undefined") return;
 
     const path = window.location.pathname;
-    if (path === "/login/google/complete") {
-      void fetchUser();
-      return;
-    }
-
+    // /login/google/complete drives its own auth sequence (exchange the OAuth
+    // handoff for cookies, then fetch the user) — fetching here races that
+    // flow and can poison it via fetchMeDeduped's in-flight cache with a
+    // stale pre-login 401, bouncing a successful Google login back to /login.
     if (isAuthPublicPath(path)) {
       setLoading(false);
       return;
@@ -112,6 +112,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginWithGoogle = async (idToken: string) => {
     const data = await api.loginWithGoogle(idToken);
+    try {
+      const me = data.user ?? (await api.getMe(data.access));
+      setAuthUser(me);
+      return { ...data, user: me };
+    } catch {
+      await api.clearTokens();
+      setAuthUser(null);
+      throw new Error("Signed in, but the session could not be verified. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const completeTwoFactorLogin = async (challengeToken: string, code: string) => {
+    const data = await api.completeTwoFactorLogin(challengeToken, code);
     try {
       const me = data.user ?? (await api.getMe(data.access));
       setAuthUser(me);
@@ -160,7 +175,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, loginWithGoogle, register, logout, fetchUser }}
+      value={{
+        user,
+        loading,
+        login,
+        loginWithGoogle,
+        completeTwoFactorLogin,
+        register,
+        logout,
+        fetchUser,
+      }}
     >
       {children}
     </AuthContext.Provider>

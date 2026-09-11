@@ -1,3 +1,4 @@
+import { MIN_REGISTRATION_PHOTOS } from "@/lib/validation/registrationSchema";
 import type { PhotoAnalysis } from "@/types";
 import type { RegistrationPhoto } from "@/types/registration";
 
@@ -13,8 +14,10 @@ export async function uploadRegistrationPhotos(photos: RegistrationPhoto[]): Pro
   const approved = photos.filter(
     (photo) => photo.status === "approved" && photo.imageUrl
   );
-  if (approved.length < 2) {
-    throw new Error("Upload and verify at least 2 photos on the Photos step.");
+  if (approved.length < MIN_REGISTRATION_PHOTOS) {
+    throw new Error(
+      `Upload and verify at least ${MIN_REGISTRATION_PHOTOS} photos on the Photos step.`
+    );
   }
 
   const profilePhoto =

@@ -8,7 +8,7 @@ if (-not (Test-Path $dst)) {
   New-Item -ItemType Directory -Path $dst -Force | Out-Null
 }
 
-$syncDirs = @("app", "components", "contexts", "hooks", "lib", "store", "types", "public")
+$syncDirs = @("app", "components", "contexts", "hooks", "lib", "store", "types", "public", "i18n", "messages")
 $syncFiles = @(
   "package.json",
   "package-lock.json",

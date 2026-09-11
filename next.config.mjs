@@ -1,6 +1,8 @@
+import createNextIntlPlugin from "next-intl/plugin";
+
 /** @type {import('next').NextConfig} */
 
-// Map/tile providers used by MapLibre (basemaps, terrain, satellite, labels) and 3D avatars.
+// Map/tile providers used by MapLibre (basemaps, terrain, satellite, labels).
 const MAP_TILE_HOSTS = [
   "https://*.cartocdn.com",
   "https://server.arcgisonline.com",
@@ -8,7 +10,6 @@ const MAP_TILE_HOSTS = [
   "https://tile.opentopomap.org",
   "https://s3.amazonaws.com",
   "https://nominatim.openstreetmap.org",
-  "https://*.readyplayer.me",
   "https://openweathermap.org",
 ];
 
@@ -50,11 +51,11 @@ function buildContentSecurityPolicy() {
   return [
     "default-src 'self'",
     "base-uri 'self'",
-    "form-action 'self' https://esewa.com.np https://rc.esewa.com.np",
+    "form-action 'self' https://esewa.com.np https://rc.esewa.com.np https://epay.esewa.com.np https://rc-epay.esewa.com.np",
     "frame-ancestors 'none'",
     "object-src 'none'",
     "worker-src 'self' blob:",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://accounts.google.com https://www.gstatic.com",
     "style-src 'self' 'unsafe-inline'",
     `img-src ${imgSrc}`,
     "font-src 'self' data:",
@@ -129,4 +130,6 @@ const nextConfig = {  poweredByHeader: false,
   },
 };
 
-export default nextConfig;
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
+
+export default withNextIntl(nextConfig);

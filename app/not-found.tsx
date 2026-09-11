@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 export const metadata: Metadata = {
   title: "Page not found | Duo",
@@ -7,7 +8,9 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function NotFound() {
+export default async function NotFound() {
+  const t = await getTranslations("settingsExtra.errors");
+
   return (
     <div className="not-found-page relative flex min-h-screen flex-col overflow-hidden bg-background text-on-surface">
       <div className="not-found-glow not-found-glow--primary" aria-hidden />
@@ -25,7 +28,7 @@ export default function NotFound() {
           href="/login"
           className="rounded-full px-3 py-1.5 text-sm font-semibold text-on-surface-variant transition-colors hover:text-on-surface"
         >
-          Sign in
+          {t("signIn")}
         </Link>
       </header>
 
@@ -40,7 +43,7 @@ export default function NotFound() {
         </div>
 
         <p className="mb-3 text-[11px] font-extrabold uppercase tracking-[0.18em] text-primary">
-          Error 404
+          {t("error404")}
         </p>
 
         <div className="not-found-code relative mb-5 select-none sm:mb-6">
@@ -56,11 +59,10 @@ export default function NotFound() {
         </div>
 
         <h2 className="max-w-lg font-[var(--font-headline)] text-2xl font-bold tracking-tight text-on-surface sm:text-3xl">
-          This match got away
+          {t("notFoundTitle")}
         </h2>
         <p className="mt-3 max-w-md text-sm leading-relaxed text-on-surface-variant sm:text-base">
-          The page you&apos;re looking for doesn&apos;t exist or moved. Your next connection is
-          still waiting — let&apos;s get you back on track.
+          {t("notFoundDescription")}
         </p>
 
         <div className="mt-10 flex w-full max-w-md flex-col gap-3 sm:mt-12 sm:flex-row sm:justify-center">
@@ -69,14 +71,14 @@ export default function NotFound() {
             className="gradient-brand inline-flex items-center justify-center gap-2 rounded-full px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-primary/25 transition-transform active:scale-[0.98]"
           >
             <span className="material-symbols-outlined text-[1.15rem]">home</span>
-            Back home
+            {t("backHome")}
           </Link>
           <Link
             href="/match"
             className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-surface-container px-8 py-3.5 text-sm font-bold text-on-surface transition-all hover:border-primary/30 hover:bg-surface-bright active:scale-[0.98]"
           >
             <span className="material-symbols-outlined text-[1.15rem]">favorite</span>
-            Find matches
+            {t("findMatches")}
           </Link>
         </div>
 
@@ -85,25 +87,25 @@ export default function NotFound() {
           aria-label="Helpful links"
         >
           <Link href="/discover" className="transition-colors hover:text-primary">
-            Discover
+            {t("discover")}
           </Link>
           <span className="text-outline/40" aria-hidden>
             ·
           </span>
           <Link href="/chat" className="transition-colors hover:text-primary">
-            Messages
+            {t("messages")}
           </Link>
           <span className="text-outline/40" aria-hidden>
             ·
           </span>
           <Link href="/register" className="transition-colors hover:text-primary">
-            Join Duo
+            {t("joinDuo")}
           </Link>
         </nav>
       </main>
 
       <footer className="relative z-10 px-6 pb-8 text-center text-xs text-on-surface-variant/70 sm:px-10">
-        Duo — Find your life partner, intuitively.
+        {t("footerTagline")}
       </footer>
     </div>
   );

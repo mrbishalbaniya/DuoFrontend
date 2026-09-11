@@ -93,6 +93,7 @@ export function PremiumUpgradeSheet({
 
         <div
           id="premium-upgrade-title"
+          data-lenis-prevent
           className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-2"
         >
           {pricingPlans.length > 0 ? (

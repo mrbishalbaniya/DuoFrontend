@@ -17,6 +17,10 @@ export type ParsedPrefValues = {
   futureGoals?: string;
   fieldOfStudy?: string;
   educationLevel?: string;
+  /** ISO date (YYYY-MM-DD) — the backend only stores an integer `age`, so
+   * the actual birth date is kept here purely to re-populate the date
+   * picker on the next edit; age itself is always recomputed from it. */
+  dateOfBirth?: string;
 };
 
 export function parsePrefValues(raw?: string): ParsedPrefValues {

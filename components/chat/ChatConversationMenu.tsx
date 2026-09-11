@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
 type ChatConversationMenuProps = {
@@ -14,15 +15,18 @@ type ChatConversationMenuProps = {
   onReport: () => void;
 };
 
-const MENU_ITEMS = [
-  { id: "profile", label: "Show profile", icon: "person", tone: "default" as const },
-  { id: "nickname", label: "Edit nickname", icon: "edit", tone: "default" as const },
-  { id: "block", label: "Block", icon: "block", tone: "danger" as const },
-  { id: "unmatch", label: "Unmatch", icon: "heart_broken", tone: "danger" as const },
-  { id: "unmatchBlock", label: "Unmatch & block", icon: "do_not_disturb_on", tone: "danger" as const },
-  { id: "clear", label: "Clear chat history", icon: "delete_sweep", tone: "danger" as const },
-  { id: "report", label: "Report", icon: "flag", tone: "danger" as const },
-];
+function useMenuItems() {
+  const t = useTranslations("chat.menu.items");
+  return [
+    { id: "profile", label: t("profile"), icon: "person", tone: "default" as const },
+    { id: "nickname", label: t("nickname"), icon: "edit", tone: "default" as const },
+    { id: "block", label: t("block"), icon: "block", tone: "danger" as const },
+    { id: "unmatch", label: t("unmatch"), icon: "heart_broken", tone: "danger" as const },
+    { id: "unmatchBlock", label: t("unmatchBlock"), icon: "do_not_disturb_on", tone: "danger" as const },
+    { id: "clear", label: t("clear"), icon: "delete_sweep", tone: "danger" as const },
+    { id: "report", label: t("report"), icon: "flag", tone: "danger" as const },
+  ];
+}
 
 export function ChatConversationMenu({
   open,
@@ -36,6 +40,8 @@ export function ChatConversationMenu({
   onReport,
 }: ChatConversationMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const t = useTranslations("chat.menu");
+  const MENU_ITEMS = useMenuItems();
 
   const handlers: Record<string, () => void> = {
     profile: onShowProfile,
@@ -81,7 +87,7 @@ export function ChatConversationMenu({
       <button
         type="button"
         onClick={() => onOpenChange(!open)}
-        aria-label="Conversation options"
+        aria-label={t("optionsLabel")}
         aria-expanded={open}
         className={`shrink-0 transition-colors max-md:ios-nav-btn md:rounded-full md:p-2 ${
           open
@@ -100,13 +106,13 @@ export function ChatConversationMenu({
             <button
               type="button"
               className="absolute inset-0 bg-black/45 backdrop-blur-[1px]"
-              aria-label="Close menu"
+              aria-label={t("closeMenu")}
               onClick={() => onOpenChange(false)}
             />
             <div
               role="dialog"
               aria-modal="true"
-              aria-label="Conversation options"
+              aria-label={t("optionsLabel")}
               className="ios-sheet absolute inset-x-0 bottom-0 z-[111]"
               onClick={(event) => event.stopPropagation()}
             >
@@ -132,7 +138,7 @@ export function ChatConversationMenu({
                     onClick={() => onOpenChange(false)}
                     className="ios-action-sheet-btn ios-action-sheet-btn--cancel"
                   >
-                    Cancel
+                    {t("cancel")}
                   </button>
                 </div>
               </div>
@@ -160,7 +166,7 @@ export function ChatConversationMenu({
               className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-container"
             >
               <span className="material-symbols-outlined text-[20px]">close</span>
-              Cancel
+              {t("cancel")}
             </button>
           </div>
         </>
@@ -220,13 +226,14 @@ function ChatPromptDialogContent({
   onConfirm,
 }: Omit<ChatPromptDialogProps, "open">) {
   const [value, setValue] = useState(initialValue);
+  const t = useTranslations("chat.menu");
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
       <button
         type="button"
         className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
-        aria-label="Close dialog"
+        aria-label={t("closeDialog")}
         onClick={onClose}
       />
       <div className="relative z-[121] w-full max-w-md rounded-[1.5rem] border border-white/10 bg-background p-5 shadow-2xl">
@@ -256,7 +263,7 @@ function ChatPromptDialogContent({
             onClick={onClose}
             className="ios-bar-btn-text min-h-0 px-3 py-2"
           >
-            Cancel
+            {t("cancel")}
           </button>
           <button
             type="button"

@@ -1,15 +1,4 @@
-export type RegistrationStep =
-  | 1
-  | 2
-  | 3
-  | 4
-  | 5
-  | 6
-  | 7
-  | 8
-  | 9
-  | 10
-  | 11;
+export type RegistrationStep = 1 | 2 | 3 | 4 | 5;
 
 export type GenderOption = "male" | "female" | "other";
 export type MaritalStatus = "never_married" | "divorced" | "widowed";
@@ -19,20 +8,29 @@ export type RelationshipGoal =
   | "marriage"
   | "friendship";
 export type EducationLevel =
+  | "below_see"
   | "see"
   | "plus_two"
   | "diploma"
   | "bachelor"
   | "master"
-  | "phd";
+  | "mphil"
+  | "phd"
+  | "other";
 export type FieldOfStudy =
   | "it"
   | "engineering"
   | "medical"
   | "business"
   | "law"
+  | "science"
   | "arts"
+  | "education"
   | "agriculture"
+  | "hospitality"
+  | "social_work"
+  | "journalism"
+  | "fine_arts"
   | "other";
 export type EmploymentStatus =
   | "student"
@@ -53,6 +51,10 @@ export type ReligionOption =
   | "muslim"
   | "christian"
   | "kirat"
+  | "sikh"
+  | "jain"
+  | "jewish"
+  | "non_religious"
   | "other";
 export type HoroscopeRequirement = "required" | "not_required";
 export type PersonalityType = "introvert" | "ambivert" | "extrovert";
@@ -73,7 +75,7 @@ export type DistancePreference =
   | "anywhere";
 export type MarriagePreference = "yes" | "no" | "depends";
 
-import type { PhotoAnalysis } from "@/types";
+import type { ModerationStatus, PhotoAnalysis } from "@/types";
 
 export type RegistrationPhotoStatus = "analyzing" | "approved" | "rejected";
 
@@ -86,6 +88,9 @@ export interface RegistrationPhoto {
   imageUrl?: string;
   analysis?: PhotoAnalysis;
   status?: RegistrationPhotoStatus;
+  /** Raw backend moderation status, kept for reference only — registration
+   * doesn't gate on it (see StepPhotos.tsx runUpload for why). */
+  moderationStatus?: ModerationStatus;
   error?: string;
 }
 
@@ -159,17 +164,11 @@ export const REGISTRATION_STEP_LABELS: Record<RegistrationStep, string> = {
   1: "Account",
   2: "Basic Info",
   3: "Location",
-  4: "Education",
-  5: "Religion",
-  6: "Lifestyle",
-  7: "Interests",
-  8: "Preferences",
-  9: "About",
-  10: "Photos",
-  11: "Review",
+  4: "Photos",
+  5: "Review",
 };
 
-export const TOTAL_REGISTRATION_STEPS = 11;
+export const TOTAL_REGISTRATION_STEPS = 5;
 
 export const initialRegistrationData = (): RegistrationData => ({
   phone: "",

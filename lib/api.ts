@@ -6,14 +6,18 @@ import type {
   LikedProfile,
   LikesYouResponse,
   ProfileVisitorsResponse,
+  GiftCardRedeemResponse,
   InitiateSubscriptionResponse,
   SubscriptionPlan,
   SubscriptionStatus,
   WalletPurchaseResponse,
   WalletSummary,
+  WalletTransaction,
+  WalletTransactionListResponse,
   Message,
   PhotoAnalysis,
   PhotoUploadAnalysisResponse,
+  ProfilePhoto,
   Profile,
   LivenessStep,
   LivenessStepResponse,
@@ -27,11 +31,18 @@ import type {
   SwipeAction,
   SwipeResponse,
   User,
+  SecurityOverview,
+  SecurityDevice,
+  LoginHistoryEntry,
+  SecurityEvent,
+  BlockedUser,
+  SupportRequestCategory,
 } from "@/types";
 
 import { getPhotoUploadError } from "@/lib/photos/validatePhotoUpload";
-import { getClientApiBase } from "@/lib/backendUrl";
+import { getClientApiBase, getClientChatApiBase } from "@/lib/backendUrl";
 import { shouldRedirectToLogin } from "@/lib/authPaths";
+import { getWebDeviceId, getWebDeviceInfo } from "@/lib/security/deviceId";
 
 type RequestOptions = RequestInit & {
   headers?: Record<string, string>;
@@ -40,10 +51,14 @@ type RequestOptions = RequestInit & {
 
 class ApiClient {
   private baseUrl: string;
+  // chat-service (DuoBackend/chat-service) — chat/messages/conversations only.
+  // Everything else still goes through baseUrl/apiProxy.ts to the Django monolith.
+  private chatBaseUrl: string;
   private readonly inflightGets = new Map<string, Promise<unknown>>();
 
   constructor() {
     this.baseUrl = getClientApiBase();
+    this.chatBaseUrl = getClientChatApiBase();
   }
 
   private static dedupeKey(endpoint: string, method: string): string | null {
@@ -85,22 +100,22 @@ class ApiClient {
     }
   }
 
-  async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+  async request<T>(endpoint: string, options: RequestOptions = {}, baseUrl = this.baseUrl): Promise<T> {
     const method = (options.method ?? "GET").toUpperCase();
     const dedupeKey = ApiClient.dedupeKey(endpoint, method);
     if (dedupeKey) {
       const inflight = this.inflightGets.get(dedupeKey);
       if (inflight) return inflight as Promise<T>;
-      const promise = this._request<T>(endpoint, options).finally(() => {
+      const promise = this._request<T>(endpoint, options, baseUrl).finally(() => {
         this.inflightGets.delete(dedupeKey);
       });
       this.inflightGets.set(dedupeKey, promise);
       return promise;
     }
-    return this._request<T>(endpoint, options);
+    return this._request<T>(endpoint, options, baseUrl);
   }
 
-  private async _request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+  private async _request<T>(endpoint: string, options: RequestOptions = {}, baseUrl = this.baseUrl): Promise<T> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
@@ -116,7 +131,7 @@ class ApiClient {
 
     let res: Response;
     try {
-      res = await fetch(`${this.baseUrl}${endpoint}`, fetchOptions);
+      res = await fetch(`${baseUrl}${endpoint}`, fetchOptions);
     } catch (error) {
       if (error instanceof DOMException && error.name === "TimeoutError") {
         throw new Error("Request timed out. The server may be waking up — try again in a moment.");
@@ -127,7 +142,7 @@ class ApiClient {
     if (res.status === 401 && !options.skipAuthRedirect) {
       const refreshed = await this.refreshSession();
       if (refreshed) {
-        res = await fetch(`${this.baseUrl}${endpoint}`, fetchOptions);
+        res = await fetch(`${baseUrl}${endpoint}`, fetchOptions);
       } else {
         await this.clearTokens();
         if (shouldRedirectToLogin()) window.location.href = "/login";
@@ -151,12 +166,15 @@ class ApiClient {
         }
       }
 
+      const firstFieldError = Object.values(errorData).find(
+        (value): value is string[] =>
+          Array.isArray(value) && value.length > 0 && typeof value[0] === "string"
+      )?.[0];
+
       const detail =
         errorData.detail ??
         errorData.error ??
-        (Array.isArray(errorData.non_field_errors)
-          ? errorData.non_field_errors[0]
-          : null) ??
+        firstFieldError ??
         (Object.keys(errorData).length > 0 ? JSON.stringify(errorData) : null);
 
       throw new Error(String(detail ?? `API Error: ${res.status}`));
@@ -172,10 +190,11 @@ class ApiClient {
   private async uploadRequest<T>(
     endpoint: string,
     formData: FormData,
-    options: { skipAuthRedirect?: boolean } = {}
+    options: { skipAuthRedirect?: boolean } = {},
+    baseUrl = this.baseUrl
   ): Promise<T> {
     const doUpload = () =>
-      fetch(`${this.baseUrl}${endpoint}`, {
+      fetch(`${baseUrl}${endpoint}`, {
         method: "POST",
         credentials: "include",
         body: formData,
@@ -207,7 +226,54 @@ class ApiClient {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, ...getWebDeviceInfo() }),
+      });
+    } catch {
+      throw new Error("Cannot reach the API. Check that the backend is running.");
+    }
+
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+
+    // The backend signals a 2FA challenge with 200 OK (not an error status) —
+    // see CookieTokenObtainPairView in accounts/jwt_views.py.
+    if (data.requires_2fa === true) {
+      throw new TwoFactorRequiredError(
+        typeof data.challenge_token === "string" ? data.challenge_token : "",
+        Array.isArray(data.methods) ? data.methods.map(String) : []
+      );
+    }
+
+    if (!res.ok) {
+      const detail =
+        data.detail ||
+        (Array.isArray(data.non_field_errors) ? data.non_field_errors[0] : null) ||
+        (typeof data === "object" ? (Object.values(data).flat()[0] as string | undefined) : null);
+      throw new Error((detail as string) || "Invalid username or password");
+    }
+
+    return data as unknown as LoginResponse;
+  }
+
+  async sendTwoFactorLoginOtp(challengeToken: string): Promise<{ sent: boolean }> {
+    return this.request<{ sent: boolean }>("/security/2fa/login/send-otp/", {
+      method: "POST",
+      body: JSON.stringify({ challenge_token: challengeToken }),
+      skipAuthRedirect: true,
+    });
+  }
+
+  async completeTwoFactorLogin(challengeToken: string, code: string): Promise<LoginResponse> {
+    let res: Response;
+    try {
+      res = await fetch("/api/auth/2fa-login", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          challenge_token: challengeToken,
+          code,
+          ...getWebDeviceInfo(),
+        }),
       });
     } catch {
       throw new Error("Cannot reach the API. Check that the backend is running.");
@@ -215,15 +281,7 @@ class ApiClient {
 
     if (!res.ok) {
       const errorData = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      const detail =
-        errorData.detail ||
-        (Array.isArray(errorData.non_field_errors)
-          ? errorData.non_field_errors[0]
-          : null) ||
-        (typeof errorData === "object"
-          ? (Object.values(errorData).flat()[0] as string | undefined)
-          : null);
-      throw new Error((detail as string) || "Invalid username or password");
+      throw new Error(String(errorData.detail ?? "Invalid verification code."));
     }
 
     return res.json() as Promise<LoginResponse>;
@@ -306,6 +364,37 @@ class ApiClient {
         current_password: currentPassword,
         new_password: newPassword,
       }),
+    });
+  }
+
+  async deleteAccount(
+    password: string,
+    reason?: string
+  ): Promise<{ deleted: boolean; message: string }> {
+    return this.request<{ deleted: boolean; message: string }>("/auth/delete-account/", {
+      method: "POST",
+      body: JSON.stringify({ password, reason: reason ?? "" }),
+    });
+  }
+
+  async getBlockedUsers(): Promise<{ blocked_users: BlockedUser[] }> {
+    return this.request("/chat/blocked/");
+  }
+
+  async unblockUser(userId: number): Promise<{ detail: string }> {
+    return this.request(`/chat/blocked/${userId}/unblock/`, { method: "POST" });
+  }
+
+  async submitSupportRequest(payload: {
+    category: SupportRequestCategory;
+    subject?: string;
+    message: string;
+    contact_email?: string;
+    device_info?: string;
+  }): Promise<{ id: number; detail: string }> {
+    return this.request("/support/requests/", {
+      method: "POST",
+      body: JSON.stringify(payload),
     });
   }
 
@@ -414,14 +503,31 @@ class ApiClient {
       formData.append("is_primary", "true");
     }
 
-    const doUpload = () =>
-      fetch(`${this.baseUrl}/photos/upload/`, {
+    // AI verification (face detection, quality checks) can legitimately take
+    // a few seconds, but the request must not hang forever — a stalled
+    // network call or a wedged backend would otherwise leave the photo tile
+    // spinning indefinitely with no way for the user to retry.
+    const UPLOAD_TIMEOUT_MS = 45_000;
+    const doUpload = () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+      return fetch(`${this.baseUrl}/photos/upload/`, {
         method: "POST",
         credentials: "include",
         body: formData,
-      });
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeout));
+    };
 
-    let response = await doUpload();
+    let response: Response;
+    try {
+      response = await doUpload();
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw new Error("Upload timed out. Check your connection and try again.");
+      }
+      throw error;
+    }
     if (response.status === 401) {
       const refreshed = await this.refreshSession();
       if (!refreshed) {
@@ -429,7 +535,14 @@ class ApiClient {
         if (shouldRedirectToLogin()) window.location.href = "/login";
         throw new Error("Authentication failed");
       }
-      response = await doUpload();
+      try {
+        response = await doUpload();
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          throw new Error("Upload timed out. Check your connection and try again.");
+        }
+        throw error;
+      }
     }
 
     const data = (await response.json().catch(() => ({}))) as PhotoUploadAnalysisResponse & {
@@ -460,6 +573,27 @@ class ApiClient {
 
   async getPhotoAnalysis(id: number): Promise<PhotoAnalysis> {
     return this.request<PhotoAnalysis>(`/photos/analysis/${id}/`);
+  }
+
+  async listMyPhotos(): Promise<ProfilePhoto[]> {
+    return this.request<ProfilePhoto[]>("/photos/mine/");
+  }
+
+  async reorderPhotos(photoIds: number[]): Promise<ProfilePhoto[]> {
+    return this.request<ProfilePhoto[]>("/photos/reorder/", {
+      method: "PATCH",
+      body: JSON.stringify({ photo_ids: photoIds }),
+    });
+  }
+
+  async setPhotoPrimary(id: number): Promise<ProfilePhoto[]> {
+    return this.request<ProfilePhoto[]>(`/photos/${id}/set-primary/`, {
+      method: "POST",
+    });
+  }
+
+  async deletePhoto(id: number): Promise<void> {
+    await this.request<void>(`/photos/${id}/`, { method: "DELETE" });
   }
 
   async startVerification(): Promise<VerificationStartResponse> {
@@ -613,6 +747,29 @@ class ApiClient {
     return this.request<WalletSummary>("/wallet/");
   }
 
+  async getWalletTransactions(params?: {
+    dateFrom?: string;
+    dateTo?: string;
+    paymentMethod?: string;
+    before?: number;
+    limit?: number;
+  }): Promise<WalletTransactionListResponse> {
+    const query = new URLSearchParams();
+    if (params?.dateFrom) query.set("date_from", params.dateFrom);
+    if (params?.dateTo) query.set("date_to", params.dateTo);
+    if (params?.paymentMethod) query.set("payment_method", params.paymentMethod);
+    if (params?.before) query.set("before", String(params.before));
+    if (params?.limit) query.set("limit", String(params.limit));
+    const qs = query.toString();
+    return this.request<WalletTransactionListResponse>(
+      `/wallet/transactions/${qs ? `?${qs}` : ""}`
+    );
+  }
+
+  async getWalletTransaction(id: number): Promise<WalletTransaction> {
+    return this.request<WalletTransaction>(`/wallet/transactions/${id}/`);
+  }
+
   async initiateWalletTopUp(amount: number): Promise<InitiateSubscriptionResponse> {
     return this.request<InitiateSubscriptionResponse>("/wallet/topup/initiate/", {
       method: "POST",
@@ -624,6 +781,13 @@ class ApiClient {
     return this.request<WalletPurchaseResponse>("/wallet/purchase/", {
       method: "POST",
       body: JSON.stringify({ plan_id: planId }),
+    });
+  }
+
+  async redeemGiftCard(code: string): Promise<GiftCardRedeemResponse> {
+    return this.request<GiftCardRedeemResponse>("/wallet/giftcard/redeem/", {
+      method: "POST",
+      body: JSON.stringify({ code }),
     });
   }
 
@@ -651,11 +815,15 @@ class ApiClient {
     if (options?.archived) params.set("archived", "true");
     if (options?.unread) params.set("unread", "true");
     const qs = params.toString();
-    return this.request<Conversation[]>(`/chat/conversations/${qs ? `?${qs}` : ""}`);
+    return this.request<Conversation[]>(
+      `/chat/conversations/${qs ? `?${qs}` : ""}`,
+      {},
+      this.chatBaseUrl
+    );
   }
 
   async getConversationDetail(conversationId: number | string): Promise<ConversationDetail> {
-    return this.request<ConversationDetail>(`/chat/conversations/${conversationId}/`);
+    return this.request<ConversationDetail>(`/chat/conversations/${conversationId}/`, {}, this.chatBaseUrl);
   }
 
   async getMessages(
@@ -667,7 +835,9 @@ class ApiClient {
     if (options?.limit) params.set("limit", String(options.limit));
     const qs = params.toString();
     return this.request<{ results: Message[]; has_more: boolean; next_before: number | null }>(
-      `/chat/conversations/${conversationId}/messages${qs ? `?${qs}` : ""}`
+      `/chat/conversations/${conversationId}/messages${qs ? `?${qs}` : ""}`,
+      {},
+      this.chatBaseUrl
     );
   }
 
@@ -682,26 +852,29 @@ class ApiClient {
     image_url = "",
     reply_to_id?: number | null
   ): Promise<Message> {
-    return this.request<Message>(`/chat/conversations/${conversationId}/messages/`, {
-      method: "POST",
-      body: JSON.stringify({
-        content,
-        image_url,
-        ...(reply_to_id ? { reply_to_id } : {}),
-      }),
-    });
+    return this.request<Message>(
+      `/chat/conversations/${conversationId}/messages/`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          content,
+          image_url,
+          ...(reply_to_id ? { reply_to_id } : {}),
+        }),
+      },
+      this.chatBaseUrl
+    );
   }
 
   async sendTypingHeartbeat(conversationId: number | string): Promise<void> {
-    await this.request(`/chat/conversations/${conversationId}/typing/`, {
-      method: "POST",
-    });
+    await this.request(`/chat/conversations/${conversationId}/typing/`, { method: "POST" }, this.chatBaseUrl);
   }
 
   async getWsTicket(conversationId: number | string): Promise<string> {
     const data = await this.request<{ ticket: string }>(
       `/chat/conversations/${conversationId}/ws-ticket/`,
-      { method: "POST" }
+      { method: "POST" },
+      this.chatBaseUrl
     );
     return data.ticket;
   }
@@ -767,24 +940,26 @@ class ApiClient {
   async uploadChatImage(file: File): Promise<{ image_url: string }> {
     const formData = new FormData();
     formData.append("image", file);
-    return this.uploadRequest<{ image_url: string }>("/chat/upload/", formData);
+    return this.uploadRequest<{ image_url: string }>("/chat/upload/", formData, {}, this.chatBaseUrl);
   }
 
   async reactToMessage(messageId: number, emoji: string): Promise<Message> {
-    return this.request<Message>(`/chat/messages/${messageId}/react/`, {
-      method: "POST",
-      body: JSON.stringify({ emoji }),
-    });
+    return this.request<Message>(
+      `/chat/messages/${messageId}/react/`,
+      { method: "POST", body: JSON.stringify({ emoji }) },
+      this.chatBaseUrl
+    );
   }
 
   async deleteMessage(
     messageId: number,
     deleteType: "for_me" | "for_everyone"
   ): Promise<void> {
-    await this.request(`/chat/messages/${messageId}/delete/`, {
-      method: "POST",
-      body: JSON.stringify({ delete_type: deleteType }),
-    });
+    await this.request(
+      `/chat/messages/${messageId}/delete/`,
+      { method: "POST", body: JSON.stringify({ delete_type: deleteType }) },
+      this.chatBaseUrl
+    );
   }
 
   async updateConversationSettings(
@@ -801,7 +976,8 @@ class ApiClient {
       {
         method: "PATCH",
         body: JSON.stringify(settings),
-      }
+      },
+      this.chatBaseUrl
     );
   }
 
@@ -814,21 +990,27 @@ class ApiClient {
   }
 
   async clearConversationHistory(conversationId: number | string): Promise<{ detail: string }> {
-    return this.request<{ detail: string }>(`/chat/conversations/${conversationId}/clear/`, {
-      method: "POST",
-    });
+    return this.request<{ detail: string }>(
+      `/chat/conversations/${conversationId}/clear/`,
+      { method: "POST" },
+      this.chatBaseUrl
+    );
   }
 
   async unmatchConversation(conversationId: number | string): Promise<{ detail: string }> {
-    return this.request<{ detail: string }>(`/chat/conversations/${conversationId}/unmatch/`, {
-      method: "POST",
-    });
+    return this.request<{ detail: string }>(
+      `/chat/conversations/${conversationId}/unmatch/`,
+      { method: "POST" },
+      this.chatBaseUrl
+    );
   }
 
   async blockConversation(conversationId: number | string): Promise<{ detail: string }> {
-    return this.request<{ detail: string }>(`/chat/conversations/${conversationId}/block/`, {
-      method: "POST",
-    });
+    return this.request<{ detail: string }>(
+      `/chat/conversations/${conversationId}/block/`,
+      { method: "POST" },
+      this.chatBaseUrl
+    );
   }
 
   async unmatchAndBlockConversation(
@@ -836,9 +1018,8 @@ class ApiClient {
   ): Promise<{ detail: string }> {
     return this.request<{ detail: string }>(
       `/chat/conversations/${conversationId}/unmatch-and-block/`,
-      {
-        method: "POST",
-      }
+      { method: "POST" },
+      this.chatBaseUrl
     );
   }
 
@@ -846,10 +1027,11 @@ class ApiClient {
     conversationId: number | string,
     reason: string
   ): Promise<{ detail: string }> {
-    return this.request<{ detail: string }>(`/chat/conversations/${conversationId}/report/`, {
-      method: "POST",
-      body: JSON.stringify({ reason }),
-    });
+    return this.request<{ detail: string }>(
+      `/chat/conversations/${conversationId}/report/`,
+      { method: "POST", body: JSON.stringify({ reason }) },
+      this.chatBaseUrl
+    );
   }
 
   async getNotificationConfig(): Promise<{
@@ -898,6 +1080,141 @@ class ApiClient {
       method: "PATCH",
       body: JSON.stringify(prefs),
     });
+  }
+
+  // ── Security Center ─────────────────────────────────────────
+
+  private securityDeviceHeaders(): Record<string, string> {
+    return { "X-Device-Id": getWebDeviceId() };
+  }
+
+  async getSecurityOverview(): Promise<SecurityOverview> {
+    return this.request<SecurityOverview>("/security/overview/", {
+      headers: this.securityDeviceHeaders(),
+    });
+  }
+
+  async verifySecurityPassword(password: string): Promise<{ verified: boolean; detail?: string }> {
+    return this.request("/security/password/verify/", {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    });
+  }
+
+  async setupTwoFactorTotp(password: string): Promise<{ secret: string; otpauth_uri: string }> {
+    return this.request("/security/2fa/setup/totp/", {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    });
+  }
+
+  async setupTwoFactorEmail(password: string): Promise<{ sent: boolean; message: string }> {
+    return this.request("/security/2fa/setup/email/", {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    });
+  }
+
+  async enableTwoFactor(code: string): Promise<{ enabled: boolean; backup_codes: string[] }> {
+    return this.request("/security/2fa/enable/", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    });
+  }
+
+  async disableTwoFactor(password: string): Promise<{ disabled: boolean }> {
+    return this.request("/security/2fa/disable/", {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    });
+  }
+
+  async getBackupCodesStatus(): Promise<{ remaining: number }> {
+    return this.request("/security/2fa/backup-codes/");
+  }
+
+  async regenerateBackupCodes(password: string): Promise<{ codes: string[]; remaining: number }> {
+    return this.request("/security/2fa/backup-codes/regenerate/", {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    });
+  }
+
+  async getSecurityDevices(): Promise<{ devices: SecurityDevice[] }> {
+    return this.request("/security/devices/", { headers: this.securityDeviceHeaders() });
+  }
+
+  async renameSecurityDevice(deviceId: number, deviceName: string): Promise<SecurityDevice> {
+    return this.request(`/security/devices/${deviceId}/rename/`, {
+      method: "PATCH",
+      body: JSON.stringify({ device_name: deviceName }),
+    });
+  }
+
+  async trustSecurityDevice(deviceId: number): Promise<SecurityDevice> {
+    return this.request(`/security/devices/${deviceId}/trust/`, { method: "POST" });
+  }
+
+  async untrustSecurityDevice(deviceId: number): Promise<SecurityDevice> {
+    return this.request(`/security/devices/${deviceId}/untrust/`, { method: "POST" });
+  }
+
+  async logoutSecurityDevice(deviceId: number): Promise<{ logged_out: boolean }> {
+    return this.request(`/security/devices/${deviceId}/logout/`, {
+      method: "POST",
+      headers: this.securityDeviceHeaders(),
+    });
+  }
+
+  async logoutAllDevices(keepCurrent = true): Promise<{ revoked: number; message: string }> {
+    return this.request("/security/devices/logout-all/", {
+      method: "POST",
+      headers: this.securityDeviceHeaders(),
+      body: JSON.stringify({ keep_current: keepCurrent }),
+    });
+  }
+
+  async getLoginHistory(options?: {
+    search?: string;
+    success?: boolean;
+    page?: number;
+    pageSize?: number;
+  }): Promise<{ results: LoginHistoryEntry[]; total: number; page: number; page_size: number }> {
+    const params = new URLSearchParams();
+    if (options?.search) params.set("search", options.search);
+    if (options?.success !== undefined) params.set("success", String(options.success));
+    if (options?.page) params.set("page", String(options.page));
+    if (options?.pageSize) params.set("page_size", String(options.pageSize));
+    const qs = params.toString();
+    return this.request(`/security/login-history/${qs ? `?${qs}` : ""}`);
+  }
+
+  async getSecurityEvents(unreadOnly = false): Promise<{ events: SecurityEvent[] }> {
+    return this.request(`/security/events/${unreadOnly ? "?unread=true" : ""}`);
+  }
+
+  async markSecurityEventRead(eventId: number): Promise<SecurityEvent> {
+    return this.request(`/security/events/${eventId}/read/`, { method: "POST" });
+  }
+
+  async deleteSecurityEvent(eventId: number): Promise<void> {
+    return this.request<void>(`/security/events/${eventId}/read/`, { method: "DELETE" });
+  }
+
+  async markAllSecurityEventsRead(): Promise<{ marked: number }> {
+    return this.request("/security/events/read-all/", { method: "POST" });
+  }
+}
+
+export class TwoFactorRequiredError extends Error {
+  challengeToken: string;
+  methods: string[];
+
+  constructor(challengeToken: string, methods: string[]) {
+    super("Two-factor authentication required.");
+    this.name = "TwoFactorRequiredError";
+    this.challengeToken = challengeToken;
+    this.methods = methods;
   }
 }
 

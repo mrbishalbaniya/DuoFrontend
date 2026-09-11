@@ -5,16 +5,10 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback } from "react";
 import { RegistrationStepper } from "@/components/register/RegistrationStepper";
-import { StepAbout } from "@/components/register/StepAbout";
 import { StepAccount } from "@/components/register/StepAccount";
 import { StepBasicInfo } from "@/components/register/StepBasicInfo";
-import { StepEducation } from "@/components/register/StepEducation";
-import { StepInterests } from "@/components/register/StepInterests";
 import { StepLocation } from "@/components/register/StepLocation";
-import { StepLifestyle } from "@/components/register/StepLifestyle";
 import { StepPhotos } from "@/components/register/StepPhotos";
-import { StepPreferences } from "@/components/register/StepPreferences";
-import { StepReligion } from "@/components/register/StepReligion";
 import { StepReview } from "@/components/register/StepReview";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
@@ -118,20 +112,8 @@ export default function RegisterPage() {
       case 3:
         return <StepLocation onContinue={handleContinue} onBack={prevStep} />;
       case 4:
-        return <StepEducation onContinue={handleContinue} onBack={prevStep} />;
-      case 5:
-        return <StepReligion onContinue={handleContinue} onBack={prevStep} />;
-      case 6:
-        return <StepLifestyle onContinue={handleContinue} onBack={prevStep} />;
-      case 7:
-        return <StepInterests onContinue={handleContinue} onBack={prevStep} />;
-      case 8:
-        return <StepPreferences onContinue={handleContinue} onBack={prevStep} />;
-      case 9:
-        return <StepAbout onContinue={handleContinue} onBack={prevStep} />;
-      case 10:
         return <StepPhotos onContinue={handleContinue} onBack={prevStep} />;
-      case 11:
+      case 5:
         return (
           <StepReview
             onSubmit={handleSubmit}

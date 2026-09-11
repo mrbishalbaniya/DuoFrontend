@@ -16,7 +16,11 @@ function mapReligion(religion: RegistrationData["religion"]): string {
     buddhist: "Buddhist",
     muslim: "Muslim",
     christian: "Christian",
-    kirat: "Other",
+    kirat: "Kirat",
+    sikh: "Sikh",
+    jain: "Jain",
+    jewish: "Jewish",
+    non_religious: "Non-religious",
     other: "Other",
   };
   return map[religion] ?? "Other";
