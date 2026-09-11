@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { SecurityPageShell } from "@/components/security/SecurityPageShell";
 
 function HelpRow({
@@ -31,46 +32,33 @@ function HelpRow({
   );
 }
 
-const GUIDES = [
-  {
-    icon: "favorite",
-    title: "Getting started with matching",
-    description: "How Discovery, likes, and matches work",
-  },
-  {
-    icon: "shield",
-    title: "Staying safe while dating",
-    description: "Tips for meeting people you match with",
-  },
-  {
-    icon: "account_balance_wallet",
-    title: "Coins, Premium & payments",
-    description: "How billing and eSewa top-ups work",
-  },
-];
+type GuideData = { icon: string; title: string; description: string };
 
 export function HelpCenterPage() {
+  const t = useTranslations("settingsExtra.help");
+  const guides = t.raw("guides") as GuideData[];
+
   return (
-    <SecurityPageShell title="Help center" backHref="/settings">
+    <SecurityPageShell title={t("pageTitle")} backHref="/settings">
       <div className="space-y-6">
         <section className="space-y-3">
           <h2 className="px-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-            Get help
+            {t("getHelpSection")}
           </h2>
           <div className="overflow-hidden rounded-2xl border border-primary/10 bg-secondary/30">
-            <HelpRow icon="quiz" title="FAQ" description="Answers to common questions" href="/help/faq" />
+            <HelpRow icon="quiz" title={t("faqTitle")} description={t("faqDescription")} href="/help/faq" />
             <div className="border-t border-outline-variant/20" />
             <HelpRow
               icon="support_agent"
-              title="Contact support"
-              description="Get help from the Duo team"
+              title={t("contactTitle")}
+              description={t("contactDescription")}
               href="/help/contact"
             />
             <div className="border-t border-outline-variant/20" />
             <HelpRow
               icon="bug_report"
-              title="Report a bug"
-              description="Tell us what went wrong"
+              title={t("reportBugTitle")}
+              description={t("reportBugDescription")}
               href="/help/report-bug"
             />
           </div>
@@ -78,10 +66,10 @@ export function HelpCenterPage() {
 
         <section className="space-y-3">
           <h2 className="px-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-            Guides
+            {t("guidesSection")}
           </h2>
           <div className="overflow-hidden rounded-2xl border border-primary/10 bg-secondary/30">
-            {GUIDES.map((g, idx) => (
+            {guides.map((g, idx) => (
               <div key={g.title}>
                 {idx > 0 ? <div className="border-t border-outline-variant/20" /> : null}
                 <HelpRow icon={g.icon} title={g.title} description={g.description} href="/help/faq" />

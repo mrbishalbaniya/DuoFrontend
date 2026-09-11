@@ -35,6 +35,7 @@
     "material-symbols": "^0.45.2",
     "motion": "^12.40.0",
     "next": "16.2.3",
+    "next-intl": "^4.14.3",
     "nodemailer": "^9.0.3",
     "nsfwjs": "^4.3.0",
     "qrcode.react": "^4.2.0",

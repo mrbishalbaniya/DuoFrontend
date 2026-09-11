@@ -2641,7 +2641,10 @@
     gap: 0.625rem;
     width: 100%;
     padding: 0.25rem 1rem;
-    border-radius: 0.75rem;
+    /* Matches Input/SelectField's actual rounded-xl radius in this theme
+       (--radius-xl: 2rem, redefined far rounder than Tailwind's 12px
+       default) — a hardcoded 0.75rem here never matched them. */
+    border-radius: var(--radius-xl);
     border: 1px solid rgba(55, 65, 81, 0.45);
     background: var(--color-surface-container-high);
     color-scheme: dark;
@@ -2651,6 +2654,21 @@
   .duo-phone-input:focus-within {
     border-color: rgba(232, 74, 122, 0.35);
     box-shadow: 0 0 0 2px rgba(232, 74, 122, 0.2);
+  }
+
+  /* Matches the ~48px height (h-12) of Input/SelectField so this doesn't
+     stick out when it sits in a grid next to them, e.g. profile editing. */
+  .duo-phone-input--compact {
+    height: 3rem;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .duo-phone-input--compact .duo-phone-input__number,
+  .duo-phone-input--compact .PhoneInputInput {
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: 0.875rem;
   }
 
   .duo-phone-input .PhoneInputCountry {

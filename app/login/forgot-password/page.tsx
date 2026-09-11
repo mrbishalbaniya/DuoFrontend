@@ -3,12 +3,14 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import api from "@/lib/api";
 import { getPasswordStrength } from "@/lib/validation/registrationSchema";
 
 type Step = "email" | "reset";
 
 export default function ForgotPasswordPage() {
+  const t = useTranslations("settingsExtra.authExtra");
   const router = useRouter();
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
@@ -35,7 +37,7 @@ export default function ForgotPasswordPage() {
       setInfo(response.message);
       setStep("reset");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Could not send reset code.");
+      setError(err instanceof Error ? err.message : t("couldNotSendCode"));
     } finally {
       setLoading(false);
     }
@@ -48,7 +50,7 @@ export default function ForgotPasswordPage() {
       const response = await api.requestPasswordReset(email);
       setInfo(response.message);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Could not resend reset code.");
+      setError(err instanceof Error ? err.message : t("couldNotResendCode"));
     } finally {
       setSending(false);
     }
@@ -60,17 +62,17 @@ export default function ForgotPasswordPage() {
     setInfo("");
 
     if (otp.length !== 6) {
-      setError("Enter the 6-digit code from your email.");
+      setError(t("enterSixDigitCode"));
       return;
     }
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      setError(t("passwordMinLength"));
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+      setError(t("passwordsDoNotMatch"));
       return;
     }
 
@@ -79,7 +81,7 @@ export default function ForgotPasswordPage() {
       await api.resetPassword(email, otp, password);
       router.push("/login?reset=success");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Could not reset password.");
+      setError(err instanceof Error ? err.message : t("couldNotResetPassword"));
     } finally {
       setLoading(false);
     }
@@ -92,7 +94,7 @@ export default function ForgotPasswordPage() {
           Duo
         </h1>
         <p className="text-on-surface-variant text-sm font-medium">
-          Reset your password
+          {t("resetYourPassword")}
         </p>
       </header>
 
@@ -100,12 +102,12 @@ export default function ForgotPasswordPage() {
         <div className="glass-card rounded-[2rem] p-8 shadow-[0_40px_60px_-15px] shadow-primary/15">
           <div className="mb-8">
             <h2 className="font-[var(--font-headline)] text-2xl font-bold text-on-surface mb-1">
-              {step === "email" ? "Forgot password?" : "Set a new password"}
+              {step === "email" ? t("forgotPasswordTitle") : t("setNewPasswordTitle")}
             </h2>
             <p className="text-on-surface-variant text-sm">
               {step === "email"
-                ? "Enter your account email and we will send you a reset code."
-                : `Enter the code sent to ${email} and choose a new password.`}
+                ? t("forgotPasswordDescription")
+                : t("resetPasswordDescription", { email })}
             </p>
           </div>
 
@@ -128,7 +130,7 @@ export default function ForgotPasswordPage() {
                   className="block text-sm font-semibold text-on-surface-variant ml-1"
                   htmlFor="email"
                 >
-                  Email
+                  {t("emailLabel")}
                 </label>
                 <div className="relative group">
                   <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
@@ -139,7 +141,7 @@ export default function ForgotPasswordPage() {
                     id="email"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
-                    placeholder="you@example.com"
+                    placeholder={t("emailPlaceholder")}
                     type="email"
                     required
                   />
@@ -151,7 +153,7 @@ export default function ForgotPasswordPage() {
                 disabled={loading}
                 className="w-full gradient-brand text-white py-4 rounded-full font-bold text-base shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 font-[var(--font-headline)] disabled:opacity-50"
               >
-                {loading ? "Sending code..." : "Send reset code"}
+                {loading ? t("sendingCode") : t("sendResetCode")}
               </button>
             </form>
           ) : (
@@ -161,7 +163,7 @@ export default function ForgotPasswordPage() {
                   className="block text-sm font-semibold text-on-surface-variant ml-1"
                   htmlFor="otp"
                 >
-                  Reset code
+                  {t("resetCodeLabel")}
                 </label>
                 <input
                   className="w-full px-4 py-4 bg-surface-container-high rounded-[1rem] border-none ring-1 ring-outline-variant/30 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-on-surface placeholder:text-outline tracking-[0.3em] text-center font-semibold"
@@ -182,7 +184,7 @@ export default function ForgotPasswordPage() {
                   className="block text-sm font-semibold text-on-surface-variant ml-1"
                   htmlFor="password"
                 >
-                  New password
+                  {t("newPasswordLabel")}
                 </label>
                 <div className="relative group">
                   <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
@@ -193,7 +195,7 @@ export default function ForgotPasswordPage() {
                     id="password"
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Create a strong password"
+                    placeholder={t("createStrongPasswordPlaceholder")}
                     type={showPassword ? "text" : "password"}
                     required
                   />
@@ -209,7 +211,7 @@ export default function ForgotPasswordPage() {
                 </div>
                 {password ? (
                   <p className="text-xs text-on-surface-variant ml-1">
-                    Strength: <span className="font-semibold">{strength.label}</span>
+                    {t("strengthLabel")} <span className="font-semibold">{strength.label}</span>
                   </p>
                 ) : null}
               </div>
@@ -219,7 +221,7 @@ export default function ForgotPasswordPage() {
                   className="block text-sm font-semibold text-on-surface-variant ml-1"
                   htmlFor="confirmPassword"
                 >
-                  Confirm password
+                  {t("confirmPasswordLabel")}
                 </label>
                 <div className="relative group">
                   <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
@@ -230,7 +232,7 @@ export default function ForgotPasswordPage() {
                     id="confirmPassword"
                     value={confirmPassword}
                     onChange={(event) => setConfirmPassword(event.target.value)}
-                    placeholder="Re-enter your password"
+                    placeholder={t("reEnterPasswordPlaceholder")}
                     type={showConfirm ? "text" : "password"}
                     required
                   />
@@ -252,7 +254,7 @@ export default function ForgotPasswordPage() {
                 disabled={sending || loading}
                 className="w-full rounded-full border border-outline-variant/30 bg-surface-container-high py-3 text-sm font-semibold text-on-surface transition hover:bg-surface-container disabled:opacity-50"
               >
-                {sending ? "Resending..." : "Resend code"}
+                {sending ? t("resending") : t("resendCode")}
               </button>
 
               <button
@@ -260,7 +262,7 @@ export default function ForgotPasswordPage() {
                 disabled={loading}
                 className="w-full gradient-brand text-white py-4 rounded-full font-bold text-base shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 font-[var(--font-headline)] disabled:opacity-50"
               >
-                {loading ? "Updating password..." : "Update password"}
+                {loading ? t("updatingPassword") : t("updatePassword")}
               </button>
 
               <button
@@ -275,7 +277,7 @@ export default function ForgotPasswordPage() {
                 }}
                 className="w-full text-sm font-semibold text-on-surface-variant hover:text-on-surface"
               >
-                Use a different email
+                {t("useDifferentEmail")}
               </button>
             </form>
           )}
@@ -285,7 +287,7 @@ export default function ForgotPasswordPage() {
               className="text-accent font-bold hover:underline underline-offset-4 text-sm"
               href="/login"
             >
-              Back to login
+              {t("backToLogin")}
             </Link>
           </div>
         </div>

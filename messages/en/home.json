@@ -1,0 +1,62 @@
+{
+  "home": {
+    "landing": {
+      "sectionLabel": "The Duo Experience",
+      "sectionTitle": "Designed for Real Connection",
+      "sectionBody": "Our features prioritize your privacy, time, and emotional well-being above all else.",
+      "featureSwipeTitle": "Swipe discovery",
+      "featureSwipeBody": "Experience a fluid, intentional browsing experience that makes finding matches engaging yet respectful.",
+      "featureMatchTitle": "Smart matching",
+      "featureMatchBody": "Our proprietary algorithm considers 150+ cultural, professional, and personal data points for higher compatibility.",
+      "featureChatTitle": "Secure chat",
+      "featureChatBody": "End-to-end encrypted messaging with built-in boundaries and safety controls for your peace of mind.",
+      "statsTitle": "The digital heirlooms we build together.",
+      "statsBody": "We don't just count matches; we count long-term unions that enrich families and futures.",
+      "statVerifiedValue": "10k+",
+      "statVerifiedLabel": "Verified Profiles",
+      "statSuccessValue": "85%",
+      "statSuccessLabel": "Success Rate",
+      "luxuryEventAlt": "Luxury event",
+      "ctaLabel": "Begin Your Journey",
+      "ctaTitleLine1": "Your story begins",
+      "ctaTitleLine2": "with a single hello.",
+      "ctaBody": "Join the most trusted community for meaningful connections today. Registration is free and takes less than 2 minutes.",
+      "ctaButton": "Create Your Free Profile",
+      "footerTagline": "Redefining modern relationships through intuitive matching and cultural respect.",
+      "footerPlatformHeading": "Platform",
+      "footerHowItWorks": "How it Works",
+      "footerSmartMatching": "Smart Matching",
+      "footerDownloadApk": "Download Android APK",
+      "footerPricing": "Pricing",
+      "footerSupportHeading": "Support",
+      "footerHelpCenter": "Help Center",
+      "footerSafetyTips": "Safety Tips",
+      "footerTerms": "Terms of Service",
+      "footerPrivacy": "Privacy Policy",
+      "footerNewsletterHeading": "Newsletter",
+      "footerNewsletterBody": "Get relationship insights delivered monthly.",
+      "footerEmailPlaceholder": "Email address",
+      "footerCopyright": "© 2024 Duo Inc. All rights reserved.",
+      "footerGetApk": "Get APK",
+      "footerLangEnglish": "English",
+      "footerLangNepali": "Nepali",
+      "footerLangHindi": "Hindi"
+    },
+    "animatedText": {
+      "heroLine1": "Don't just swipe.",
+      "heroLine2": "Connect.",
+      "scrollToReveal": "Scroll to Reveal",
+      "pitchTitle": "This is what makes us different.",
+      "pitchBody": "You stopped scrolling because something felt <b>real</b>. That's the power of <b>authenticity</b> and <b>genuine connection</b>. We build relationships that last, not just matches that fade.",
+      "pitchQuote": "\"If you're ready for something meaningful, we should connect.\"",
+      "ctaLabel": "Begin Your Journey",
+      "ctaTitleLine1": "Your story begins",
+      "ctaTitleLine2": "with a single hello.",
+      "ctaBody": "Join the most trusted community for meaningful connections today. Registration is free and takes less than 2 minutes.",
+      "ctaButton": "Create Your Free Profile"
+    },
+    "skeleton": {
+      "loading": "Loading home page"
+    }
+  }
+}

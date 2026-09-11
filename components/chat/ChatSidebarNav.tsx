@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { CSSProperties } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useUnreadMessagesBadge } from "@/hooks/useUnreadMessagesBadge";
@@ -11,15 +12,6 @@ type NavItem = {
   icon: string;
   label: string;
 };
-
-const NAV_ITEMS: NavItem[] = [
-  { href: "/", icon: "home", label: "Home" },
-  { href: "/match", icon: "favorite", label: "Match" },
-  { href: "/discover", icon: "group", label: "Discover" },
-  { href: "/chat", icon: "chat_bubble", label: "Chat" },
-  { href: "/map", icon: "map", label: "Map" },
-  { href: "/profile", icon: "person", label: "Profile" },
-];
 
 const filledIconStyle: CSSProperties = { fontVariationSettings: "'FILL' 1" };
 
@@ -118,6 +110,16 @@ export function ChatSidebarNav({ className = "" }: ChatSidebarNavProps) {
   const pathname = usePathname();
   const { resolvedTheme, setTheme } = useTheme();
   const { badgeLabel } = useUnreadMessagesBadge();
+  const t = useTranslations("nav");
+
+  const NAV_ITEMS: NavItem[] = [
+    { href: "/", icon: "home", label: t("home") },
+    { href: "/match", icon: "favorite", label: t("match") },
+    { href: "/discover", icon: "group", label: t("discover") },
+    { href: "/chat", icon: "chat_bubble", label: t("chat") },
+    { href: "/map", icon: "map", label: t("map") },
+    { href: "/profile", icon: "person", label: t("profile") },
+  ];
 
   const handleToggleTheme = () => {
     setTheme(resolvedTheme === "dark" ? "light" : "dark");

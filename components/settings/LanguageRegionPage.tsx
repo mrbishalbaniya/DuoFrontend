@@ -1,9 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
+import { setLocaleCookie } from "@/lib/i18n/setLocale";
 import {
   SecurityNotice,
   SecurityPageShell,
@@ -19,6 +21,8 @@ const LANGUAGES: Array<{ code: "en" | "ne"; label: string; native: string }> = [
 const REGIONS = ["Nepal", "India", "United States", "United Kingdom", "Australia", "Other"];
 
 export function LanguageRegionPage() {
+  const t = useTranslations("languageRegion");
+  const activeLocale = useLocale();
   const { user, loading: authLoading, fetchUser } = useAuth();
   const router = useRouter();
   const [language, setLanguage] = useState<"en" | "ne">("en");
@@ -37,12 +41,20 @@ export function LanguageRegionPage() {
     api
       .getMyProfile()
       .then((profile) => {
-        setLanguage((profile.app_language as "en" | "ne") || "en");
+        const savedLanguage = (profile.app_language as "en" | "ne") || "en";
+        setLanguage(savedLanguage);
         setRegion(profile.app_region || "Nepal");
+        // Catches a saved preference from another device/browser that the
+        // active session's locale cookie doesn't know about yet — e.g. the
+        // user picked Nepali on their phone, then opens this page on a
+        // desktop browser that's never set the cookie.
+        if (savedLanguage !== activeLocale) {
+          void setLocaleCookie(savedLanguage).then(() => router.refresh());
+        }
       })
-      .catch(() => setError("Could not load your language settings."))
+      .catch(() => setError(t("loadError")))
       .finally(() => setLoading(false));
-  }, [user]);
+  }, [user, t, activeLocale, router]);
 
   const handleSave = async (next: { language?: "en" | "ne"; region?: string }) => {
     const nextLanguage = next.language ?? language;
@@ -54,17 +66,24 @@ export function LanguageRegionPage() {
       await api.updateProfile({ app_language: nextLanguage, app_region: nextRegion });
       setLanguage(nextLanguage);
       setRegion(nextRegion);
-      setNotice("Saved.");
+      setNotice(t("saved"));
       void fetchUser();
+      if (next.language) {
+        // Actually switches the UI language, not just the saved preference
+        // — refresh() re-runs server components (including the root
+        // layout's message provider) against the new locale cookie.
+        await setLocaleCookie(next.language);
+        router.refresh();
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save your changes.");
+      setError(err instanceof Error ? err.message : t("saveError"));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <SecurityPageShell title="Language & region" backHref="/settings">
+    <SecurityPageShell title={t("title")} backHref="/settings">
       {loading ? (
         <SecuritySpinner />
       ) : (
@@ -74,7 +93,7 @@ export function LanguageRegionPage() {
 
           <section className="space-y-3">
             <h2 className="px-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-              App language
+              {t("appLanguage")}
             </h2>
             <div className="overflow-hidden rounded-2xl border border-primary/10 bg-secondary/30">
               {LANGUAGES.map((option, idx) => (
@@ -101,15 +120,12 @@ export function LanguageRegionPage() {
                 </div>
               ))}
             </div>
-            <p className="px-1 text-xs text-on-surface-variant">
-              Duo's interface is currently available in English. Nepali translations are on the way —
-              your preference is saved and will apply automatically once ready.
-            </p>
+            <p className="px-1 text-xs text-on-surface-variant">{t("helperText")}</p>
           </section>
 
           <section className="space-y-3">
             <h2 className="px-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-              Region
+              {t("region")}
             </h2>
             <div className="overflow-hidden rounded-2xl border border-primary/10 bg-secondary/30">
               {REGIONS.map((option, idx) => (
@@ -132,9 +148,7 @@ export function LanguageRegionPage() {
                 </div>
               ))}
             </div>
-            <p className="px-1 text-xs text-on-surface-variant">
-              Used for regional content and formatting — this doesn't affect who you match with.
-            </p>
+            <p className="px-1 text-xs text-on-surface-variant">{t("regionHint")}</p>
           </section>
         </div>
       )}

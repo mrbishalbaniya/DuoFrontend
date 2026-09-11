@@ -4,19 +4,24 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/ui/select-field";
+import { DuoPhoneInput, type Value as PhoneValue } from "@/components/ui/phone-input";
 import { PhotoAnalysisResult } from "@/components/photos/PhotoAnalysisResult";
 import api from "@/lib/api";
 import { screenImageForNsfw } from "@/lib/photos/nsfwScreen";
 import { getPhotoUploadError } from "@/lib/photos/validatePhotoUpload";
+import { splitPhoneValue } from "@/lib/phone";
+import { calculateAgeFromDob, maxBirthDateForMinAge, minBirthDate } from "@/lib/age";
 import {
   CASTE_OPTIONS,
   EDUCATION_LEVEL_OPTIONS,
   FIELD_OF_STUDY_OPTIONS,
   GOTRA_OPTIONS,
-  HOROSCOPE_OPTIONS,
   INCOME_OPTIONS,
   MARRIAGE_PREF_OPTIONS,
+  RASHI_OPTIONS,
   RELIGION_OPTIONS,
+  WORK_PREFERENCE_OPTIONS,
 } from "@/lib/register/constants";
 import type { ProfileEditFormData, ProfileEditPhoto } from "@/lib/profile/profileForm";
 import { cn } from "@/lib/utils";
@@ -37,6 +42,25 @@ const PREF_GENDER_OPTIONS = [
   { value: "women", label: "Female" },
   { value: "men", label: "Male" },
   { value: "everyone", label: "Everyone" },
+] as const;
+
+const GENDER_SELECT_OPTIONS = [
+  { value: "M", label: "Male" },
+  { value: "F", label: "Female" },
+  { value: "O", label: "Other" },
+] as const;
+
+const RELATIONSHIP_GOAL_SELECT_OPTIONS = [
+  { value: "dating", label: "Dating" },
+  { value: "serious", label: "Serious" },
+  { value: "casual", label: "Casual" },
+] as const;
+
+const PREF_RELATIONSHIP_GOAL_OPTIONS = [
+  { value: "everyone", label: "Everyone" },
+  { value: "serious", label: "Serious" },
+  { value: "casual", label: "Casual" },
+  { value: "dating", label: "Dating" },
 ] as const;
 
 function FormSection({ title, children }: { title: string; children: ReactNode }) {
@@ -67,8 +91,6 @@ function Field({
 
 const inputClassName =
   "w-full rounded-xl border border-outline-variant/30 bg-secondary/50 px-4 py-3 outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/25";
-
-const selectClassName = inputClassName;
 
 const MIN_PROFILE_PHOTOS = 1;
 const MAX_PROFILE_PHOTOS = 3;
@@ -166,14 +188,22 @@ export function ProfileEditForm({
       if (!result.image_url) {
         throw new Error(`${pending.file.name}: upload succeeded but no image URL was returned.`);
       }
+      // Detect and reject outright — no "under review" limbo state. A photo
+      // either clears the checks (client-side NSFW screen above, plus the
+      // backend's face/quality/content analysis) and is usable immediately,
+      // or it's rejected with a clear reason. We don't gate on the
+      // backend's separate async moderation record, since that would leave
+      // every photo stuck waiting on a queue/worker that may not even be
+      // running.
+      if (result.photo?.status === "REJECTED") {
+        throw new Error(`${pending.file.name}: this photo was rejected by our content checks.`);
+      }
 
       const photo: ProfileEditPhoto = {
         id: `${Date.now()}-${pending.file.name}`,
         url: result.image_url,
         fileName: pending.file.name,
-        // A manual-review photo isn't approved yet — never default it to
-        // primary even if this was the user's first upload.
-        isProfile: pending.isPrimary && result.photo?.status === "APPROVED",
+        isProfile: pending.isPrimary,
         analysis: result.analysis,
         photoId: result.photo?.id,
         moderationStatus: result.photo?.status,
@@ -233,16 +263,17 @@ export function ProfileEditForm({
 
   const anyUploading = pendingUploads.some((p) => p.status === "uploading");
 
-  const isApprovedForPrimary = (photo: ProfileEditPhoto) =>
-    photo.moderationStatus === undefined || photo.moderationStatus === "APPROVED";
-  const approvedPhotoCount = formData.photos.filter(isApprovedForPrimary).length;
+  // A photo only ever enters formData.photos after clearing the client-side
+  // NSFW screen and the backend's analysis/moderation checks in runUpload
+  // (anything explicitly rejected throws before it gets here), so every
+  // photo present is already usable — no separate "approved" filter needed.
+  const approvedPhotoCount = formData.photos.length;
 
   const removePhoto = (id: string) => {
     const removed = formData.photos.find((photo) => photo.id === id);
     const next = formData.photos.filter((photo) => photo.id !== id);
     if (next.length && !next.some((photo) => photo.isProfile)) {
-      const promoted = next.find(isApprovedForPrimary);
-      if (promoted) promoted.isProfile = true;
+      next[0].isProfile = true;
     }
     patch({ photos: next });
     if (removed?.photoId) {
@@ -252,7 +283,7 @@ export function ProfileEditForm({
 
   const setProfilePhoto = (id: string) => {
     const target = formData.photos.find((photo) => photo.id === id);
-    if (!target || !isApprovedForPrimary(target)) return;
+    if (!target) return;
     patch({
       photos: formData.photos.map((photo) => ({ ...photo, isProfile: photo.id === id })),
     });
@@ -414,7 +445,6 @@ export function ProfileEditForm({
             ))}
 
             {formData.photos.map((photo, index) => {
-              const underReview = photo.moderationStatus === "MANUAL_REVIEW";
               return (
                 <div
                   key={photo.id}
@@ -427,27 +457,8 @@ export function ProfileEditForm({
                   <img
                     src={photo.url}
                     alt={photo.fileName}
-                    className={cn(
-                      "aspect-[3/4] w-full object-cover",
-                      // The automated face/quality checks don't screen for
-                      // inappropriate content, so a photo pending human
-                      // moderation stays blurred client-side until approved.
-                      underReview && "scale-110 blur-2xl"
-                    )}
+                    className="aspect-[3/4] w-full object-cover"
                   />
-
-                  {underReview ? (
-                    <>
-                      <span className="absolute left-2 top-2 rounded-full bg-amber-500/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                        Under review
-                      </span>
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 p-3 text-center">
-                        <p className="text-xs font-semibold text-white drop-shadow">
-                          Photo hidden pending moderator review
-                        </p>
-                      </div>
-                    </>
-                  ) : null}
 
                   {formData.photos.length > 1 ? (
                     <div className="absolute right-2 top-2 flex flex-col gap-1 opacity-0 transition-opacity group-hover:opacity-100">
@@ -476,10 +487,6 @@ export function ProfileEditForm({
                     {photo.isProfile ? (
                       <span className="flex h-8 flex-1 items-center justify-center rounded-full bg-primary/90 text-xs font-semibold text-white">
                         Profile photo
-                      </span>
-                    ) : underReview ? (
-                      <span className="flex h-8 flex-1 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-on-surface-variant">
-                        Pending review
                       </span>
                     ) : (
                       <Button
@@ -518,54 +525,46 @@ export function ProfileEditForm({
               className={inputClassName}
             />
           </Field>
-          <Field label="Age">
+          <Field label="Date of birth">
             <Input
-              type="number"
-              min={18}
-              max={100}
-              value={formData.age}
-              onChange={(event) => patch({ age: event.target.value })}
+              type="date"
+              min={minBirthDate()}
+              max={maxBirthDateForMinAge(18)}
+              value={formData.dateOfBirth}
+              onChange={(event) => {
+                const dob = event.target.value;
+                patch({
+                  dateOfBirth: dob,
+                  age: dob ? String(calculateAgeFromDob(dob)) : formData.age,
+                });
+              }}
               className={inputClassName}
             />
+            {formData.age ? (
+              <p className="ml-1 text-xs text-on-surface-variant">Age: {formData.age}</p>
+            ) : null}
           </Field>
-          <Field label="Gender">
-            <select
-              value={formData.gender}
-              onChange={(event) => patch({ gender: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select gender</option>
-              <option value="M">Male</option>
-              <option value="F">Female</option>
-              <option value="O">Other</option>
-            </select>
-          </Field>
-          <Field label="Religion">
-            <select
-              value={formData.religion}
-              onChange={(event) => patch({ religion: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select religion</option>
-              {RELIGION_OPTIONS.map((option) => (
-                <option key={option.value} value={option.label}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Phone country code">
-            <Input
-              value={formData.phone_country_code}
-              onChange={(event) => patch({ phone_country_code: event.target.value })}
-              className={inputClassName}
-            />
-          </Field>
+          <SelectField
+            label="Gender"
+            options={GENDER_SELECT_OPTIONS}
+            value={formData.gender}
+            placeholder="Select gender"
+            onChange={(event) => patch({ gender: event.target.value })}
+          />
           <Field label="Phone number">
-            <Input
-              value={formData.phone_number}
-              onChange={(event) => patch({ phone_number: event.target.value })}
-              className={inputClassName}
+            <DuoPhoneInput
+              id="profile-phone"
+              size="compact"
+              value={
+                ((formData.phone_country_code || "+977") + formData.phone_number) as PhoneValue
+              }
+              onChange={(value: PhoneValue) => {
+                const split = splitPhoneValue(value ?? "");
+                patch({
+                  phone_country_code: split?.phone_country_code ?? formData.phone_country_code,
+                  phone_number: split?.phone_number ?? "",
+                });
+              }}
             />
           </Field>
           <Field label="Height">
@@ -576,18 +575,13 @@ export function ProfileEditForm({
               className={inputClassName}
             />
           </Field>
-          <Field label="Relationship goal">
-            <select
-              value={formData.relationship_goal}
-              onChange={(event) => patch({ relationship_goal: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select goal</option>
-              <option value="dating">Dating</option>
-              <option value="serious">Serious</option>
-              <option value="casual">Casual</option>
-            </select>
-          </Field>
+          <SelectField
+            label="Relationship goal"
+            options={RELATIONSHIP_GOAL_SELECT_OPTIONS}
+            value={formData.relationship_goal}
+            placeholder="Select goal"
+            onChange={(event) => patch({ relationship_goal: event.target.value })}
+          />
         </div>
 
         <Field label="Location">
@@ -650,34 +644,20 @@ export function ProfileEditForm({
               className={inputClassName}
             />
           </Field>
-          <Field label="Education level">
-            <select
-              value={formData.educationLevel}
-              onChange={(event) => patch({ educationLevel: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select level</option>
-              {EDUCATION_LEVEL_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Field of study">
-            <select
-              value={formData.fieldOfStudy}
-              onChange={(event) => patch({ fieldOfStudy: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select field</option>
-              {FIELD_OF_STUDY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <SelectField
+            label="Education level"
+            options={EDUCATION_LEVEL_OPTIONS}
+            value={formData.educationLevel}
+            placeholder="Select level"
+            onChange={(event) => patch({ educationLevel: event.target.value })}
+          />
+          <SelectField
+            label="Field of study"
+            options={FIELD_OF_STUDY_OPTIONS}
+            value={formData.fieldOfStudy}
+            placeholder="Select field"
+            onChange={(event) => patch({ fieldOfStudy: event.target.value })}
+          />
           <Field label="Occupation">
             <Input
               value={formData.occupation}
@@ -692,80 +672,53 @@ export function ProfileEditForm({
               className={inputClassName}
             />
           </Field>
-          <Field label="Work preference">
-            <select
-              value={formData.work_preference}
-              onChange={(event) => patch({ work_preference: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select work preference</option>
-              <option value="Private">Private sector</option>
-              <option value="Government">Government</option>
-              <option value="Business">Business / self-employed</option>
-              <option value="NotWorking">Not working</option>
-            </select>
-          </Field>
-          <Field label="Monthly income">
-            <select
-              value={formData.monthlyIncome}
-              onChange={(event) => patch({ monthlyIncome: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select income range</option>
-              {INCOME_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <SelectField
+            label="Work preference"
+            options={WORK_PREFERENCE_OPTIONS}
+            value={formData.work_preference}
+            placeholder="Select work preference"
+            onChange={(event) => patch({ work_preference: event.target.value })}
+          />
+          <SelectField
+            label="Monthly income"
+            options={INCOME_OPTIONS}
+            value={formData.monthlyIncome}
+            placeholder="Select income range"
+            onChange={(event) => patch({ monthlyIncome: event.target.value })}
+          />
         </div>
       </FormSection>
 
       <FormSection title="Religion & Background">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Field label="Caste">
-            <select
-              value={formData.caste}
-              onChange={(event) => patch({ caste: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select caste</option>
-              {CASTE_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Gotra">
-            <select
-              value={formData.gotra}
-              onChange={(event) => patch({ gotra: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select gotra</option>
-              {GOTRA_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Horoscope">
-            <select
-              value={formData.horoscope}
-              onChange={(event) => patch({ horoscope: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select preference</option>
-              {HOROSCOPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <SelectField
+            label="Religion"
+            options={RELIGION_OPTIONS.map((option) => ({ value: option.label, label: option.label }))}
+            value={formData.religion}
+            placeholder="Select religion"
+            onChange={(event) => patch({ religion: event.target.value })}
+          />
+          <SelectField
+            label="Caste"
+            options={[...CASTE_OPTIONS]}
+            value={formData.caste}
+            placeholder="Select caste"
+            onChange={(event) => patch({ caste: event.target.value })}
+          />
+          <SelectField
+            label="Gotra"
+            options={[...GOTRA_OPTIONS]}
+            value={formData.gotra}
+            placeholder="Select gotra"
+            onChange={(event) => patch({ gotra: event.target.value })}
+          />
+          <SelectField
+            label="Horoscope (Rashi)"
+            options={RASHI_OPTIONS}
+            value={formData.horoscope}
+            placeholder="Select your rashi"
+            onChange={(event) => patch({ horoscope: event.target.value })}
+          />
           <Field label="Birth time">
             <Input
               type="time"
@@ -774,7 +727,7 @@ export function ProfileEditForm({
               className={inputClassName}
             />
           </Field>
-          <Field label="Birth place" className="md:col-span-2">
+          <Field label="Birth place">
             <Input
               value={formData.birthPlace}
               onChange={(event) => patch({ birthPlace: event.target.value })}
@@ -798,33 +751,20 @@ export function ProfileEditForm({
 
       <FormSection title="Partner Preferences">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Field label="Looking for">
-            <select
-              value={formData.pref_gender}
-              onChange={(event) => patch({ pref_gender: event.target.value })}
-              className={selectClassName}
-            >
-              {PREF_GENDER_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Preferred religion">
-            <select
-              value={formData.preferredReligion}
-              onChange={(event) => patch({ preferredReligion: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Any religion</option>
-              {RELIGION_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <SelectField
+            label="Looking for"
+            options={PREF_GENDER_OPTIONS}
+            value={formData.pref_gender}
+            hidePlaceholderOption
+            onChange={(event) => patch({ pref_gender: event.target.value })}
+          />
+          <SelectField
+            label="Preferred religion"
+            options={RELIGION_OPTIONS}
+            value={formData.preferredReligion}
+            placeholder="Any religion"
+            onChange={(event) => patch({ preferredReligion: event.target.value })}
+          />
           <Field label="Preferred age min">
             <Input
               type="number"
@@ -878,46 +818,27 @@ export function ProfileEditForm({
               className={inputClassName}
             />
           </Field>
-          <Field label="Relationship preference">
-            <select
-              value={formData.pref_relationship_goal}
-              onChange={(event) => patch({ pref_relationship_goal: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="everyone">Everyone</option>
-              <option value="serious">Serious</option>
-              <option value="casual">Casual</option>
-              <option value="dating">Dating</option>
-            </select>
-          </Field>
-          <Field label="Inter-caste">
-            <select
-              value={formData.interCaste}
-              onChange={(event) => patch({ interCaste: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select preference</option>
-              {MARRIAGE_PREF_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Inter-religion">
-            <select
-              value={formData.interReligion}
-              onChange={(event) => patch({ interReligion: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select preference</option>
-              {MARRIAGE_PREF_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <SelectField
+            label="Relationship preference"
+            options={PREF_RELATIONSHIP_GOAL_OPTIONS}
+            value={formData.pref_relationship_goal}
+            hidePlaceholderOption
+            onChange={(event) => patch({ pref_relationship_goal: event.target.value })}
+          />
+          <SelectField
+            label="Inter-caste"
+            options={MARRIAGE_PREF_OPTIONS}
+            value={formData.interCaste}
+            placeholder="Select preference"
+            onChange={(event) => patch({ interCaste: event.target.value })}
+          />
+          <SelectField
+            label="Inter-religion"
+            options={MARRIAGE_PREF_OPTIONS}
+            value={formData.interReligion}
+            placeholder="Select preference"
+            onChange={(event) => patch({ interReligion: event.target.value })}
+          />
           <Field label="Verified profiles only" className="md:col-span-2">
             <label className="flex items-center gap-3 rounded-xl border border-outline-variant/30 bg-secondary/50 px-4 py-3">
               <input
@@ -934,8 +855,8 @@ export function ProfileEditForm({
 
       {approvedPhotoCount < MIN_PROFILE_PHOTOS ? (
         <p className="text-center text-sm text-on-surface-variant">
-          {approvedPhotoCount} of {MIN_PROFILE_PHOTOS} approved photos — add{" "}
-          {MIN_PROFILE_PHOTOS - approvedPhotoCount} more, or wait for review to finish, to save.
+          {approvedPhotoCount} of {MIN_PROFILE_PHOTOS} photos — add{" "}
+          {MIN_PROFILE_PHOTOS - approvedPhotoCount} more to save.
         </p>
       ) : null}
 

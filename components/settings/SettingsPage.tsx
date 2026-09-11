@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState, useEffect, type ReactNode } from "react";
 import { useLenis } from "lenis/react";
 import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
@@ -141,6 +142,7 @@ function ThemeOption({
 }
 
 export function SettingsPage() {
+  const t = useTranslations("settings");
   const router = useRouter();
   const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
@@ -174,11 +176,11 @@ export function SettingsPage() {
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start lg:gap-8 xl:gap-10">
               <div className="space-y-6">
-                <SettingsSection title="Wallet">
+                <SettingsSection title={t("sections.wallet")}>
                   <SettingsRow
                     icon="account_balance_wallet"
-                    title="Duo Wallet"
-                    description="Buy coins with eSewa and spend on Premium"
+                    title={t("items.walletTitle")}
+                    description={t("items.walletDescription")}
                     href="/wallet"
                     trailing={
                       profile?.wallet_balance != null ? (
@@ -191,7 +193,7 @@ export function SettingsPage() {
                   />
                 </SettingsSection>
 
-                <SettingsSection title="Verification">
+                <SettingsSection title={t("sections.verification")}>
                   {isVerified ? (
                     <div className="flex items-center gap-3 px-4 py-4 md:px-5 md:py-5">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/15 text-accent md:h-11 md:w-11">
@@ -203,50 +205,50 @@ export function SettingsPage() {
                         </span>
                       </div>
                       <div>
-                        <p className="font-semibold text-on-surface">Verified Profile</p>
-                        <p className="text-sm text-on-surface-variant">Your identity is verified.</p>
+                        <p className="font-semibold text-on-surface">{t("items.verifiedProfileTitle")}</p>
+                        <p className="text-sm text-on-surface-variant">{t("items.verifiedProfileDescription")}</p>
                       </div>
                     </div>
                   ) : (
                     <SettingsRow
                       icon="photo_camera_front"
-                      title="Verify your profile"
-                      description="Take a selfie to earn a verified badge"
+                      title={t("items.verifyProfileTitle")}
+                      description={t("items.verifyProfileDescription")}
                       href="/verify"
                     />
                   )}
                 </SettingsSection>
 
-                <SettingsSection title="Account">
+                <SettingsSection title={t("sections.account")}>
                   <SettingsRow
                     icon="person"
-                    title="Account information"
-                    description="Email, username, phone & verification"
+                    title={t("items.accountInfoTitle")}
+                    description={t("items.accountInfoDescription")}
                     href="/account"
                   />
                 </SettingsSection>
 
-                <SettingsSection title="Appearance">
+                <SettingsSection title={t("sections.appearance")}>
                   <div className="px-4 py-4 md:px-5 md:py-5">
-                    <p className="mb-3 text-sm text-on-surface-variant">Theme</p>
+                    <p className="mb-3 text-sm text-on-surface-variant">{t("items.themeLabel")}</p>
                     <div className="flex gap-2 sm:gap-3">
                       <ThemeOption
                         mode="dark"
-                        label="Dark"
+                        label={t("items.themeDark")}
                         icon="dark_mode"
                         active={theme === "dark"}
                         onSelect={setTheme}
                       />
                       <ThemeOption
                         mode="light"
-                        label="Light"
+                        label={t("items.themeLight")}
                         icon="light_mode"
                         active={theme === "light"}
                         onSelect={setTheme}
                       />
                       <ThemeOption
                         mode="system"
-                        label="System"
+                        label={t("items.themeSystem")}
                         icon="routine"
                         active={theme === "system"}
                         onSelect={setTheme}
@@ -255,136 +257,136 @@ export function SettingsPage() {
                   </div>
                 </SettingsSection>
 
-                <SettingsSection title="Notifications">
+                <SettingsSection title={t("sections.notifications")}>
                   <SettingsRow
                     icon="notifications"
-                    title="Notification preferences"
-                    description="Manage push notifications and categories"
+                    title={t("items.notificationPrefsTitle")}
+                    description={t("items.notificationPrefsDescription")}
                     href="/notifications"
                   />
                 </SettingsSection>
 
-                <SettingsSection title="Privacy">
+                <SettingsSection title={t("sections.privacy")}>
                   <SettingsRow
                     icon="map"
-                    title="Location privacy"
-                    description="Control who sees you on the map"
+                    title={t("items.locationPrivacyTitle")}
+                    description={t("items.locationPrivacyDescription")}
                     href="/map"
                   />
                   <SettingsDivider />
                   <SettingsRow
                     icon="tune"
-                    title="Discovery preferences"
-                    description="Age range, distance, and match filters"
+                    title={t("items.discoveryPrefsTitle")}
+                    description={t("items.discoveryPrefsDescription")}
                     href="/profile"
                   />
                   <SettingsDivider />
                   <SettingsRow
                     icon="shield"
-                    title="Chat privacy"
-                    description="Screenshot alerts and secure chat per conversation"
+                    title={t("items.chatPrivacyTitle")}
+                    description={t("items.chatPrivacyDescription")}
                     href="/chat"
                   />
                   <SettingsDivider />
                   <SettingsRow
                     icon="block"
-                    title="Blocked users"
-                    description="Manage people you have blocked"
+                    title={t("items.blockedUsersTitle")}
+                    description={t("items.blockedUsersDescription")}
                     href="/blocked-users"
                   />
                 </SettingsSection>
               </div>
 
               <div className="space-y-6">
-                <SettingsSection title="Security">
+                <SettingsSection title={t("sections.security")}>
                   <SettingsRow
                     icon="security"
-                    title="Security Center"
-                    description="2FA, devices, login history & alerts"
+                    title={t("items.securityCenterTitle")}
+                    description={t("items.securityCenterDescription")}
                     href="/security"
                   />
                 </SettingsSection>
 
-                <SettingsSection title="Language">
+                <SettingsSection title={t("sections.language")}>
                   <SettingsRow
                     icon="language"
-                    title="App language"
-                    description="English (device default)"
+                    title={t("items.appLanguageTitle")}
+                    description={profile?.app_language === "ne" ? "नेपाली" : "English"}
                     href="/language"
                   />
                   <SettingsDivider />
                   <SettingsRow
                     icon="public"
-                    title="Region"
-                    description="Nepal"
+                    title={t("items.regionTitle")}
+                    description={profile?.app_region || "Nepal"}
                     href="/language"
                   />
                 </SettingsSection>
 
-                <SettingsSection title="Help">
+                <SettingsSection title={t("sections.help")}>
                   <SettingsRow
                     icon="help"
-                    title="Help center"
-                    description="Guides and troubleshooting"
+                    title={t("items.helpCenterTitle")}
+                    description={t("items.helpCenterDescription")}
                     href="/help"
                   />
                   <SettingsDivider />
                   <SettingsRow
                     icon="support_agent"
-                    title="Contact support"
-                    description="Get help from the Duo team"
+                    title={t("items.contactSupportTitle")}
+                    description={t("items.contactSupportDescription")}
                     href="/help/contact"
                   />
                   <SettingsDivider />
                   <SettingsRow
                     icon="quiz"
-                    title="FAQ"
-                    description="Answers to common questions"
+                    title={t("items.faqTitle")}
+                    description={t("items.faqDescription")}
                     href="/help/faq"
                   />
                   <SettingsDivider />
                   <SettingsRow
                     icon="bug_report"
-                    title="Report a bug"
-                    description="Tell us what went wrong"
+                    title={t("items.reportBugTitle")}
+                    description={t("items.reportBugDescription")}
                     href="/help/report-bug"
                   />
                 </SettingsSection>
 
-                <SettingsSection title="About">
+                <SettingsSection title={t("sections.about")}>
                   <SettingsRow
                     icon="privacy_tip"
-                    title="Privacy policy"
+                    title={t("items.privacyPolicyTitle")}
                     href="/legal/privacy"
                   />
                   <SettingsDivider />
                   <SettingsRow
                     icon="description"
-                    title="Terms of service"
+                    title={t("items.termsTitle")}
                     href="/legal/terms"
                   />
                   <SettingsDivider />
                   <SettingsRow
                     icon="info"
-                    title="Version"
-                    description={`${APP_VERSION} · Duo Web`}
+                    title={t("items.versionTitle")}
+                    description={t("items.versionLabel", { version: APP_VERSION })}
                     trailing={<span />}
                     disabled
                   />
                 </SettingsSection>
 
-                <SettingsSection title="Danger zone">
+                <SettingsSection title={t("sections.dangerZone")}>
                   <SettingsRow
                     icon="delete_forever"
-                    title="Delete account"
-                    description="Permanently remove your account and data"
+                    title={t("items.deleteAccountTitle")}
+                    description={t("items.deleteAccountDescription")}
                     destructive
                     href="/delete-account"
                   />
                   <SettingsDivider />
                   <SettingsRow
                     icon="logout"
-                    title="Log out"
+                    title={t("items.logOutTitle")}
                     destructive
                     trailing={<span />}
                     onClick={() => setLogoutConfirmOpen(true)}
@@ -398,9 +400,9 @@ export function SettingsPage() {
 
       <ChatConfirmDialog
         open={logoutConfirmOpen}
-        title="Log out?"
-        description="You'll need to sign in again to access your account."
-        confirmLabel="Log out"
+        title={t("logOutDialog.title")}
+        description={t("logOutDialog.description")}
+        confirmLabel={t("logOutDialog.confirm")}
         destructive
         onClose={() => setLogoutConfirmOpen(false)}
         onConfirm={() => {

@@ -1,0 +1,207 @@
+{
+  "chat": {
+    "common": {
+      "typing": "Typing…",
+      "verified": "Verified",
+      "muted": "Muted",
+      "pinned": "Pinned",
+      "cancel": "Cancel",
+      "you": "You",
+      "them": "Them",
+      "thisMatch": "this match",
+      "match": "Match",
+      "photo": "Photo",
+      "message": "Message",
+      "voiceMessage": "Voice message"
+    },
+    "skeleton": {
+      "loading": "Loading chat"
+    },
+    "menu": {
+      "optionsLabel": "Conversation options",
+      "closeMenu": "Close menu",
+      "cancel": "Cancel",
+      "items": {
+        "profile": "Show profile",
+        "nickname": "Edit nickname",
+        "block": "Block",
+        "unmatch": "Unmatch",
+        "unmatchBlock": "Unmatch & block",
+        "clear": "Clear chat history",
+        "report": "Report"
+      },
+      "closeDialog": "Close dialog"
+    },
+    "insights": {
+      "title": "Match insights",
+      "backToMessages": "Back to messages",
+      "loading": "Loading compatibility…",
+      "couldNotLoad": "Could not load match insights.",
+      "compatibilityOverview": "Compatibility overview",
+      "matchScore": "Match score",
+      "defaultSummary": "Your shared values and lifestyle choices suggest strong compatibility between you two.",
+      "analysis": "Analysis",
+      "compatibilityPillars": "Compatibility pillars",
+      "pillars": {
+        "coreValues": "Core values",
+        "lifestyleHabit": "Lifestyle & habit",
+        "careerAmbition": "Career ambition",
+        "hobbiesLeisure": "Hobbies & leisure"
+      },
+      "sparkFactors": "Spark factors",
+      "sharedInterests": "Shared interests",
+      "deepDive": "Deep dive",
+      "visionForFuture": "Vision for the future",
+      "communicationStyle": "Communication style"
+    },
+    "call": {
+      "decline": "Decline",
+      "accept": "Accept",
+      "mic": "Mic",
+      "video": "Video",
+      "flip": "Flip",
+      "end": "End"
+    },
+    "composer": {
+      "replyingTo": "Replying to {name}",
+      "cancelReply": "Cancel reply",
+      "writeReply": "Write a reply…",
+      "messagePlaceholder": "Aa",
+      "hideAttachments": "Hide camera, image, and voice options",
+      "showAttachments": "Show camera, image, and voice options",
+      "takePhoto": "Take photo with camera",
+      "chooseImage": "Choose image from gallery",
+      "cancelVoiceRecording": "Cancel voice recording",
+      "sendVoiceMessage": "Send voice message",
+      "sendMessage": "Send message",
+      "closeCamera": "Close camera",
+      "takePhotoTitle": "Take Photo",
+      "switchCamera": "Switch camera",
+      "startingCamera": "Starting camera…",
+      "capturePhoto": "Capture photo"
+    },
+    "thread": {
+      "matched": "Matched {time}",
+      "backToConversations": "Back to conversations",
+      "yourMatch": "Your match",
+      "voiceCall": "Voice call",
+      "videoCall": "Video call",
+      "matchInsights": "Match insights"
+    },
+    "rowMenu": {
+      "optionsLabel": "Conversation options",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "archive": "Archive",
+      "unarchive": "Unarchive",
+      "delete": "Delete"
+    },
+    "sidebar": {
+      "messagesTitle": "Messages",
+      "refresh": "Refresh",
+      "searchPlaceholder": "Search conversations...",
+      "unreadFilter": "Unread",
+      "archivedFilter": "Archived",
+      "noArchivedConversations": "No archived conversations.",
+      "noSearchMatches": "No matches for your search."
+    },
+    "lightbox": {
+      "closePreview": "Close image preview",
+      "close": "Close",
+      "alt": "Image preview"
+    },
+    "actionMenu": {
+      "optionsLabel": "Message options",
+      "copy": "Copy",
+      "reply": "Reply",
+      "react": "React",
+      "deleteForMe": "Delete for me",
+      "deleteForEveryone": "Delete for everyone"
+    },
+    "status": {
+      "sending": "Sending",
+      "failed": "Failed to send",
+      "read": "Read",
+      "delivered": "Delivered",
+      "sent": "Sent"
+    },
+    "reaction": {
+      "label": "Reaction {emoji}"
+    },
+    "avatar": {
+      "fallback": "User avatar"
+    },
+    "bubble": {
+      "tapToRetry": "Tap to retry"
+    },
+    "section": {
+      "cameraNotSupported": "Camera capture is not supported in this browser.",
+      "cameraPermissionRequired": "Camera permission is required to capture a photo.",
+      "nicknameUpdated": "Nickname updated.",
+      "nicknameRemoved": "Nickname removed.",
+      "couldNotUpdateNickname": "Could not update nickname.",
+      "chatHistoryCleared": "Chat history cleared.",
+      "couldNotClearHistory": "Could not clear chat history.",
+      "userBlocked": "User blocked.",
+      "couldNotBlockUser": "Could not block user. Please try again.",
+      "unmatchedSuccessfully": "Unmatched successfully.",
+      "couldNotUnmatch": "Could not unmatch. Please try again.",
+      "unmatchedAndBlocked": "Unmatched and blocked.",
+      "couldNotUnmatchBlock": "Could not unmatch and block. Please try again.",
+      "reportSubmitted": "Report submitted. Thank you.",
+      "couldNotSubmitReport": "Could not submit report.",
+      "couldNotUpdateArchive": "Could not update archive setting.",
+      "couldNotUpdateMute": "Could not update mute setting.",
+      "couldNotUpdatePin": "Could not update pin setting.",
+      "conversationDeleted": "Conversation deleted.",
+      "couldNotDeleteConversation": "Could not delete conversation.",
+      "voiceRecordingNotSupported": "Voice recording is not supported in this browser.",
+      "microphonePermissionRequired": "Microphone permission is required to send voice messages.",
+      "couldNotLoadConversations": "Could not load conversations.",
+      "couldNotLoadChatsTitle": "Could not load chats",
+      "tryAgain": "Try again",
+      "matchesReadyTitle": "Your matches are ready",
+      "noConversationsTitle": "No conversations yet",
+      "matchesReadyDescription": "You have {count, plural, one {# match} other {# matches}}. Refresh to open your chat threads.",
+      "startSwipingDescription": "Start swiping to find matches and begin chatting!",
+      "refreshChats": "Refresh chats",
+      "findMatches": "Find Matches",
+      "dragToResize": "Drag to resize",
+      "selectConversationPrompt": "Select a conversation to start messaging",
+      "reconnecting": "Reconnecting…",
+      "loadingEarlier": "Loading…",
+      "loadEarlierMessages": "Load earlier messages",
+      "startOfConversation": "Start of conversation",
+      "cancelSendingPhoto": "Cancel sending photo",
+      "sendPhotoTitle": "Send this photo?",
+      "confirmBeforeSending": "Confirm before sending to {name}.",
+      "sending": "Sending…",
+      "send": "Send",
+      "editNicknameTitle": "Edit nickname",
+      "editNicknameDescription": "Choose a private nickname for {name}. Only you will see it.",
+      "enterNickname": "Enter nickname",
+      "save": "Save",
+      "reportUserTitle": "Report user",
+      "reportUserDescription": "Tell us what happened. Our team will review your report.",
+      "describeIssue": "Describe the issue…",
+      "submitReport": "Submit report",
+      "clearHistoryTitle": "Clear chat history?",
+      "clearHistoryDescription": "This removes all messages from this chat on your device. The other person will still see the conversation.",
+      "clearHistoryConfirm": "Clear history",
+      "deleteConversationTitle": "Delete conversation?",
+      "deleteConversationDescription": "This clears your chat history with {name} and removes it from your inbox. The other person can still see the messages.",
+      "deleteConfirm": "Delete",
+      "blockUserTitle": "Block this user?",
+      "blockUserDescription": "{name} will no longer be able to message you, and you will not see them in your matches.",
+      "blockConfirm": "Block",
+      "unmatchTitle": "Unmatch?",
+      "unmatchDescription": "You will unmatched with {name} and this conversation will be removed.",
+      "unmatchConfirm": "Unmatch",
+      "unmatchBlockTitle": "Unmatch & block?",
+      "unmatchBlockDescription": "You will unmatched with {name}, block them, and delete this conversation.",
+      "unmatchBlockConfirm": "Unmatch & block"
+    }
+  }
+}

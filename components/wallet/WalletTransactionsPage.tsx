@@ -8,6 +8,7 @@ import api from "@/lib/api";
 import { formatCoinDelta } from "@/lib/coins";
 import type { WalletTransaction, WalletTransactionPaymentMethod } from "@/types";
 import { SecurityNotice, SecurityPageShell, SecuritySpinner } from "@/components/security/SecurityPageShell";
+import { SelectField } from "@/components/ui/select-field";
 
 type PaymentMethodFilter = "all" | WalletTransactionPaymentMethod;
 
@@ -15,6 +16,7 @@ const PAYMENT_METHOD_OPTIONS: { value: PaymentMethodFilter; label: string }[] = 
   { value: "all", label: "All methods" },
   { value: "esewa", label: "eSewa" },
   { value: "wallet", label: "Wallet balance" },
+  { value: "gift", label: "Gift card" },
 ];
 
 function formatTxnDate(iso: string): string {
@@ -33,6 +35,12 @@ function statusBadgeClass(status: WalletTransaction["status"]): string {
   return "bg-red-500/15 text-red-400";
 }
 
+const STATUS_LABELS: Record<WalletTransaction["status"], string> = {
+  complete: "Completed",
+  pending: "Pending",
+  failed: "Failed",
+};
+
 function TransactionListRow({ txn }: { txn: WalletTransaction }) {
   const num = Number(txn.amount);
   const isCredit = num >= 0;
@@ -44,7 +52,12 @@ function TransactionListRow({ txn }: { txn: WalletTransaction }) {
     >
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium text-on-surface">
-          {txn.description || (txn.type === "top_up" ? "Coin pack purchase" : "Purchase")}
+          {txn.description ||
+            (txn.type === "top_up"
+              ? "Coin pack purchase"
+              : txn.type === "gift_redeem"
+                ? "Gift card redeemed"
+                : "Purchase")}
         </p>
         <p className="mt-0.5 text-xs text-on-surface-variant">{formatTxnDate(txn.created_at)}</p>
         <span
@@ -52,7 +65,7 @@ function TransactionListRow({ txn }: { txn: WalletTransaction }) {
             txn.status
           )}`}
         >
-          {txn.status}
+          {STATUS_LABELS[txn.status]}
         </span>
       </div>
       <div className="flex shrink-0 items-center gap-2">
@@ -159,20 +172,15 @@ export function WalletTransactionsPage() {
               />
             </label>
           </div>
-          <label className="text-xs font-semibold text-on-surface-variant sm:w-44">
-            Payment method
-            <select
+          <div className="sm:w-44">
+            <SelectField
+              label="Payment method"
+              options={PAYMENT_METHOD_OPTIONS}
               value={paymentMethod}
+              hidePlaceholderOption
               onChange={(e) => setPaymentMethod(e.target.value as PaymentMethodFilter)}
-              className="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-high px-3 py-2 text-sm text-on-surface outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/20"
-            >
-              {PAYMENT_METHOD_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+            />
+          </div>
         </div>
 
         {(dateFrom || dateTo || paymentMethod !== "all") ? (

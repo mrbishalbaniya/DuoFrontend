@@ -49,13 +49,28 @@ export function StepAbout({ onContinue, onBack }: StepAboutProps) {
   const lookingForText = useWatch({ control: form.control, name: "lookingForText" }) ?? "";
   const futureGoals = useWatch({ control: form.control, name: "futureGoals" }) ?? "";
 
-  const bioQuality = useMemo(() => assessWritingQuality(bio, ABOUT_LIMITS.bio), [bio]);
+  const bioQuality = useMemo(
+    () =>
+      assessWritingQuality(bio, {
+        minChars: ABOUT_LIMITS.bio.min,
+        maxChars: ABOUT_LIMITS.bio.max,
+      }),
+    [bio]
+  );
   const lookingQuality = useMemo(
-    () => assessWritingQuality(lookingForText, ABOUT_LIMITS.lookingForText),
+    () =>
+      assessWritingQuality(lookingForText, {
+        minChars: ABOUT_LIMITS.lookingForText.min,
+        maxChars: ABOUT_LIMITS.lookingForText.max,
+      }),
     [lookingForText]
   );
   const goalsQuality = useMemo(
-    () => assessWritingQuality(futureGoals, ABOUT_LIMITS.futureGoals),
+    () =>
+      assessWritingQuality(futureGoals, {
+        minChars: ABOUT_LIMITS.futureGoals.min,
+        maxChars: ABOUT_LIMITS.futureGoals.max,
+      }),
     [futureGoals]
   );
 

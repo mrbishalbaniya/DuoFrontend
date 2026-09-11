@@ -1,17 +1,20 @@
+import { getTranslations } from "next-intl/server";
 import { SupportRequestForm } from "@/components/settings/SupportRequestForm";
 
-export default function ContactSupportPage() {
+export default async function ContactSupportPage() {
+  const t = await getTranslations("settingsExtra.supportRequest.contact");
+
   return (
     <SupportRequestForm
-      title="Contact support"
+      title={t("title")}
       icon="support_agent"
-      intro="Have a question or ran into an issue? Send us a message and the Duo team will get back to you."
+      intro={t("intro")}
       category="contact"
-      subjectLabel="Subject"
-      subjectPlaceholder="What's this about?"
-      messageLabel="Message"
-      messagePlaceholder="Tell us what's going on..."
-      submitLabel="Send message"
+      subjectLabel={t("subjectLabel")}
+      subjectPlaceholder={t("subjectPlaceholder")}
+      messageLabel={t("messageLabel")}
+      messagePlaceholder={t("messagePlaceholder")}
+      submitLabel={t("submitLabel")}
     />
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
@@ -33,6 +34,7 @@ export function SupportRequestForm({
   submitLabel: string;
   includeDeviceInfo?: boolean;
 }) {
+  const t = useTranslations("settingsExtra.supportRequest");
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [subject, setSubject] = useState("");
@@ -64,7 +66,7 @@ export function SupportRequestForm({
       });
       setDone(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not send your message.");
+      setError(err instanceof Error ? err.message : t("genericError"));
     } finally {
       setSubmitting(false);
     }
@@ -79,16 +81,16 @@ export function SupportRequestForm({
               check_circle
             </span>
           </div>
-          <p className="font-semibold text-on-surface">Thanks — we've got it</p>
+          <p className="font-semibold text-on-surface">{t("successTitle")}</p>
           <p className="max-w-xs text-sm text-on-surface-variant">
-            Our team will review your message and follow up by email if needed.
+            {t("successDescription")}
           </p>
           <button
             type="button"
             onClick={() => router.push("/help")}
             className="mt-2 rounded-full px-5 py-2.5 text-sm font-bold text-white gradient-brand"
           >
-            Back to Help
+            {t("backToHelp")}
           </button>
         </div>
       ) : (
@@ -134,14 +136,14 @@ export function SupportRequestForm({
 
           <div className="space-y-2">
             <label className="block px-1 text-sm font-semibold text-on-surface-variant" htmlFor="support-email">
-              Contact email
+              {t("emailLabel")}
             </label>
             <input
               id="support-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder={t("emailPlaceholder")}
               className="w-full rounded-xl border border-outline-variant/30 bg-surface-container-high px-4 py-3 text-sm text-on-surface outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/20"
             />
           </div>
@@ -151,7 +153,7 @@ export function SupportRequestForm({
             disabled={submitting || message.trim().length < 5}
             className="w-full rounded-xl py-3.5 text-sm font-bold text-white gradient-brand disabled:opacity-50"
           >
-            {submitting ? "Sending..." : submitLabel}
+            {submitting ? t("sending") : submitLabel}
           </button>
         </form>
       )}

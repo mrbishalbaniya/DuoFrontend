@@ -124,7 +124,12 @@ export function DuoCountrySelect({
       </button>
 
       {open ? (
-        <ul id={listId} role="listbox" className="duo-phone-country__menu">
+        <ul
+          id={listId}
+          role="listbox"
+          className="duo-phone-country__menu"
+          data-lenis-prevent
+        >
           {selectableOptions.map((option) => {
             const isSelected =
               (option.value ?? undefined) === (value ?? undefined);

@@ -1,0 +1,220 @@
+{
+  "discover": {
+    "experience": {
+      "openFilters": "Open discovery filters",
+      "filters": "Filters",
+      "expandedSearchNotice": "We expanded your search to show more compatible people nearby.",
+      "allCaughtUpTitle": "You are all caught up",
+      "allCaughtUpBody": "You have seen everyone available right now. Check back soon as new people join Duo.",
+      "adjustFilters": "Adjust filters",
+      "refresh": "Refresh"
+    },
+    "matchesPage": {
+      "title": "Discover",
+      "openMenu": "Open menu",
+      "refresh": "Refresh",
+      "tabVisitedYou": "Visited you",
+      "tabLikedByYou": "Likes sent",
+      "tabLikesYou": "Liked you",
+      "timeRecently": "Recently",
+      "timeJustNow": "Just now",
+      "timeMinutesAgo": "{minutes}m ago",
+      "timeHoursAgo": "{hours}h ago",
+      "timeDaysAgo": "{days}d ago",
+      "labelMatched": "Matched · {when}",
+      "labelVisited": "Viewed your profile · {when}",
+      "labelSuperlikeSent": "Super like sent · {when}",
+      "labelLikeSent": "Like sent · {when}",
+      "labelSuperlikeReceived": "Super like received · {when}",
+      "labelLikeReceived": "Like received · {when}",
+      "memberFallback": "Duo member",
+      "distanceKm": "{km} km",
+      "distanceNearby": "Nearby",
+      "likeOnMatch": "Like on Match",
+      "unlike": "Unlike",
+      "removing": "Removing…",
+      "likeBack": "Like back",
+      "likingBack": "Liking…",
+      "emptyVisitedTitle": "No profile visits yet",
+      "emptyVisitedBody": "When someone views your profile, they'll appear here.",
+      "emptyVisitedCta": "Update your profile",
+      "emptyLikedByYouTitle": "No Likes Yet",
+      "emptyLikedByYouBody": "Profiles you like will appear here until they like you back.",
+      "emptyLikedByYouCta": "Discover Profiles",
+      "emptyLikesYouTitle": "No Likes Yet",
+      "emptyLikesYouBody": "When someone likes you, they'll appear here so you can match back.",
+      "emptyLikesYouCta": "Update Profile",
+      "loadErrorTitle": "Unable to Load",
+      "loadErrorBody": "Could not load your discover lists.",
+      "tryAgain": "Try Again",
+      "noticePassPurchased": "Pass purchased. Duo Premium is now active.",
+      "noticePurchaseFailed": "Could not purchase pass. Please try again.",
+      "noticeTopUpFailed": "Could not start eSewa top-up. Please try again.",
+      "noticeUnlikeMissingId": "Could not unlike — profile is missing a user id.",
+      "noticeLikeRemoved": "Like removed.",
+      "noticeUnlikeFailed": "Unlike failed. Please try again.",
+      "noticeLikeBackMissingId": "Could not like back — profile is missing a user id.",
+      "noticeLikedBack": "You liked them back!",
+      "noticeLikeBackFailed": "Like back failed. Please try again.",
+      "noticeWalletToppedUp": "Wallet topped up successfully.",
+      "noticeTopUpIncomplete": "Top-up was not completed. You can try again with eSewa.",
+      "noticePaymentSuccess": "Payment successful. Duo Premium is now active.",
+      "noticePaymentIncomplete": "Payment was not completed. You can try again with eSewa."
+    },
+    "profileUi": {
+      "viewDetails": "View profile details",
+      "locationFallback": "—",
+      "closeProfile": "Close profile",
+      "close": "Close",
+      "education": "Education",
+      "occupation": "Occupation",
+      "religion": "Religion",
+      "work": "Work",
+      "verifiedProfile": "Verified profile",
+      "about": "About",
+      "lifestyle": "Lifestyle",
+      "morePhotos": "More photos",
+      "photoAlt": "{name} photo {number}"
+    },
+    "matchesSkeleton": {
+      "loading": "Loading discover"
+    },
+    "pageSkeleton": {
+      "loading": "Loading discover profiles"
+    }
+  },
+  "dashboard": {
+    "actionBar": {
+      "skip": "Skip profile",
+      "info": "View profile details",
+      "like": "Like profile"
+    },
+    "menuSheet": {
+      "close": "Close",
+      "closeMenu": "Close menu",
+      "title": "Menu",
+      "logOut": "Log out",
+      "signIn": "Sign in",
+      "itemHomeLabel": "Home",
+      "itemHomeDescription": "Landing page",
+      "itemMatchLabel": "Match",
+      "itemMatchDescription": "Swipe and like profiles",
+      "itemDiscoverLabel": "Discover",
+      "itemDiscoverDescription": "Profile visitors and likes",
+      "itemMessagesLabel": "Messages",
+      "itemMessagesDescription": "Chat with matches",
+      "itemMapLabel": "Map",
+      "itemMapDescription": "Find people nearby",
+      "itemProfileLabel": "My profile",
+      "itemProfileDescription": "View and edit profile",
+      "itemFiltersLabel": "Discovery filters",
+      "itemFiltersDescription": "Age, distance, preferences"
+    },
+    "topBar": {
+      "openMenu": "Open menu",
+      "openFilters": "Open discovery filters"
+    },
+    "filtersSheet": {
+      "minAge": "Minimum age",
+      "maxAge": "Maximum age",
+      "closeFilters": "Close filters",
+      "cancel": "Cancel",
+      "title": "Filters",
+      "saving": "Saving…",
+      "apply": "Apply",
+      "detectingLocation": "Detecting location…",
+      "useCurrentLocation": "Use current location",
+      "autoFillLocation": "Auto-fill city from GPS",
+      "nearLocation": "Near {location}",
+      "locationDetectError": "Could not detect your location.",
+      "location": "Location",
+      "age": "Age",
+      "ageRange": "{min} – {max}",
+      "distance": "Distance",
+      "distanceKm": "{km} km",
+      "showMe": "Show me",
+      "genderWomen": "Women",
+      "genderMen": "Men",
+      "genderEveryone": "Everyone",
+      "relationshipGoals": "Relationship goals",
+      "goalSerious": "Serious",
+      "goalCasual": "Casual",
+      "goalDating": "Dating",
+      "goalEveryone": "Everyone",
+      "verifiedOnly": "Verified profiles only",
+      "verifiedOnlyDescription": "Show people with verified IDs",
+      "resetDefaults": "Reset to recommended defaults",
+      "saveError": "Could not save filters. Please try again."
+    }
+  },
+  "match": {
+    "celebration": {
+      "title": "It's a Match!",
+      "subtitle": "You and {name} have expressed interest in each other.",
+      "someoneSpecial": "someone special",
+      "youAlt": "You",
+      "compatiblePercent": "{score}% Compatible",
+      "startChatting": "Start Chatting",
+      "keepSwiping": "Keep Swiping"
+    }
+  },
+  "onboarding": {
+    "page": {
+      "preparing": "Preparing your welcome…"
+    },
+    "experience": {
+      "skip": "Skip",
+      "slideLabel": "Slide {number}",
+      "stepsLabel": "Onboarding steps",
+      "startMatching": "Start matching",
+      "continue": "Continue",
+      "readyNotice": "Your profile is ready — discover people who fit."
+    }
+  },
+  "insights": {
+    "page": {
+      "emptyTitle": "No match insights yet",
+      "emptyBody": "Start swiping to find matches and see compatibility insights!",
+      "findMatches": "Find Matches",
+      "compatibilityOverview": "Compatibility Overview",
+      "matchInsights": "Match Insights",
+      "compatibilitySummary": "Your shared values and lifestyle choices suggest a highly harmonious partnership with strong long-term potential.",
+      "analysis": "Analysis",
+      "compatibilityPillars": "Compatibility Pillars",
+      "pillarCoreValues": "Core Values",
+      "pillarLifestyleHabit": "Lifestyle & Habit",
+      "pillarCareerAmbition": "Career Ambition",
+      "pillarHobbiesLeisure": "Hobbies & Leisure",
+      "sparkFactors": "Spark Factors",
+      "sharedInterests": "Shared Interests",
+      "deepDiveCompatibility": "Deep Dive Compatibility",
+      "visionForFuture": "Vision for the Future",
+      "visionFallback": "Both express a desire for an urban lifestyle while maintaining strong ties to cultural roots.",
+      "communicationStyle": "Communication Style",
+      "communicationFallback": "A balanced pairing that often results in highly effective communication.",
+      "nextStepTitle": "Ready to take the next step?",
+      "nextStepBody": "Send a personalized message to {name}.",
+      "startChatting": "Start Chatting"
+    },
+    "skeleton": {
+      "loading": "Loading insights"
+    }
+  },
+  "subscription": {
+    "banner": {
+      "badge": "Duo Premium",
+      "title": "See who liked you",
+      "body": "{count, plural, =0 {Upgrade to unlock blurred profiles when someone likes you.} one {# person has liked you. Unlock blurred profiles and match instantly.} other {# people have liked you. Unlock blurred profiles and match instantly.}}",
+      "revealFeature": "Reveal names and photos on Liked you",
+      "dayAccess": "{days}-day access",
+      "priceCoinsFallback": "499 coins",
+      "perMonth": "/ month",
+      "redirecting": "Redirecting…",
+      "buyWithCoins": "Buy with coins",
+      "spendCoinsHint": "Spend Duo Coins from your wallet"
+    },
+    "sheet": {
+      "closeOffer": "Close premium offer"
+    }
+  }
+}

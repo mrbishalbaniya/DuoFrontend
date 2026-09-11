@@ -18,6 +18,7 @@ import {
   type GooglePhoneFormValues,
 } from "@/lib/validation/registrationSchema";
 import { useRegistrationStore } from "@/store/registrationStore";
+import type { RegistrationData } from "@/types/registration";
 
 interface StepAccountProps {
   onContinue: () => void;
@@ -70,6 +71,25 @@ export function StepAccount({ onContinue, onBack }: StepAccountProps) {
       phone: data.phone,
     },
   });
+
+  // Keep the store in sync with every keystroke, not just on submit, so a
+  // refresh or accidental navigation away doesn't discard what was typed.
+  // (Password fields are stripped out before the store persists to
+  // localStorage — see registrationStore's toPersistedData — so this never
+  // writes a plaintext password to disk.)
+  useEffect(() => {
+    const subscription = accountForm.watch((values) => {
+      patchData(values as Partial<RegistrationData>);
+    });
+    return () => subscription.unsubscribe();
+  }, [accountForm, patchData]);
+
+  useEffect(() => {
+    const subscription = phoneForm.watch((values) => {
+      patchData(values as Partial<RegistrationData>);
+    });
+    return () => subscription.unsubscribe();
+  }, [phoneForm, patchData]);
 
   useEffect(() => {
     const fromGoogle = isGoogleRegistrationEntry();

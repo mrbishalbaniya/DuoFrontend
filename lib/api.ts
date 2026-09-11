@@ -6,6 +6,7 @@ import type {
   LikedProfile,
   LikesYouResponse,
   ProfileVisitorsResponse,
+  GiftCardRedeemResponse,
   InitiateSubscriptionResponse,
   SubscriptionPlan,
   SubscriptionStatus,
@@ -780,6 +781,13 @@ class ApiClient {
     return this.request<WalletPurchaseResponse>("/wallet/purchase/", {
       method: "POST",
       body: JSON.stringify({ plan_id: planId }),
+    });
+  }
+
+  async redeemGiftCard(code: string): Promise<GiftCardRedeemResponse> {
+    return this.request<GiftCardRedeemResponse>("/wallet/giftcard/redeem/", {
+      method: "POST",
+      body: JSON.stringify({ code }),
     });
   }
 

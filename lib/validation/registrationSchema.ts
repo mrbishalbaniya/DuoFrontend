@@ -13,7 +13,7 @@ export const registrationPhotoSchema = z.object({
   previewUrl: z.string(),
   isProfile: z.boolean(),
   imageUrl: z.string().optional(),
-  status: z.enum(["analyzing", "approved", "pending_review", "rejected"]).optional(),
+  status: z.enum(["analyzing", "approved", "rejected"]).optional(),
   moderationStatus: z.enum(["PENDING", "APPROVED", "REJECTED", "MANUAL_REVIEW"]).optional(),
   error: z.string().optional(),
   analysis: registrationPhotoAnalysisSchema.optional(),
@@ -92,11 +92,27 @@ export const locationSchema = z.object({
 });
 
 export const educationSchema = z.object({
-  educationLevel: z.enum(["see", "plus_two", "diploma", "bachelor", "master", "phd"], {
-    message: "Select education level",
-  }),
+  educationLevel: z.enum(
+    ["below_see", "see", "plus_two", "diploma", "bachelor", "master", "mphil", "phd", "other"],
+    { message: "Select education level" }
+  ),
   fieldOfStudy: z.enum(
-    ["it", "engineering", "medical", "business", "law", "arts", "agriculture", "other"],
+    [
+      "it",
+      "engineering",
+      "medical",
+      "business",
+      "law",
+      "science",
+      "arts",
+      "education",
+      "agriculture",
+      "hospitality",
+      "social_work",
+      "journalism",
+      "fine_arts",
+      "other",
+    ],
     { message: "Select field of study" }
   ),
   employment: z.enum(
@@ -111,9 +127,10 @@ export const educationSchema = z.object({
 });
 
 export const religionSchema = z.object({
-  religion: z.enum(["hindu", "buddhist", "muslim", "christian", "kirat", "other"], {
-    message: "Select religion",
-  }),
+  religion: z.enum(
+    ["hindu", "buddhist", "muslim", "christian", "kirat", "sikh", "jain", "jewish", "non_religious", "other"],
+    { message: "Select religion" }
+  ),
   caste: z.string().min(1, "Select caste"),
   gotra: z.string().min(1, "Select gotra"),
   horoscope: z.enum(["required", "not_required"], {
@@ -151,9 +168,10 @@ export const preferencesSchema = z
     distancePreference: z.enum(["5", "10", "25", "50", "anywhere"], {
       message: "Select distance preference",
     }),
-    preferredReligion: z.enum(["hindu", "buddhist", "muslim", "christian", "kirat", "other"], {
-      message: "Select preferred religion",
-    }),
+    preferredReligion: z.enum(
+      ["hindu", "buddhist", "muslim", "christian", "kirat", "sikh", "jain", "jewish", "non_religious", "other"],
+      { message: "Select preferred religion" }
+    ),
     interCaste: z.enum(["yes", "no", "depends"], {
       message: "Select inter-caste preference",
     }),

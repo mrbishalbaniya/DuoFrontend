@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { GoogleOneTap } from "@/components/auth/google-one-tap";
 import { getGoogleOAuthRedirectUri } from "@/lib/googleAuth";
@@ -24,6 +25,7 @@ export default function LoginPage() {
 }
 
 function LoginPageContent() {
+  const t = useTranslations("login");
   const { login, loginWithGoogle, completeTwoFactorLogin } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -199,7 +201,7 @@ function LoginPageContent() {
           Duo
         </h1>
         <p className="text-on-surface-variant text-sm font-medium">
-          Find your digital heirloom
+          {t("tagline")}
         </p>
       </header>
 
@@ -207,26 +209,26 @@ function LoginPageContent() {
         <div className="glass-card rounded-[2rem] p-8 shadow-[0_40px_60px_-15px] shadow-primary/15">
           <div className="mb-8">
             <h2 className="font-[var(--font-headline)] text-2xl font-bold text-on-surface mb-1">
-              {twoFactor ? "Two-factor verification" : "Welcome back"}
+              {twoFactor ? t("twoFactorTitle") : t("welcomeBack")}
             </h2>
             <p className="text-on-surface-variant text-sm">
               {twoFactor
                 ? twoFactor.methods.includes("totp")
-                  ? "Enter the 6-digit code from your authenticator app."
-                  : "Enter the 6-digit code we emailed you."
-                : "Please enter your details to continue"}
+                  ? t("twoFactorSubtitleTotp")
+                  : t("twoFactorSubtitleEmail")
+                : t("subtitle")}
             </p>
           </div>
 
           {passwordResetSuccess && (
             <div className="mb-6 p-4 bg-primary-container text-on-primary-container rounded-xl text-sm font-medium">
-              Your password has been updated. Sign in with your new password.
+              {t("passwordResetSuccess")}
             </div>
           )}
 
           {accountDeleted && (
             <div className="mb-6 p-4 bg-primary-container text-on-primary-container rounded-xl text-sm font-medium">
-              Your account has been deactivated. Sorry to see you go.
+              {t("accountDeleted")}
             </div>
           )}
 
@@ -267,7 +269,7 @@ function LoginPageContent() {
             <form onSubmit={handleTwoFactorSubmit} className="space-y-6">
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-on-surface-variant ml-1" htmlFor="twoFactorCode">
-                  Verification code
+                  {t("verificationCode")}
                 </label>
                 <div className="relative group">
                   <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
@@ -285,7 +287,7 @@ function LoginPageContent() {
                   />
                 </div>
                 <p className="px-1 text-xs text-on-surface-variant">
-                  You can also enter one of your backup recovery codes.
+                  {t("backupCodeHint")}
                 </p>
               </div>
 
@@ -298,7 +300,7 @@ function LoginPageContent() {
                 disabled={loading || !twoFactorCode.trim()}
                 className="w-full gradient-brand text-white py-4 rounded-full font-bold text-base shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 font-[var(--font-headline)] disabled:opacity-50"
               >
-                {loading ? "Verifying..." : "Verify and sign in"}
+                {loading ? t("verifying") : t("verifyButton")}
               </button>
 
               <div className="flex items-center justify-between px-1 text-xs font-semibold">
@@ -307,7 +309,7 @@ function LoginPageContent() {
                   onClick={handleBackToPassword}
                   className="text-on-surface-variant hover:text-on-surface"
                 >
-                  Back to login
+                  {t("backToLogin")}
                 </button>
                 {twoFactor.methods.includes("email") && (
                   <button
@@ -316,7 +318,7 @@ function LoginPageContent() {
                     disabled={resendingOtp}
                     className="text-accent hover:underline underline-offset-4 disabled:opacity-50"
                   >
-                    {resendingOtp ? "Sending..." : "Resend code"}
+                    {resendingOtp ? t("sendingCode") : t("resendCode")}
                   </button>
                 )}
               </div>
@@ -326,7 +328,7 @@ function LoginPageContent() {
               <form onSubmit={handleLogin} className="space-y-6">
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-on-surface-variant ml-1" htmlFor="username">
-                    Email
+                    {t("emailLabel")}
                   </label>
                   <div className="relative group">
                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
@@ -337,7 +339,7 @@ function LoginPageContent() {
                       id="username"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      placeholder="you@example.com"
+                      placeholder={t("emailPlaceholder")}
                       type="email"
                       required
                     />
@@ -346,13 +348,13 @@ function LoginPageContent() {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center px-1">
                     <label className="block text-sm font-semibold text-on-surface-variant" htmlFor="password">
-                      Password
+                      {t("passwordLabel")}
                     </label>
                     <Link
                       href="/login/forgot-password"
                       className="text-xs font-semibold text-accent hover:underline underline-offset-4"
                     >
-                      Forgot password?
+                      {t("forgotPassword")}
                     </Link>
                   </div>
                   <div className="relative group">
@@ -364,7 +366,7 @@ function LoginPageContent() {
                       id="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Your password"
+                      placeholder={t("passwordPlaceholder")}
                       type={showPassword ? "text" : "password"}
                       required
                     />
@@ -384,13 +386,13 @@ function LoginPageContent() {
                   disabled={loading}
                   className="w-full gradient-brand text-white py-4 rounded-full font-bold text-base shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 font-[var(--font-headline)] disabled:opacity-50"
                 >
-                  {loading ? "Signing in..." : "Login"}
+                  {loading ? t("loggingIn") : t("loginButton")}
                 </button>
               </form>
 
               <div className="my-6 flex items-center gap-3">
                 <div className="h-px flex-1 bg-outline-variant/20" />
-                <span className="text-xs font-bold uppercase tracking-widest text-outline">or</span>
+                <span className="text-xs font-bold uppercase tracking-widest text-outline">{t("or")}</span>
                 <div className="h-px flex-1 bg-outline-variant/20" />
               </div>
 
@@ -406,9 +408,9 @@ function LoginPageContent() {
         {!twoFactor && (
           <div className="mt-8 text-center">
             <p className="text-on-surface-variant font-medium text-sm">
-              New to Duo?{" "}
+              {t("newToDuo")}{" "}
               <Link className="text-accent font-bold hover:underline underline-offset-4 ml-1" href="/register">
-                Create an account
+                {t("createAccount")}
               </Link>
             </p>
           </div>
@@ -417,9 +419,9 @@ function LoginPageContent() {
 
       <footer className="mt-auto py-6 z-10">
         <div className="flex gap-6 text-[11px] font-bold text-outline uppercase tracking-widest">
-          <Link className="hover:text-primary transition-colors" href="#">Privacy Policy</Link>
-          <Link className="hover:text-primary transition-colors" href="#">Terms of Service</Link>
-          <Link className="hover:text-primary transition-colors" href="#">Help Center</Link>
+          <Link className="hover:text-primary transition-colors" href="#">{t("privacyPolicy")}</Link>
+          <Link className="hover:text-primary transition-colors" href="#">{t("termsOfService")}</Link>
+          <Link className="hover:text-primary transition-colors" href="#">{t("helpCenter")}</Link>
         </div>
       </footer>
     </div>

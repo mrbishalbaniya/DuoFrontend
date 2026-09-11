@@ -229,11 +229,11 @@ export interface InitiateSubscriptionResponse {
 }
 
 export type WalletTransactionStatus = "complete" | "pending" | "failed";
-export type WalletTransactionPaymentMethod = "esewa" | "wallet" | "";
+export type WalletTransactionPaymentMethod = "esewa" | "wallet" | "gift" | "";
 
 export interface WalletTransaction {
   id: number;
-  type: "top_up" | "purchase" | "adjustment";
+  type: "top_up" | "purchase" | "adjustment" | "gift_redeem";
   amount: string;
   balance_after: string;
   total_amount: string;
@@ -272,6 +272,12 @@ export interface WalletPurchaseResponse {
   expires_at: string;
   balance: number;
   plan: SubscriptionPlan;
+}
+
+export interface GiftCardRedeemResponse {
+  detail: string;
+  amount: number;
+  balance: number;
 }
 
 export interface VisitedProfile {

@@ -8,20 +8,29 @@ export type RelationshipGoal =
   | "marriage"
   | "friendship";
 export type EducationLevel =
+  | "below_see"
   | "see"
   | "plus_two"
   | "diploma"
   | "bachelor"
   | "master"
-  | "phd";
+  | "mphil"
+  | "phd"
+  | "other";
 export type FieldOfStudy =
   | "it"
   | "engineering"
   | "medical"
   | "business"
   | "law"
+  | "science"
   | "arts"
+  | "education"
   | "agriculture"
+  | "hospitality"
+  | "social_work"
+  | "journalism"
+  | "fine_arts"
   | "other";
 export type EmploymentStatus =
   | "student"
@@ -42,6 +51,10 @@ export type ReligionOption =
   | "muslim"
   | "christian"
   | "kirat"
+  | "sikh"
+  | "jain"
+  | "jewish"
+  | "non_religious"
   | "other";
 export type HoroscopeRequirement = "required" | "not_required";
 export type PersonalityType = "introvert" | "ambivert" | "extrovert";
@@ -64,7 +77,7 @@ export type MarriagePreference = "yes" | "no" | "depends";
 
 import type { ModerationStatus, PhotoAnalysis } from "@/types";
 
-export type RegistrationPhotoStatus = "analyzing" | "approved" | "pending_review" | "rejected";
+export type RegistrationPhotoStatus = "analyzing" | "approved" | "rejected";
 
 export interface RegistrationPhoto {
   id: string;
@@ -75,7 +88,8 @@ export interface RegistrationPhoto {
   imageUrl?: string;
   analysis?: PhotoAnalysis;
   status?: RegistrationPhotoStatus;
-  /** Raw backend moderation status — APPROVED unless flagged for manual review. */
+  /** Raw backend moderation status, kept for reference only — registration
+   * doesn't gate on it (see StepPhotos.tsx runUpload for why). */
   moderationStatus?: ModerationStatus;
   error?: string;
 }

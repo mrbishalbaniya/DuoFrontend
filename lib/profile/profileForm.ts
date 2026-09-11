@@ -21,6 +21,9 @@ export type ProfileEditPhoto = {
 export type ProfileEditFormData = {
   full_name: string;
   age: string;
+  /** ISO date (YYYY-MM-DD), or "" if only a legacy numeric age was ever
+   * saved and no birth date is on record. */
+  dateOfBirth: string;
   phone_country_code: string;
   phone_number: string;
   gender: string;
@@ -80,6 +83,7 @@ export function profileToEditForm(profile: Profile): ProfileEditFormData {
   return {
     full_name: profile.full_name || "",
     age: profile.age != null ? String(profile.age) : "",
+    dateOfBirth: extra.dateOfBirth || "",
     phone_country_code: profile.phone_country_code || "+977",
     phone_number: profile.phone_number || "",
     gender: profile.gender || "",
@@ -130,6 +134,7 @@ function buildPrefValues(form: ProfileEditFormData, existing?: ParsedPrefValues)
     caste: form.caste.trim(),
     gotra: form.gotra.trim(),
     horoscope: form.horoscope.trim(),
+    dateOfBirth: form.dateOfBirth.trim(),
     birthTime: form.birthTime.trim(),
     birthPlace: form.birthPlace.trim(),
     lookingForText: form.lookingForText.trim(),

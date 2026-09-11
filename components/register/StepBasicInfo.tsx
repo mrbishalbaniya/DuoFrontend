@@ -1,8 +1,9 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { SelectField } from "@/components/register/SelectField";
+import { SelectField } from "@/components/ui/select-field";
 import { FieldError, StepCard, StepNavigation } from "@/components/register/StepNavigation";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +20,7 @@ import {
   type BasicInfoFormValues,
 } from "@/lib/validation/registrationSchema";
 import { useRegistrationStore } from "@/store/registrationStore";
+import type { RegistrationData } from "@/types/registration";
 
 interface StepBasicInfoProps {
   onContinue: () => void;
@@ -41,6 +43,17 @@ export function StepBasicInfo({ onContinue, onBack }: StepBasicInfoProps) {
     },
   });
 
+  // Keep the zustand store (and therefore localStorage) in sync with every
+  // keystroke, not just on submit — otherwise clicking "Back" before
+  // finishing this step discards whatever was typed, since the store never
+  // saw it.
+  useEffect(() => {
+    const subscription = form.watch((values) => {
+      patchData(values as Partial<RegistrationData>);
+    });
+    return () => subscription.unsubscribe();
+  }, [form, patchData]);
+
   const submit = form.handleSubmit((values) => {
     patchData(values);
     onContinue();
@@ -62,30 +75,32 @@ export function StepBasicInfo({ onContinue, onBack }: StepBasicInfoProps) {
           </div>
         </div>
 
-        <SelectField
-          label="Gender"
-          options={GENDER_OPTIONS}
-          value={form.watch("gender") ?? ""}
-          onChange={(event) =>
-            form.setValue(
-              "gender",
-              event.target.value as BasicInfoFormValues["gender"],
-              { shouldValidate: true }
-            )
-          }
-          error={form.formState.errors.gender?.message}
-        />
-
-        <div className="space-y-2">
-          <Label htmlFor="dateOfBirth">Date of birth</Label>
-          <Input
-            id="dateOfBirth"
-            type="date"
-            min={minBirthDate()}
-            max={maxBirthDateForMinAge(18)}
-            {...form.register("dateOfBirth")}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SelectField
+            label="Gender"
+            options={GENDER_OPTIONS}
+            value={form.watch("gender") ?? ""}
+            onChange={(event) =>
+              form.setValue(
+                "gender",
+                event.target.value as BasicInfoFormValues["gender"],
+                { shouldValidate: true }
+              )
+            }
+            error={form.formState.errors.gender?.message}
           />
-          <FieldError message={form.formState.errors.dateOfBirth?.message} />
+
+          <div className="space-y-2">
+            <Label htmlFor="dateOfBirth">Date of birth</Label>
+            <Input
+              id="dateOfBirth"
+              type="date"
+              min={minBirthDate()}
+              max={maxBirthDateForMinAge(18)}
+              {...form.register("dateOfBirth")}
+            />
+            <FieldError message={form.formState.errors.dateOfBirth?.message} />
+          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -109,33 +124,35 @@ export function StepBasicInfo({ onContinue, onBack }: StepBasicInfoProps) {
           />
         </div>
 
-        <SelectField
-          label="Marital status (optional)"
-          options={MARITAL_STATUS_OPTIONS}
-          value={form.watch("maritalStatus") ?? ""}
-          onChange={(event) =>
-            form.setValue(
-              "maritalStatus",
-              (event.target.value || undefined) as BasicInfoFormValues["maritalStatus"],
-              { shouldValidate: true }
-            )
-          }
-          error={form.formState.errors.maritalStatus?.message}
-        />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SelectField
+            label="Marital status (optional)"
+            options={MARITAL_STATUS_OPTIONS}
+            value={form.watch("maritalStatus") ?? ""}
+            onChange={(event) =>
+              form.setValue(
+                "maritalStatus",
+                (event.target.value || undefined) as BasicInfoFormValues["maritalStatus"],
+                { shouldValidate: true }
+              )
+            }
+            error={form.formState.errors.maritalStatus?.message}
+          />
 
-        <SelectField
-          label="Relationship goal (optional)"
-          options={RELATIONSHIP_GOAL_OPTIONS}
-          value={form.watch("relationshipGoal") ?? ""}
-          onChange={(event) =>
-            form.setValue(
-              "relationshipGoal",
-              (event.target.value || undefined) as BasicInfoFormValues["relationshipGoal"],
-              { shouldValidate: true }
-            )
-          }
-          error={form.formState.errors.relationshipGoal?.message}
-        />
+          <SelectField
+            label="Relationship goal (optional)"
+            options={RELATIONSHIP_GOAL_OPTIONS}
+            value={form.watch("relationshipGoal") ?? ""}
+            onChange={(event) =>
+              form.setValue(
+                "relationshipGoal",
+                (event.target.value || undefined) as BasicInfoFormValues["relationshipGoal"],
+                { shouldValidate: true }
+              )
+            }
+            error={form.formState.errors.relationshipGoal?.message}
+          />
+        </div>
 
         <StepNavigation onBack={onBack} onNext={() => submit()} />
       </form>

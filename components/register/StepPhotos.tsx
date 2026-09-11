@@ -38,10 +38,6 @@ interface PendingPhotoUpload {
 
 const UPLOAD_CONCURRENCY = 3;
 
-function isApprovedForPrimary(photo: RegistrationPhoto): boolean {
-  return photo.moderationStatus === undefined || photo.moderationStatus === "APPROVED";
-}
-
 export function StepPhotos({ onContinue, onBack }: StepPhotosProps) {
   const { data, patchData } = useRegistrationStore();
   const [dragActive, setDragActive] = useState(false);
@@ -64,7 +60,12 @@ export function StepPhotos({ onContinue, onBack }: StepPhotosProps) {
   const photosRef = useRef(photos);
   useEffect(() => {
     photosRef.current = photos;
-  }, [photos]);
+    // Sync every change into the zustand store (and therefore localStorage)
+    // immediately, not just on submit — otherwise clicking "Back" before
+    // hitting "Continue" would discard photos that already went through a
+    // real, expensive AI-verification round trip.
+    patchData({ photos });
+  }, [photos, patchData]);
 
   const pendingUploadsRef = useRef(pendingUploads);
   pendingUploadsRef.current = pendingUploads;
@@ -116,23 +117,26 @@ export function StepPhotos({ onContinue, onBack }: StepPhotosProps) {
         if (!result.image_url) {
           throw new Error(`${pending.file.name}: upload succeeded but no image URL was returned.`);
         }
+        // Detect and reject outright — no "under review" limbo state. A
+        // photo either clears the checks (client-side NSFW screen above,
+        // plus the backend's face/quality/content analysis) and is usable
+        // immediately, or it's rejected with a clear reason. We don't gate
+        // on the backend's separate async moderation record, since that
+        // would leave every photo stuck waiting on a queue/worker that may
+        // not even be running.
+        if (result.photo?.status === "REJECTED") {
+          throw new Error(`${pending.file.name}: this photo was rejected by our content checks.`);
+        }
 
-        // A photo can clear face/quality checks but still be flagged for
-        // human moderation — it isn't "approved" until the backend says so.
-        // Treating it as verified here (like the previous implementation
-        // did) would let unreviewed photos count toward the required
-        // verified-photo total and silently slip through registration.
-        const moderationStatus = result.photo?.status;
-        const isApproved = moderationStatus === undefined || moderationStatus === "APPROVED";
         const photo: RegistrationPhoto = {
           id: `${Date.now()}-${pending.file.name}`,
           fileName: pending.file.name,
           previewUrl: pending.previewUrl,
-          isProfile: pending.isPrimary && isApproved && !photosRef.current.some((p) => p.isProfile),
+          isProfile: pending.isPrimary && !photosRef.current.some((p) => p.isProfile),
           imageUrl: result.image_url,
           analysis: result.analysis,
-          status: isApproved ? "approved" : moderationStatus === "REJECTED" ? "rejected" : "pending_review",
-          moderationStatus,
+          status: "approved",
+          moderationStatus: result.photo?.status,
         };
         const nextPhotos = [...photosRef.current, photo];
         photosRef.current = nextPhotos;
@@ -207,15 +211,12 @@ export function StepPhotos({ onContinue, onBack }: StepPhotosProps) {
   const removePhoto = (id: string) => {
     const next = photos.filter((photo) => photo.id !== id);
     if (next.length && !next.some((photo) => photo.isProfile)) {
-      const promoted = next.find(isApprovedForPrimary);
-      if (promoted) promoted.isProfile = true;
+      next[0].isProfile = true;
     }
     form.setValue("photos", next, { shouldValidate: true });
   };
 
   const setProfilePhoto = (id: string) => {
-    const target = photos.find((photo) => photo.id === id);
-    if (!target || !isApprovedForPrimary(target)) return;
     form.setValue(
       "photos",
       photos.map((photo) => ({ ...photo, isProfile: photo.id === id })),
@@ -374,30 +375,11 @@ export function StepPhotos({ onContinue, onBack }: StepPhotosProps) {
                 <img
                   src={photo.previewUrl}
                   alt={photo.fileName}
-                  className={cn(
-                    "aspect-[3/4] w-full object-cover",
-                    // A photo the AI hasn't cleared yet (moderation, not just
-                    // quality) stays blurred client-side until a human
-                    // reviewer approves it — the automated face/quality
-                    // checks don't screen for inappropriate content, so an
-                    // unreviewed photo must never render in the clear.
-                    photo.status === "pending_review" && "scale-110 blur-2xl"
-                  )}
+                  className="aspect-[3/4] w-full object-cover"
                 />
-                {photo.status === "pending_review" ? (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 p-3 text-center">
-                    <p className="text-xs font-semibold text-white drop-shadow">
-                      Photo hidden pending moderator review
-                    </p>
-                  </div>
-                ) : null}
                 {photo.status === "approved" ? (
                   <span className="absolute left-2 top-2 rounded-full bg-emerald-600/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
                     Verified
-                  </span>
-                ) : photo.status === "pending_review" ? (
-                  <span className="absolute left-2 top-2 rounded-full bg-amber-500/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                    Under review
                   </span>
                 ) : null}
 
@@ -428,10 +410,6 @@ export function StepPhotos({ onContinue, onBack }: StepPhotosProps) {
                   {photo.isProfile ? (
                     <span className="flex h-8 flex-1 items-center justify-center rounded-full bg-primary/90 text-xs font-semibold text-white">
                       Profile photo
-                    </span>
-                  ) : photo.status === "pending_review" ? (
-                    <span className="flex h-8 flex-1 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-on-surface-variant">
-                      Pending review
                     </span>
                   ) : (
                     <Button

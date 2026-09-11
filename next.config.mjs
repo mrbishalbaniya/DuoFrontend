@@ -1,3 +1,5 @@
+import createNextIntlPlugin from "next-intl/plugin";
+
 /** @type {import('next').NextConfig} */
 
 // Map/tile providers used by MapLibre (basemaps, terrain, satellite, labels).
@@ -128,4 +130,6 @@ const nextConfig = {  poweredByHeader: false,
   },
 };
 
-export default nextConfig;
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
+
+export default withNextIntl(nextConfig);

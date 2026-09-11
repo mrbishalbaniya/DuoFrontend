@@ -28,22 +28,31 @@ export const RELATIONSHIP_GOAL_OPTIONS = [
 ] as const;
 
 export const EDUCATION_LEVEL_OPTIONS = [
-  { value: "see", label: "SEE" },
-  { value: "plus_two", label: "+2" },
+  { value: "below_see", label: "Below SEE" },
+  { value: "see", label: "SEE / SLC" },
+  { value: "plus_two", label: "+2 / Intermediate" },
   { value: "diploma", label: "Diploma" },
-  { value: "bachelor", label: "Bachelor" },
-  { value: "master", label: "Master" },
+  { value: "bachelor", label: "Bachelor's" },
+  { value: "master", label: "Master's" },
+  { value: "mphil", label: "MPhil" },
   { value: "phd", label: "PhD" },
+  { value: "other", label: "Other" },
 ] as const;
 
 export const FIELD_OF_STUDY_OPTIONS = [
-  { value: "it", label: "IT" },
+  { value: "it", label: "IT / Computer Science" },
   { value: "engineering", label: "Engineering" },
-  { value: "medical", label: "Medical" },
-  { value: "business", label: "Business" },
+  { value: "medical", label: "Medical / Health Sciences" },
+  { value: "business", label: "Business / Management" },
   { value: "law", label: "Law" },
-  { value: "arts", label: "Arts" },
+  { value: "science", label: "Science" },
+  { value: "arts", label: "Arts / Humanities" },
+  { value: "education", label: "Education" },
   { value: "agriculture", label: "Agriculture" },
+  { value: "hospitality", label: "Hotel Management / Hospitality" },
+  { value: "social_work", label: "Social Work" },
+  { value: "journalism", label: "Journalism / Mass Communication" },
+  { value: "fine_arts", label: "Fine Arts / Design" },
   { value: "other", label: "Other" },
 ] as const;
 
@@ -56,6 +65,18 @@ export const EMPLOYMENT_OPTIONS = [
   { value: "unemployed", label: "Unemployed" },
 ] as const;
 
+// Values here must exactly match the backend's Profile.WORK_PREF_CHOICES
+// keys (accounts/models.py) — this is a strict choices= field.
+export const WORK_PREFERENCE_OPTIONS = [
+  { value: "Private", label: "Private sector" },
+  { value: "Government", label: "Government" },
+  { value: "Business", label: "Business / self-employed" },
+  { value: "Freelancer", label: "Freelancer" },
+  { value: "Student", label: "Student" },
+  { value: "Retired", label: "Retired" },
+  { value: "NotWorking", label: "Not working" },
+] as const;
+
 export const INCOME_OPTIONS = [
   { value: "below_20k", label: "Below NPR 20,000" },
   { value: "20k_50k", label: "NPR 20,000 - 50,000" },
@@ -64,32 +85,79 @@ export const INCOME_OPTIONS = [
   { value: "200k_plus", label: "NPR 200,000+" },
 ] as const;
 
+// Labels here must exactly match the backend's Profile.RELIGION_CHOICES
+// keys (accounts/models.py) — ProfileEditForm's "Religion" select submits
+// the label text directly, and the backend enforces this as a strict
+// choices= field, so a label that doesn't match one of those keys exactly
+// gets rejected on save.
 export const RELIGION_OPTIONS = [
   { value: "hindu", label: "Hindu" },
   { value: "buddhist", label: "Buddhist" },
   { value: "muslim", label: "Muslim" },
   { value: "christian", label: "Christian" },
   { value: "kirat", label: "Kirat" },
+  { value: "sikh", label: "Sikh" },
+  { value: "jain", label: "Jain" },
+  { value: "jewish", label: "Jewish" },
+  { value: "non_religious", label: "Non-religious" },
   { value: "other", label: "Other" },
 ] as const;
 
 export const CASTE_OPTIONS = [
+  // Hill Brahmin / Chhetri
   "Bahun",
   "Chhetri",
   "Thakuri",
+  "Sanyasi / Dashnami",
+  // Newar
   "Newar",
+  // Hill Janajati
   "Gurung",
   "Magar",
   "Rai",
   "Limbu",
   "Tamang",
   "Sherpa",
-  "Tharu",
   "Sunuwar",
+  "Thakali",
+  "Gharti / Bhujel",
+  "Yakkha",
+  "Chepang",
+  "Kumal",
+  "Majhi",
+  "Danuwar",
+  "Hyolmo",
+  // Madhesi / Tarai communities
   "Yadav",
+  "Kurmi",
+  "Teli",
+  "Sah / Sahu",
+  "Mandal",
+  "Kayastha",
+  "Rajput",
+  "Brahmin (Madhesi)",
+  "Marwadi",
+  "Baniya",
+  "Kalwar",
+  "Kanu",
+  "Koiri",
+  "Dhanuk",
+  "Rajbanshi",
+  "Tharu",
+  // Dalit communities
   "Kami",
   "Damai",
   "Sarki",
+  "Sunar",
+  "Gaine",
+  "Badi",
+  "Chamar",
+  "Musahar",
+  "Paswan / Dusadh",
+  "Dom",
+  "Khatik",
+  // Muslim
+  "Muslim",
   "Other",
 ] as const;
 
@@ -104,12 +172,44 @@ export const GOTRA_OPTIONS = [
   "Jamadagni",
   "Sandilya",
   "Angiras",
+  "Bhrigu",
+  "Parashar",
+  "Garg",
+  "Vatsa",
+  "Upamanyu",
+  "Katyayan",
+  "Naitik",
+  "Maitreya",
+  "Kaundinya",
+  "Kutsa",
+  "Shrivatsa",
+  "Vishwamitra",
+  "Harit",
+  "Mudgal",
   "Unknown",
 ] as const;
 
 export const HOROSCOPE_OPTIONS = [
   { value: "required", label: "Required" },
   { value: "not_required", label: "Not Required" },
+] as const;
+
+// The 12 Vedic moon-sign (Rashi) / zodiac signs — for recording someone's
+// own horoscope sign, not a matching preference (see HOROSCOPE_OPTIONS).
+export const RASHI_OPTIONS = [
+  { value: "mesh", label: "Aries (Mesh)" },
+  { value: "vrishabha", label: "Taurus (Vrishabha)" },
+  { value: "mithuna", label: "Gemini (Mithuna)" },
+  { value: "karka", label: "Cancer (Karka)" },
+  { value: "simha", label: "Leo (Simha)" },
+  { value: "kanya", label: "Virgo (Kanya)" },
+  { value: "tula", label: "Libra (Tula)" },
+  { value: "vrishchika", label: "Scorpio (Vrishchika)" },
+  { value: "dhanu", label: "Sagittarius (Dhanu)" },
+  { value: "makara", label: "Capricorn (Makara)" },
+  { value: "kumbha", label: "Aquarius (Kumbha)" },
+  { value: "meena", label: "Pisces (Meena)" },
+  { value: "unknown", label: "Don't know" },
 ] as const;
 
 export const PERSONALITY_OPTIONS = [
