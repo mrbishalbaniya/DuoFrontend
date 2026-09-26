@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { RegistrationStepper } from "@/components/register/RegistrationStepper";
 import { StepAccount } from "@/components/register/StepAccount";
 import { StepBasicInfo } from "@/components/register/StepBasicInfo";
@@ -11,6 +11,7 @@ import { StepLocation } from "@/components/register/StepLocation";
 import { StepPhotos } from "@/components/register/StepPhotos";
 import { StepReview } from "@/components/register/StepReview";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
 import api from "@/lib/api";
 import { SHOW_PRODUCT_ONBOARDING_KEY } from "@/lib/onboarding/content";
 import { syncOnboardedCookie } from "@/lib/onboardingGate";
@@ -36,6 +37,7 @@ export default function RegisterPage() {
     setAccountCreated,
     reset,
   } = useRegistrationStore();
+  const { showErrorToast } = useToast();
 
   const createAccount = useCallback(async () => {
     if (accountCreated || data.signedUpWithGoogle) return;
@@ -103,6 +105,10 @@ export default function RegisterPage() {
     setSubmitting,
   ]);
 
+  useEffect(() => {
+    if (error) showErrorToast(error);
+  }, [error, showErrorToast]);
+
   const renderStep = () => {
     switch (step) {
       case 1:
@@ -143,12 +149,6 @@ export default function RegisterPage() {
 
       <main className="relative mx-auto max-w-3xl px-4 pb-32 pt-24">
         <RegistrationStepper currentStep={step} />
-
-        {error ? (
-          <div className="mb-6 rounded-xl bg-error-container p-4 text-sm font-medium text-on-error-container">
-            {error}
-          </div>
-        ) : null}
 
         <AnimatePresence mode="wait">
           <motion.div

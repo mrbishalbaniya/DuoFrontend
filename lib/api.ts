@@ -254,6 +254,63 @@ class ApiClient {
     return data as unknown as LoginResponse;
   }
 
+  async requestLoginOtp(email: string): Promise<{ sent: boolean; message: string; retry_after?: number }> {
+    let res: Response;
+    try {
+      res = await fetch("/api/auth/login-otp-request", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+    } catch {
+      throw new Error("Cannot reach the API. Check that the backend is running.");
+    }
+
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (res.status === 429) {
+      throw new OtpCooldownError(
+        typeof data.retry_after === "number" ? data.retry_after : 60,
+        typeof data.detail === "string" ? data.detail : undefined
+      );
+    }
+    if (!res.ok) {
+      throw new Error(String(data.detail ?? "Could not send login code."));
+    }
+    return data as { sent: boolean; message: string; retry_after?: number };
+  }
+
+  async verifyLoginOtp(email: string, otp: string): Promise<LoginResponse> {
+    let res: Response;
+    try {
+      res = await fetch("/api/auth/login-otp-verify", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp, ...getWebDeviceInfo() }),
+      });
+    } catch {
+      throw new Error("Cannot reach the API. Check that the backend is running.");
+    }
+
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+
+    // The backend signals a 2FA challenge with 200 OK (not an error status) —
+    // see LoginOtpVerifyView in accounts/views.py.
+    if (data.requires_2fa === true) {
+      throw new TwoFactorRequiredError(
+        typeof data.challenge_token === "string" ? data.challenge_token : "",
+        Array.isArray(data.methods) ? data.methods.map(String) : []
+      );
+    }
+
+    if (!res.ok) {
+      throw new Error(String(data.detail ?? "Invalid or expired code."));
+    }
+
+    return data as unknown as LoginResponse;
+  }
+
   async sendTwoFactorLoginOtp(challengeToken: string): Promise<{ sent: boolean }> {
     return this.request<{ sent: boolean }>("/security/2fa/login/send-otp/", {
       method: "POST",
@@ -332,11 +389,30 @@ class ApiClient {
 
   async requestPasswordReset(
     email: string
-  ): Promise<{ sent: boolean; message: string }> {
-    return this.request<{ sent: boolean; message: string }>("/auth/password/forgot/", {
-      method: "POST",
-      body: JSON.stringify({ email: email.trim().toLowerCase() }),
-    });
+  ): Promise<{ sent: boolean; message: string; retry_after?: number }> {
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}/auth/password/forgot/`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+    } catch {
+      throw new Error("Cannot reach the API. Check that the backend is running.");
+    }
+
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (res.status === 429) {
+      throw new OtpCooldownError(
+        typeof data.retry_after === "number" ? data.retry_after : 60,
+        typeof data.detail === "string" ? data.detail : undefined
+      );
+    }
+    if (!res.ok) {
+      throw new Error(String(data.detail ?? "Could not send reset code."));
+    }
+    return data as { sent: boolean; message: string; retry_after?: number };
   }
 
   async resetPassword(
@@ -1215,6 +1291,16 @@ export class TwoFactorRequiredError extends Error {
     this.name = "TwoFactorRequiredError";
     this.challengeToken = challengeToken;
     this.methods = methods;
+  }
+}
+
+export class OtpCooldownError extends Error {
+  retryAfter: number;
+
+  constructor(retryAfter: number, message?: string) {
+    super(message || `Please wait ${retryAfter}s before requesting another code.`);
+    this.name = "OtpCooldownError";
+    this.retryAfter = retryAfter;
   }
 }
 

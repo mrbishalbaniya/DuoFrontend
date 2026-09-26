@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { Profile } from "@/types";
 import { detectUserLocation } from "@/lib/geolocation";
+import { useToast } from "@/contexts/ToastContext";
 
 export type DiscoveryFilters = {
   pref_age_min: number;
@@ -177,6 +178,11 @@ export default function DiscoveryFiltersSheet({
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const { showErrorToast } = useToast();
+
+  useEffect(() => {
+    if (saveError) showErrorToast(saveError);
+  }, [saveError, showErrorToast]);
 
   useEffect(() => {
     setMounted(true);
@@ -334,12 +340,6 @@ export default function DiscoveryFiltersSheet({
           className="ios-sheet-scroll min-h-0 flex-1 touch-pan-y bg-background"
         >
           <div className="space-y-4 px-5 pb-10 pt-2">
-            {saveError ? (
-              <div className="rounded-xl bg-error-container px-4 py-3 text-sm text-on-error-container">
-                {saveError}
-              </div>
-            ) : null}
-
             <FilterSection title="Location">
               <button
                 type="button"

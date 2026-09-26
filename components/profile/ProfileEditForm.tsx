@@ -32,7 +32,6 @@ interface ProfileEditFormProps {
   onSave: () => void;
   onCancel: () => void;
   saving: boolean;
-  saveError: string | null;
   detectingLocation: boolean;
   locationError: string | null;
   onDetectLocation: () => void;
@@ -113,7 +112,6 @@ export function ProfileEditForm({
   onSave,
   onCancel,
   saving,
-  saveError,
   detectingLocation,
   locationError,
   onDetectLocation,
@@ -322,12 +320,6 @@ export function ProfileEditForm({
           Cancel
         </button>
       </div>
-
-      {saveError ? (
-        <div className="rounded-xl bg-error-container p-4 text-sm font-medium text-on-error-container">
-          {saveError}
-        </div>
-      ) : null}
 
       <FormSection title="Photos">
         <div

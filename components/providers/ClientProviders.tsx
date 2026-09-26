@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createQueryClient } from "@/lib/query/client";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { ToastProvider } from "@/contexts/ToastContext";
 import { GoogleOAuthProviderWrapper } from "@/components/auth/google-oauth-provider";
 import { OnboardingGate } from "@/components/auth/OnboardingGate";
 import { CallBridge } from "@/components/call/CallBridge";
@@ -21,15 +22,17 @@ export function ClientProviders({ children }: { children: ReactNode }) {
         <div className="app-background" aria-hidden="true" />
         <GoogleOAuthProviderWrapper>
           <ThemeProvider>
-            <AuthProvider>
-              <OnboardingGate>
-                <CallBridge>
-                  <PushNotificationBridge />
-                  <UnreadMessagesSync />
-                  {children}
-                </CallBridge>
-              </OnboardingGate>
-            </AuthProvider>
+            <ToastProvider>
+              <AuthProvider>
+                <OnboardingGate>
+                  <CallBridge>
+                    <PushNotificationBridge />
+                    <UnreadMessagesSync />
+                    {children}
+                  </CallBridge>
+                </OnboardingGate>
+              </AuthProvider>
+            </ToastProvider>
           </ThemeProvider>
         </GoogleOAuthProviderWrapper>
       </LenisProvider>

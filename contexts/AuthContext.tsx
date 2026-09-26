@@ -20,6 +20,8 @@ interface AuthContextValue {
   loading: boolean;
   login: (username: string, password: string) => Promise<LoginResponse>;
   loginWithGoogle: (idToken: string) => Promise<LoginResponse>;
+  requestLoginOtp: (email: string) => Promise<{ sent: boolean; message: string; retry_after?: number }>;
+  loginWithOtp: (email: string, otp: string) => Promise<LoginResponse>;
   completeTwoFactorLogin: (challengeToken: string, code: string) => Promise<LoginResponse>;
   register: (
     email: string,
@@ -125,6 +127,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const requestLoginOtp = async (email: string) => {
+    return api.requestLoginOtp(email);
+  };
+
+  const loginWithOtp = async (email: string, otp: string) => {
+    const data = await api.verifyLoginOtp(email, otp);
+    try {
+      const me = data.user ?? (await api.getMe(data.access));
+      setAuthUser(me);
+      return { ...data, user: me };
+    } catch {
+      await api.clearTokens();
+      setAuthUser(null);
+      throw new Error("Signed in, but the session could not be verified. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const completeTwoFactorLogin = async (challengeToken: string, code: string) => {
     const data = await api.completeTwoFactorLogin(challengeToken, code);
     try {
@@ -180,6 +201,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         login,
         loginWithGoogle,
+        requestLoginOtp,
+        loginWithOtp,
         completeTwoFactorLogin,
         register,
         logout,

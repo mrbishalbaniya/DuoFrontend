@@ -14,6 +14,7 @@ import {
   ProfileSidebarSkeleton,
 } from "@/components/profile/ProfilePageSkeleton";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
 import api from "@/lib/api";
 import { detectUserLocation, isDefaultLocation } from "@/lib/geolocation";
 import { buildProfileSections } from "@/lib/profile/formatProfile";
@@ -37,6 +38,11 @@ export default function ProfilePage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const { showErrorToast } = useToast();
+
+  useEffect(() => {
+    if (saveError) showErrorToast(saveError);
+  }, [saveError, showErrorToast]);
 
   const applyProfile = useCallback((freshProfile: Profile, currentUser: User) => {
     setProfile(freshProfile);
@@ -321,7 +327,6 @@ export default function ProfilePage() {
                 onSave={() => void handleSave()}
                 onCancel={handleCancelEdit}
                 saving={saving}
-                saveError={saveError}
                 detectingLocation={detectingLocation}
                 locationError={locationError}
                 onDetectLocation={() => void handleDetectLocation()}

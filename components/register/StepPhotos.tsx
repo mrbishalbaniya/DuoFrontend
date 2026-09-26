@@ -119,11 +119,13 @@ export function StepPhotos({ onContinue, onBack }: StepPhotosProps) {
         }
         // Detect and reject outright — no "under review" limbo state. A
         // photo either clears the checks (client-side NSFW screen above,
-        // plus the backend's face/quality/content analysis) and is usable
-        // immediately, or it's rejected with a clear reason. We don't gate
-        // on the backend's separate async moderation record, since that
-        // would leave every photo stuck waiting on a queue/worker that may
-        // not even be running.
+        // plus the backend's face/quality/content-safety analysis) and is
+        // usable immediately, or it's rejected with a clear reason.
+        // MANUAL_REVIEW photos (borderline quality/content, e.g. multiple
+        // faces) are also usable immediately — registration never blocks on
+        // a human reviewer (accounts/serializers.py only rejects REJECTED
+        // photos now, 2026-09-27); the review queue runs in the background
+        // without stalling signup.
         if (result.photo?.status === "REJECTED") {
           throw new Error(`${pending.file.name}: this photo was rejected by our content checks.`);
         }

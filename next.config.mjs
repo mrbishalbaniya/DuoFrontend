@@ -105,7 +105,7 @@ const nextConfig = {  poweredByHeader: false,
           {
             key: "Permissions-Policy",
             value:
-              'camera=(self "https://*.readyplayer.me"), microphone=(self "https://*.readyplayer.me"), geolocation=(self)',
+              'camera=(self "https://*.readyplayer.me"), microphone=(self "https://*.readyplayer.me"), geolocation=(self), identity-credentials-get=(self)',
           },
           {
             key: "Strict-Transport-Security",

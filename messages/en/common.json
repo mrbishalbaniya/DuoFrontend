@@ -35,7 +35,20 @@
     "sendingCode": "Sending...",
     "tagline": "Find your digital heirloom",
     "passwordResetSuccess": "Your password has been updated. Sign in with your new password.",
-    "accountDeleted": "Your account has been deactivated. Sorry to see you go."
+    "accountDeleted": "Your account has been deactivated. Sorry to see you go.",
+    "signInWithOtp": "Sign in with a one-time code instead",
+    "useYourPassword": "Use your password instead",
+    "otpLoginTitle": "Sign in with a code",
+    "otpLoginSubtitle": "Enter your email and we'll send you a one-time login code.",
+    "otpLoginSentSubtitle": "Enter the 6-digit code we sent to {email}.",
+    "sendLoginCode": "Send login code",
+    "newCodeSent": "A new code was sent to your email.",
+    "emailRequired": "Email is required.",
+    "couldNotSendLoginCode": "Could not send login code. Please try again.",
+    "invalidLoginCode": "Invalid or expired code.",
+    "couldNotResendCode": "Could not resend the code. Please try again.",
+    "useDifferentEmail": "Use a different email",
+    "resendCodeIn": "Resend code in {seconds}s"
   },
   "settings": {
     "title": "Settings",

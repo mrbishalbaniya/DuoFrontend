@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { FieldError, StepCard, StepNavigation } from "@/components/register/StepNavigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
 import {
   accountSchema,
   getPasswordStrength,
@@ -54,6 +55,11 @@ export function StepAccount({ onContinue, onBack }: StepAccountProps) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleError, setGoogleError] = useState("");
+  const { showErrorToast } = useToast();
+
+  useEffect(() => {
+    if (googleError) showErrorToast(googleError);
+  }, [googleError, showErrorToast]);
 
   const accountForm = useForm<AccountFormValues>({
     resolver: zodResolver(accountSchema),
@@ -253,12 +259,6 @@ export function StepAccount({ onContinue, onBack }: StepAccountProps) {
       subtitle="Sign up with Google or register with your email and password."
     >
       <div className="space-y-5">
-        {googleError ? (
-          <div className="rounded-xl bg-error-container p-4 text-sm font-medium text-on-error-container">
-            {googleError}
-          </div>
-        ) : null}
-
         <GoogleSignInButton
           disabled={googleLoading}
           onSuccess={handleGoogleSuccess}

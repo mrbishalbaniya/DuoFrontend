@@ -18,7 +18,7 @@ import MapLayersBridge from "./layers/MapLayersBridge";
 import MapLayersSettingsPanel from "./layers/MapLayersSettingsPanel";
 import MapDebugHud from "./layers/MapDebugHud";
 import WeatherBridge from "./weather/WeatherBridge";
-import WeatherClickBridge from "./weather/WeatherClickBridge";
+import UserWeatherWidget from "./weather/UserWeatherWidget";
 import ActivityHeatmapBridge from "./activityHeatmap/ActivityHeatmapBridge";
 import { isDuoLayerVisible } from "@/lib/mapLayers/layerEngine";
 import { useMapLayersStore } from "@/lib/mapLayers/store";
@@ -425,7 +425,7 @@ export default function MapView({
         <SpaceStarfieldBridge />
         <SpaceAtmosphereBridge />
         <WeatherBridge />
-        <WeatherClickBridge />
+        <UserWeatherWidget coordinates={userCoordinates} />
         {showActivityHeatmap ? (
           <ActivityHeatmapBridge userCoordinates={userCoordinates} />
         ) : null}
