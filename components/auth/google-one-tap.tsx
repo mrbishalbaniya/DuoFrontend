@@ -13,7 +13,6 @@ interface GoogleOneTapProps {
 type GoogleAccountsId = {
   initialize: (config: IdConfiguration) => void;
   prompt: () => void;
-  cancel: () => void;
 };
 
 function getGoogleId(): GoogleAccountsId | undefined {
@@ -21,85 +20,79 @@ function getGoogleId(): GoogleAccountsId | undefined {
     ?.id;
 }
 
+// One FedCM request per page load. The browser allows only one outstanding
+// `navigator.credentials.get()` at a time, and aborting it via
+// `google.accounts.id.cancel()` makes Google's SDK log
+// "[GSI_LOGGER]: FedCM get() rejects with AbortError", which Next.js dev
+// surfaces as a console error. So we never cancel: we prompt once and simply
+// ignore the result if the component is disabled or unmounted by then.
+let promptStarted = false;
+let activeHandler: ((response: CredentialResponse) => void) | null = null;
+
 /**
  * Renders Google's "One Tap" prompt (the auto-detected account bubble in the
- * top-right corner, like Medium/YouTube show). It uses the browser's existing
- * Google session to offer a one-click sign-in, without requiring the user to
- * click a "Continue with Google" button first.
+ * top-right corner). Uses the browser's existing Google session to offer a
+ * one-click sign-in without clicking "Continue with Google" first.
  *
  * Requires NEXT_PUBLIC_GOOGLE_CLIENT_ID and must be mounted inside
  * GoogleOAuthProviderWrapper (see components/providers/ClientProviders.tsx).
  * Renders nothing itself — the prompt is drawn by Google's own script.
- *
- * This intentionally reimplements `@react-oauth/google`'s `useGoogleOneTapLogin`
- * instead of calling it directly: that hook's effect calls
- * `google.accounts.id.initialize()` + `.prompt()` synchronously on mount. In
- * dev, React Strict Mode double-invokes effects (mount -> cleanup -> mount),
- * and Chrome's FedCM `navigator.credentials.get()` call from the first
- * (phantom) mount doesn't always finish aborting before the second mount's
- * `.prompt()` fires, producing "Only one navigator.credentials.get request
- * may be outstanding at one time." Deferring the actual prompt by a short
- * macrotask delay lets the phantom mount's cleanup fully settle first.
  */
 export function GoogleOneTap({ onSuccess, onError, disabled = false }: GoogleOneTapProps) {
   const { clientId, scriptLoadedSuccessfully } = useGoogleOAuth();
   const onSuccessRef = useRef(onSuccess);
   const onErrorRef = useRef(onError);
-  // Tracks whether `.prompt()` actually ran for the *current* effect instance,
-  // so cleanup only calls `.cancel()` (which makes Google's own SDK log a
-  // console error for the aborted signal, even for an intentional/harmless
-  // cancel) when a request is genuinely outstanding — not on every cleanup,
-  // e.g. the React Strict Mode dev double-invoke's phantom mount, which never
-  // gets far enough to call `.prompt()` before its cleanup runs.
-  const hasPromptedRef = useRef(false);
+  const disabledRef = useRef(disabled);
 
   useEffect(() => {
     onSuccessRef.current = onSuccess;
     onErrorRef.current = onError;
+    disabledRef.current = disabled;
   });
 
+  // Route the (single, page-wide) Google callback to whichever instance is
+  // currently mounted; with none mounted the credential is dropped.
   useEffect(() => {
-    if (!scriptLoadedSuccessfully) return;
-
-    if (disabled) {
-      if (hasPromptedRef.current) {
-        getGoogleId()?.cancel();
-        hasPromptedRef.current = false;
+    const handler = (response: CredentialResponse) => {
+      if (disabledRef.current) return;
+      if (!response.credential) {
+        onErrorRef.current?.();
+        return;
       }
-      return;
-    }
+      onSuccessRef.current(response.credential);
+    };
+    activeHandler = handler;
+    return () => {
+      if (activeHandler === handler) activeHandler = null;
+    };
+  }, []);
 
+  useEffect(() => {
+    if (!scriptLoadedSuccessfully || disabled || promptStarted) return;
+
+    // Short delay so React Strict Mode's dev mount -> unmount -> mount cycle
+    // settles before the one real prompt starts.
     const timer = setTimeout(() => {
       const googleId = getGoogleId();
-      googleId?.initialize({
+      if (!googleId || promptStarted) return;
+      promptStarted = true;
+      googleId.initialize({
         client_id: clientId,
-        callback: (credentialResponse: CredentialResponse) => {
-          hasPromptedRef.current = false;
-          if (!credentialResponse.credential) {
-            onErrorRef.current?.();
-            return;
-          }
-          onSuccessRef.current(credentialResponse.credential);
-        },
+        callback: (response: CredentialResponse) => activeHandler?.(response),
         // Require an explicit "Continue as X" click rather than silently
         // signing the user in the instant the prompt renders.
         auto_select: false,
-        cancel_on_tap_outside: true,
+        // Must stay false: tapping outside makes Google's SDK abort its own
+        // FedCM request, which logs the same AbortError console error.
+        cancel_on_tap_outside: false,
         // Google is phasing out third-party cookies for this flow; FedCM is
-        // the supported replacement and avoids the prompt silently failing.
+        // the supported replacement.
         use_fedcm_for_prompt: true,
       });
-      googleId?.prompt();
-      hasPromptedRef.current = true;
+      googleId.prompt();
     }, 100);
 
-    return () => {
-      clearTimeout(timer);
-      if (hasPromptedRef.current) {
-        getGoogleId()?.cancel();
-        hasPromptedRef.current = false;
-      }
-    };
+    return () => clearTimeout(timer);
   }, [clientId, scriptLoadedSuccessfully, disabled]);
 
   return null;

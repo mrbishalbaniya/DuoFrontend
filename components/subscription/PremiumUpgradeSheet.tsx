@@ -11,7 +11,7 @@ interface PremiumUpgradeSheetProps {
   onClose: () => void;
   plans: SubscriptionPlan[];
   count: number;
-  variant?: "likes" | "visitors";
+  variant?: "likes" | "visitors" | "rewind" | "unlimited_likes";
   walletBalance?: number;
   topUpPresets?: number[];
   purchasing?: boolean;

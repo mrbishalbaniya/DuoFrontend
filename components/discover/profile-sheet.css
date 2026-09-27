@@ -1,0 +1,155 @@
+/* Profile detail sheet — extends the iOS filter sheet (dashboard/discovery-filters.css). */
+
+.pds-sheet {
+  height: 90dvh;
+}
+
+@media (min-width: 768px) {
+  .pds-sheet {
+    height: min(760px, 90vh);
+  }
+}
+
+.pds-navbtn-close {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.pds-navbtn-close .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.pds-hero {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--dfs-card);
+}
+
+.pds-hero img,
+.pds-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 25%;
+}
+
+.pds-hero-empty {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  color: var(--dfs-muted);
+}
+
+.pds-hero-empty .material-symbols-outlined {
+  font-size: 72px;
+}
+
+.pds-identity {
+  padding: 16px 4px 18px;
+}
+
+.pds-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.pds-name-age {
+  font-weight: 500;
+  color: var(--dfs-muted);
+}
+
+.pds-verified {
+  font-size: 22px;
+  color: var(--dfs-accent);
+  font-variation-settings: "FILL" 1;
+}
+
+.pds-where {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 6px 0 0;
+  font-size: 15px;
+  color: var(--dfs-muted);
+}
+
+.pds-where .material-symbols-outlined {
+  font-size: 17px;
+  color: var(--dfs-accent);
+}
+
+.pds-row-icon {
+  display: flex;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--dfs-accent) 16%, transparent);
+  color: var(--dfs-accent);
+}
+
+.pds-row-icon .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.pds-row-value {
+  max-width: 55%;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  color: var(--dfs-muted);
+}
+
+.pds-text {
+  margin: 0;
+  padding: 14px 16px;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--dfs-text);
+}
+
+.pds-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 16px;
+}
+
+.pds-chip {
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: var(--dfs-fill);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--dfs-text);
+}
+
+.pds-photo {
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  margin-bottom: 14px;
+  border-radius: 14px;
+  background: var(--dfs-card);
+}
+
+.pds-footer {
+  flex-shrink: 0;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--dfs-line);
+  background: var(--dfs-bg);
+}

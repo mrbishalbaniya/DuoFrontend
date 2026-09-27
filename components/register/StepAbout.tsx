@@ -143,7 +143,7 @@ export function StepAbout({ onContinue, onBack }: StepAboutProps) {
       });
       applyGenerated(payload);
     } catch {
-      showToast("Unable to generate profile. Please try again.");
+      showToast("Unable to generate profile. Please try again.", { variant: "error" });
     } finally {
       setGenerating(false);
     }

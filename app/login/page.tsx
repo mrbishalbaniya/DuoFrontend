@@ -543,15 +543,29 @@ function LoginPageContent() {
                 </div>
               )}
 
-              <div className="mt-6 text-center">
+              <div className="my-6 flex items-center gap-3">
+                <div className="h-px flex-1 bg-outline-variant/20" />
+                <span className="text-xs font-bold uppercase tracking-widest text-outline">{t("or")}</span>
+                <div className="h-px flex-1 bg-outline-variant/20" />
+              </div>
+
+              <div className="mb-3 flex justify-center">
                 <button
                   type="button"
                   onClick={handleSwitchToPassword}
-                  className="text-xs font-semibold text-accent hover:underline underline-offset-4"
+                  disabled={otpSending || otpVerifying}
+                  className="flex h-10 w-full max-w-[400px] items-center justify-center gap-3 rounded-full border border-[#747775] bg-[#131314] px-3 text-sm font-medium text-[#e3e3e3] transition hover:bg-[#1f1f1f] disabled:opacity-50"
                 >
+                  <span className="material-symbols-outlined text-[20px]">lock</span>
                   {t("useYourPassword")}
                 </button>
               </div>
+
+              <GoogleSignInButton
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleOneTapError}
+                disabled={otpSending || otpVerifying}
+              />
             </>
           ) : (
             <>
@@ -576,17 +590,9 @@ function LoginPageContent() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <div className="flex justify-between items-center px-1">
-                    <label className="block text-sm font-semibold text-on-surface-variant" htmlFor="password">
-                      {t("passwordLabel")}
-                    </label>
-                    <Link
-                      href="/login/forgot-password"
-                      className="text-xs font-semibold text-accent hover:underline underline-offset-4"
-                    >
-                      {t("forgotPassword")}
-                    </Link>
-                  </div>
+                  <label className="block text-sm font-semibold text-on-surface-variant ml-1" htmlFor="password">
+                    {t("passwordLabel")}
+                  </label>
                   <div className="relative group">
                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
                       lock
@@ -610,6 +616,14 @@ function LoginPageContent() {
                       </span>
                     </button>
                   </div>
+                  <div className="flex justify-end px-1">
+                    <Link
+                      href="/login/forgot-password"
+                      className="text-xs font-semibold text-accent hover:underline underline-offset-4"
+                    >
+                      {t("forgotPassword")}
+                    </Link>
+                  </div>
                 </div>
                 <button
                   type="submit"
@@ -620,20 +634,22 @@ function LoginPageContent() {
                 </button>
               </form>
 
-              <div className="mt-4 text-center">
-                <button
-                  type="button"
-                  onClick={handleSwitchToOtp}
-                  className="text-xs font-semibold text-accent hover:underline underline-offset-4"
-                >
-                  {t("signInWithOtp")}
-                </button>
-              </div>
-
               <div className="my-6 flex items-center gap-3">
                 <div className="h-px flex-1 bg-outline-variant/20" />
                 <span className="text-xs font-bold uppercase tracking-widest text-outline">{t("or")}</span>
                 <div className="h-px flex-1 bg-outline-variant/20" />
+              </div>
+
+              <div className="mb-3 flex justify-center">
+                <button
+                  type="button"
+                  onClick={handleSwitchToOtp}
+                  disabled={loading}
+                  className="flex h-10 w-full max-w-[400px] items-center justify-center gap-3 rounded-full border border-[#747775] bg-[#131314] px-3 text-sm font-medium text-[#e3e3e3] transition hover:bg-[#1f1f1f] disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-[20px]">alternate_email</span>
+                  {t("signInWithOtp")}
+                </button>
               </div>
 
               <GoogleSignInButton

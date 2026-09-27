@@ -4,6 +4,75 @@
      (--font-material-symbols) so the woff2 is preloaded and ligature names
      do not flash as plain text on refresh. */
 
+  /* --- Geist-style toast tokens (components/ui/toast.tsx, button-1, spinner-1) ---
+     Names that would override Tailwind's own palette (red/blue/amber/gray-100…)
+     carry a `ds-` prefix so existing amber-800 etc. keep their meaning.
+     The app is dark by default; html.light switches to the light values. */
+  @theme inline {
+    --color-ds-red-800: var(--ds-red-800);
+    --color-ds-red-900: var(--ds-red-900);
+    --color-ds-blue-700: var(--ds-blue-700);
+    --color-ds-amber-800: var(--ds-amber-800);
+    --color-ds-amber-850: var(--ds-amber-850);
+    --color-ds-gray-100: var(--ds-gray-100);
+    --color-ds-gray-400: var(--ds-gray-400);
+    --color-ds-gray-700: var(--ds-gray-700);
+    --color-gray-1000: var(--ds-gray-1000);
+    --color-gray-1000-h: var(--ds-gray-1000-h);
+    --color-gray-alpha-200: var(--ds-gray-alpha-200);
+    --color-gray-alpha-400: var(--ds-gray-alpha-400);
+    --color-background-100: var(--ds-background-100);
+    --color-contrast-fg: var(--ds-contrast-fg);
+    --color-geist-background: var(--geist-background);
+    --shadow-focus-ring: var(--ds-focus-ring);
+    --shadow-border-small: var(--ds-shadow-border-small);
+    --shadow-menu: var(--ds-shadow-menu);
+    --animate-fade-spin: fade-spin 1.2s linear infinite;
+  }
+
+  /* Toast colours follow the app theme (brand pink, error red, premium gold,
+     surface cards) and switch with light/dark automatically. */
+  :root {
+    --ds-contrast-fg: var(--color-on-primary);
+    --geist-background: var(--color-surface-container-high);
+    --ds-red-800: var(--color-error);
+    --ds-red-900: color-mix(in srgb, var(--color-error) 85%, black);
+    --ds-blue-700: var(--color-primary);
+    --ds-amber-800: var(--color-premium);
+    --ds-amber-850: color-mix(in srgb, var(--color-premium) 85%, black);
+    --ds-gray-100: var(--color-surface-container);
+    --ds-gray-400: var(--color-outline-variant);
+    --ds-gray-700: color-mix(in srgb, var(--color-on-surface) 55%, transparent);
+    --ds-gray-1000: var(--color-on-surface);
+    --ds-gray-1000-h: color-mix(in srgb, var(--color-on-surface) 80%, transparent);
+    --ds-gray-alpha-200: color-mix(in srgb, currentColor 12%, transparent);
+    --ds-gray-alpha-400: color-mix(in srgb, var(--color-on-surface) 14%, transparent);
+    --ds-background-100: var(--color-background);
+    --ds-focus-color: var(--color-primary);
+    --ds-focus-ring: 0 0 0 2px var(--ds-background-100), 0 0 0 4px var(--ds-focus-color);
+    --ds-shadow-border: 0 0 0 1px color-mix(in srgb, var(--color-outline-variant) 70%, transparent);
+    --ds-shadow-small: 0px 1px 2px rgba(0, 0, 0, 0.16);
+    --ds-shadow-border-small: var(--ds-shadow-border), var(--ds-shadow-small);
+    --ds-shadow-menu: var(--ds-shadow-border), 0px 1px 1px rgba(0, 0, 0, 0.04),
+      0px 8px 16px -6px rgba(0, 0, 0, 0.25), 0px 18px 32px -10px rgba(0, 0, 0, 0.35);
+  }
+
+  html.light {
+    --geist-background: var(--color-surface-container);
+    --ds-shadow-small: 0px 2px 2px rgba(0, 0, 0, 0.04);
+    --ds-shadow-menu: var(--ds-shadow-border), 0px 1px 1px rgba(0, 0, 0, 0.02),
+      0px 4px 8px -4px rgba(0, 0, 0, 0.06), 0px 16px 24px -8px rgba(0, 0, 0, 0.1);
+  }
+
+  @keyframes fade-spin {
+    0% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0.15;
+    }
+  }
+
   @utility bg-gradient-conic {
     background-image: conic-gradient(var(--tw-gradient-stops));
   }
@@ -3000,3 +3069,5 @@
     padding-top: 0.55rem;
   }
 
+
+/* Toast countdown bar (contexts/ToastContext.tsx). */

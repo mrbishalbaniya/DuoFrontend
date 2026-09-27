@@ -9,6 +9,7 @@ import { DashboardMenuSheet } from "@/components/dashboard/DashboardMenuSheet";
 import { PremiumUpgradeSheet } from "@/components/subscription/PremiumUpgradeSheet";
 import { DiscoverMatchesSkeleton } from "@/components/skeletons/DiscoverMatchesSkeleton";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
 import api from "@/lib/api";
 import { submitEsewaPayment } from "@/lib/esewa";
 import { resolveProfilePhotoUrl } from "@/lib/mediaUrl";
@@ -356,6 +357,7 @@ function ProfileCardGrid({ children }: { children: React.ReactNode }) {
 
 export function DiscoverMatchesPage() {
   const { user, loading: authLoading, fetchUser } = useAuth();
+  const { showToast, showErrorToast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -364,7 +366,8 @@ export function DiscoverMatchesPage() {
   const [likedByYou, setLikedByYou] = useState<LikedProfile[]>([]);
   const [likesYou, setLikesYou] = useState<LikedProfile[]>([]);
   const [premiumVariant, setPremiumVariant] = useState<"likes" | "visitors">("likes");
-  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
+  const [likesPlans, setLikesPlans] = useState<SubscriptionPlan[]>([]);
+  const [visitorsPlans, setVisitorsPlans] = useState<SubscriptionPlan[]>([]);
   const [wallet, setWallet] = useState<WalletSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -374,24 +377,26 @@ export function DiscoverMatchesPage() {
   const [likingBackId, setLikingBackId] = useState<string | null>(null);
   const [unlikingId, setUnlikingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   const loadData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setError(null);
 
     try {
-      const [visitorsData, likedData, likesData, plansData, walletData] = await Promise.all([
-        api.getProfileVisitors(),
-        api.getLikedByYou(),
-        api.getLikesYou(),
-        api.getSubscriptionPlans().catch(() => []),
-        api.getWallet().catch(() => null),
-      ]);
+      const [visitorsData, likedData, likesData, likesPlansData, visitorsPlansData, walletData] =
+        await Promise.all([
+          api.getProfileVisitors(),
+          api.getLikedByYou(),
+          api.getLikesYou(),
+          api.getSubscriptionPlans("who_liked_you").catch(() => []),
+          api.getSubscriptionPlans("visited_you").catch(() => []),
+          api.getWallet().catch(() => null),
+        ]);
       setProfileVisitors(visitorsData.results);
       setLikedByYou(likedData);
       setLikesYou(likesData.results);
-      setSubscriptionPlans(plansData);
+      setLikesPlans(likesPlansData);
+      setVisitorsPlans(visitorsPlansData);
       setWallet(walletData);
       setError(null);
     } catch {
@@ -407,7 +412,6 @@ export function DiscoverMatchesPage() {
 
   const handlePurchase = useCallback(async (planId: string) => {
     setPurchasing(true);
-    setNotice(null);
     try {
       const result = await api.purchaseWithWallet(planId);
       setWallet((prev) =>
@@ -415,67 +419,70 @@ export function DiscoverMatchesPage() {
           ? { ...prev, balance: result.balance }
           : { balance: result.balance, coins: result.balance, currency: "COIN", top_up_presets: [500, 1000, 2000, 5000], transactions: [] }
       );
-      setNotice("Pass purchased. Duo Premium is now active.");
+      const unlocked = result.plan?.feature_label;
+      showToast(
+        unlocked
+          ? `Pass purchased. ${unlocked} is now unlocked.`
+          : "Pass purchased. Duo Premium is now active.",
+        { variant: "success" }
+      );
       setPremiumSheetOpen(false);
       void fetchUser();
       void loadData(true);
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Could not purchase pass. Please try again.");
+      showErrorToast(err instanceof Error ? err.message : "Could not purchase pass. Please try again.");
     } finally {
       setPurchasing(false);
     }
-  }, [fetchUser, loadData]);
+  }, [fetchUser, loadData, showErrorToast, showToast]);
 
   const handleTopUp = useCallback(async (amount: number) => {
     setToppingUp(true);
-    setNotice(null);
     try {
       const payment = await api.initiateWalletTopUp(amount);
       submitEsewaPayment(payment.payment_url, payment.form);
     } catch (err) {
-      setNotice(
+      showErrorToast(
         err instanceof Error ? err.message : "Could not start eSewa top-up. Please try again."
       );
       setToppingUp(false);
     }
-  }, []);
+  }, [showErrorToast]);
 
   const handleUnlike = useCallback(
     async (item: LikedProfile) => {
       const toUserId = item.profile.user_id ?? item.profile.id;
       if (!toUserId) {
-        setNotice("Could not unlike — profile is missing a user id.");
+        showErrorToast("Could not unlike — profile is missing a user id.");
         return;
       }
 
       const key = likedProfileKey(item);
       setUnlikingId(key);
-      setNotice(null);
 
       try {
         await api.unlikeProfile(toUserId);
         setLikedByYou((prev) => prev.filter((entry) => likedProfileKey(entry) !== key));
-        setNotice("Like removed.");
+        showToast("Like removed.");
       } catch (err) {
-        setNotice(err instanceof Error ? err.message : "Unlike failed. Please try again.");
+        showErrorToast(err instanceof Error ? err.message : "Unlike failed. Please try again.");
       } finally {
         setUnlikingId(null);
       }
     },
-    []
+    [showErrorToast, showToast]
   );
 
   const handleLikeBack = useCallback(
     async (item: LikedProfile) => {
       const toUserId = item.profile.user_id ?? item.profile.id;
       if (!toUserId) {
-        setNotice("Could not like back — profile is missing a user id.");
+        showErrorToast("Could not like back — profile is missing a user id.");
         return;
       }
 
       const key = likedProfileKey(item);
       setLikingBackId(key);
-      setNotice(null);
 
       try {
         const res = await api.swipe(toUserId, "LIKE");
@@ -487,15 +494,15 @@ export function DiscoverMatchesPage() {
           return;
         }
 
-        setNotice("You liked them back!");
+        showToast("You liked them back!", { variant: "success" });
         void loadData(true);
       } catch (err) {
-        setNotice(err instanceof Error ? err.message : "Like back failed. Please try again.");
+        showErrorToast(err instanceof Error ? err.message : "Like back failed. Please try again.");
       } finally {
         setLikingBackId(null);
       }
     },
-    [loadData, router]
+    [loadData, router, showErrorToast, showToast]
   );
 
   useEffect(() => {
@@ -520,27 +527,27 @@ export function DiscoverMatchesPage() {
     }
 
     if (walletResult === "success") {
-      setNotice("Wallet topped up successfully.");
+      showToast("Wallet topped up successfully.", { variant: "success" });
       setActiveTab("likes-you");
       void fetchUser();
       void loadData(true);
       router.replace("/discover");
     } else if (walletResult === "failed") {
-      setNotice("Top-up was not completed. You can try again with eSewa.");
+      showErrorToast("Top-up was not completed. You can try again with eSewa.");
       setActiveTab("likes-you");
       router.replace("/discover");
     } else if (subscriptionResult === "success") {
-      setNotice("Payment successful. Duo Premium is now active.");
+      showToast("Payment successful. Duo Premium is now active.", { variant: "success" });
       setActiveTab("likes-you");
       void fetchUser();
       void loadData(true);
       router.replace("/discover");
     } else if (subscriptionResult === "failed") {
-      setNotice("Payment was not completed. You can try again with eSewa.");
+      showErrorToast("Payment was not completed. You can try again with eSewa.");
       setActiveTab("likes-you");
       router.replace("/discover");
     }
-  }, [searchParams, fetchUser, loadData, router]);
+  }, [searchParams, fetchUser, loadData, router, showErrorToast, showToast]);
 
   if (authLoading || loading) {
     return <DiscoverMatchesSkeleton />;
@@ -690,11 +697,6 @@ export function DiscoverMatchesPage() {
         </header>
 
         <div className="mx-auto w-full max-w-lg flex-1 px-4 pt-2 pb-4 md:max-w-7xl md:px-6 md:pt-4 lg:px-8">
-          {notice ? (
-            <div className="mb-4 rounded-xl border border-white/10 bg-surface-variant/50 px-4 py-3 text-sm text-on-surface">
-              {notice}
-            </div>
-          ) : null}
           <ProfileCardGrid>{renderContent()}</ProfileCardGrid>
         </div>
       </main>
@@ -707,7 +709,7 @@ export function DiscoverMatchesPage() {
       <PremiumUpgradeSheet
         open={premiumSheetOpen}
         onClose={() => setPremiumSheetOpen(false)}
-        plans={subscriptionPlans}
+        plans={premiumVariant === "visitors" ? visitorsPlans : likesPlans}
         count={premiumCount}
         variant={premiumVariant}
         walletBalance={wallet?.balance ?? user?.profile.wallet_balance ?? 0}

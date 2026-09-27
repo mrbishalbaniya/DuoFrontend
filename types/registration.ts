@@ -100,6 +100,8 @@ export interface RegistrationData {
   password: string;
   confirmPassword: string;
   otpVerified: boolean;
+  /** The email address the OTP was verified for. Editing the email clears it. */
+  verifiedEmail: string;
   signedUpWithGoogle: boolean;
 
   firstName: string;
@@ -176,6 +178,7 @@ export const initialRegistrationData = (): RegistrationData => ({
   password: "",
   confirmPassword: "",
   otpVerified: false,
+  verifiedEmail: "",
   signedUpWithGoogle: false,
   firstName: "",
   lastName: "",

@@ -35,8 +35,23 @@ export default function RegisterPage() {
     setError,
     accountCreated,
     setAccountCreated,
+    setAccountSubStep,
+    patchData,
     reset,
   } = useRegistrationStore();
+
+  // Email sign-ups must verify their address before any later step opens.
+  const emailVerified =
+    data.signedUpWithGoogle ||
+    accountCreated ||
+    (data.otpVerified && data.verifiedEmail === data.email.trim().toLowerCase());
+
+  useEffect(() => {
+    if (step > 1 && !emailVerified) {
+      setAccountSubStep("form");
+      goToStep(1);
+    }
+  }, [emailVerified, goToStep, setAccountSubStep, step]);
   const { showErrorToast } = useToast();
 
   const createAccount = useCallback(async () => {
@@ -61,13 +76,29 @@ export default function RegisterPage() {
             : "Could not create your account. Check your email and password, or try again.";
         setError(message);
         setSubmitting(false);
+        if (/verify your email/i.test(message)) {
+          // Verification expired server-side; send them back to get a new code.
+          patchData({ otpVerified: false, verifiedEmail: "" });
+          setAccountSubStep("form");
+          goToStep(1);
+        }
         return;
       }
       setSubmitting(false);
     }
 
     nextStep();
-  }, [accountCreated, createAccount, nextStep, setError, setSubmitting, step]);
+  }, [
+    accountCreated,
+    createAccount,
+    goToStep,
+    nextStep,
+    patchData,
+    setAccountSubStep,
+    setError,
+    setSubmitting,
+    step,
+  ]);
 
   const handleSubmit = useCallback(async () => {
     setError(null);

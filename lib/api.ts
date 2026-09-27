@@ -1,6 +1,7 @@
 import type {
   Conversation,
   ConversationDetail,
+  LikeQuota,
   LoginResponse,
   Match,
   LikedProfile,
@@ -8,6 +9,7 @@ import type {
   ProfileVisitorsResponse,
   GiftCardRedeemResponse,
   InitiateSubscriptionResponse,
+  SubscriptionFeature,
   SubscriptionPlan,
   SubscriptionStatus,
   WalletPurchaseResponse,
@@ -40,6 +42,7 @@ import type {
 } from "@/types";
 
 import { getPhotoUploadError } from "@/lib/photos/validatePhotoUpload";
+import type { DiscoverExpansion } from "@/lib/discoveryFilters";
 import { getClientApiBase, getClientChatApiBase } from "@/lib/backendUrl";
 import { shouldRedirectToLogin } from "@/lib/authPaths";
 import { getWebDeviceId, getWebDeviceInfo } from "@/lib/security/deviceId";
@@ -177,7 +180,7 @@ class ApiClient {
         firstFieldError ??
         (Object.keys(errorData).length > 0 ? JSON.stringify(errorData) : null);
 
-      throw new Error(String(detail ?? `API Error: ${res.status}`));
+      throw new ApiRequestError(String(detail ?? `API Error: ${res.status}`), res.status, errorData);
     }
 
     if (res.status === 204) {
@@ -366,12 +369,36 @@ class ApiClient {
     return res.json() as Promise<LoginResponse>;
   }
 
-  async sendEmailOtp(email: string): Promise<{ sent: boolean; email: string }> {
-    return this.request<{ sent: boolean; email: string }>("/auth/email/send-otp/", {
-      method: "POST",
-      body: JSON.stringify({ email: email.trim().toLowerCase() }),
-      signal: AbortSignal.timeout(30_000),
-    });
+  async sendEmailOtp(
+    email: string
+  ): Promise<{ sent: boolean; email: string; retry_after?: number }> {
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}/auth/email/send-otp/`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+        signal: AbortSignal.timeout(30_000),
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "TimeoutError") {
+        throw new Error("Request timed out. The server may be waking up — try again in a moment.");
+      }
+      throw new Error("Cannot reach the API. Check your connection and try again.");
+    }
+
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (res.status === 429) {
+      throw new OtpCooldownError(
+        typeof data.retry_after === "number" ? data.retry_after : 60,
+        typeof data.detail === "string" ? data.detail : undefined
+      );
+    }
+    if (!res.ok) {
+      throw new Error(ApiClient.extractErrorDetail(data) || "Could not send verification code.");
+    }
+    return data as { sent: boolean; email: string; retry_after?: number };
   }
 
   async verifyEmailOtp(
@@ -744,7 +771,14 @@ class ApiClient {
     return this.request<UserVerificationSession[]>("/verification/history/");
   }
 
-  async discoverProfiles(): Promise<{ profiles: Profile[]; expandedSearch: boolean }> {
+  async discoverProfiles(): Promise<{
+    profiles: Profile[];
+    expandedSearch: boolean;
+    /** Limits the server widened because nobody matched exactly. */
+    expansions: DiscoverExpansion[];
+    /** Previously skipped people were added to fill the deck. */
+    recycled: boolean;
+  }> {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     let res = await fetch(`${this.baseUrl}/profiles/discover/`, {
       credentials: "include",
@@ -771,9 +805,15 @@ class ApiClient {
     }
 
     const profiles = (await res.json()) as Profile[];
+    const expansions = (res.headers.get("X-Duo-Discover-Expansions") ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter((value): value is DiscoverExpansion => value === "distance" || value === "age");
     return {
       profiles,
       expandedSearch: res.headers.get("X-Duo-Discover-Expanded") === "1",
+      expansions,
+      recycled: res.headers.get("X-Duo-Discover-Recycled") === "1",
     };
   }
 
@@ -781,11 +821,32 @@ class ApiClient {
     return this.request<Profile>(`/profiles/${id}/`);
   }
 
-  async swipe(toUserId: number, action: SwipeAction): Promise<SwipeResponse> {
-    return this.request<SwipeResponse>("/matching/swipe/", {
+  /** Premium: undo a swipe (the given one, or the latest) and get the profile back. */
+  async rewindSwipe(toUserId?: number): Promise<{ undone_action: SwipeAction; profile: Profile | null }> {
+    return this.request<{ undone_action: SwipeAction; profile: Profile | null }>("/matching/rewind/", {
       method: "POST",
-      body: JSON.stringify({ to_user_id: toUserId, action }),
+      body: JSON.stringify(toUserId ? { to_user_id: toUserId } : {}),
     });
+  }
+
+  /** Throws LikeLimitError when a free user is out of Likes (left swipes never are). */
+  async swipe(toUserId: number, action: SwipeAction): Promise<SwipeResponse> {
+    try {
+      return await this.request<SwipeResponse>("/matching/swipe/", {
+        method: "POST",
+        body: JSON.stringify({ to_user_id: toUserId, action }),
+      });
+    } catch (err) {
+      if (err instanceof ApiRequestError && err.status === 429 && err.data.code === "like_limit_reached") {
+        const likes = err.data.likes as LikeQuota | undefined;
+        throw new LikeLimitError(err.message, likes ?? null);
+      }
+      throw err;
+    }
+  }
+
+  async getLikeQuota(): Promise<LikeQuota> {
+    return this.request<LikeQuota>("/matching/likes/quota/");
   }
 
   async unlikeProfile(toUserId: number): Promise<{ detail: string }> {
@@ -815,8 +876,12 @@ class ApiClient {
     await this.request(`/profiles/${profileId}/visit/`, { method: "POST" });
   }
 
-  async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
-    return this.request<SubscriptionPlan[]>("/subscriptions/plan/");
+  async getSubscriptionPlans(
+    feature: SubscriptionFeature = "who_liked_you"
+  ): Promise<SubscriptionPlan[]> {
+    return this.request<SubscriptionPlan[]>(
+      `/subscriptions/plan/?feature=${encodeURIComponent(feature)}`
+    );
   }
 
   async getWallet(): Promise<WalletSummary> {
@@ -1279,6 +1344,30 @@ class ApiClient {
 
   async markAllSecurityEventsRead(): Promise<{ marked: number }> {
     return this.request("/security/events/read-all/", { method: "POST" });
+  }
+}
+
+/** Non-2xx API response; keeps the status and parsed body for callers that branch on them. */
+export class ApiRequestError extends Error {
+  status: number;
+  data: Record<string, unknown>;
+
+  constructor(message: string, status: number, data: Record<string, unknown>) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.status = status;
+    this.data = data;
+  }
+}
+
+/** Free Like limit reached for the current window. */
+export class LikeLimitError extends Error {
+  quota: LikeQuota | null;
+
+  constructor(message: string, quota: LikeQuota | null) {
+    super(message);
+    this.name = "LikeLimitError";
+    this.quota = quota;
   }
 }
 

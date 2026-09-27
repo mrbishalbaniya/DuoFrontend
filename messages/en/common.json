@@ -36,7 +36,7 @@
     "tagline": "Find your digital heirloom",
     "passwordResetSuccess": "Your password has been updated. Sign in with your new password.",
     "accountDeleted": "Your account has been deactivated. Sorry to see you go.",
-    "signInWithOtp": "Sign in with a one-time code instead",
+    "signInWithOtp": "Sign in with email code",
     "useYourPassword": "Use your password instead",
     "otpLoginTitle": "Sign in with a code",
     "otpLoginSubtitle": "Enter your email and we'll send you a one-time login code.",

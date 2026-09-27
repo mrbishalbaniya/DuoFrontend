@@ -17,7 +17,7 @@ type PricingInteractionProps = {
   plans: PricingPlanOption[];
   likesCount?: number;
   visitorsCount?: number;
-  variant?: "likes" | "visitors";
+  variant?: "likes" | "visitors" | "rewind" | "unlimited_likes";
   walletBalance?: number;
   topUpPresets?: number[];
   purchasing?: boolean;
@@ -48,16 +48,34 @@ export function PricingInteraction({
   if (!selected) return null;
 
   const isVisitors = variant === "visitors";
-  const headline = isVisitors ? "See who viewed you" : "See who liked you";
+  const isRewind = variant === "rewind";
+  const isUnlimitedLikes = variant === "unlimited_likes";
+  const headline = isUnlimitedLikes
+    ? "Keep liking without limits"
+    : isRewind
+      ? "Rewind your last swipe"
+      : isVisitors
+        ? "See who viewed you"
+        : "See who liked you";
   const count = isVisitors ? visitorsCount : likesCount;
-  const subtitle =
-    count > 0
+  const subtitle = isUnlimitedLikes
+    ? "You've used your free Likes for now. Go unlimited so you never miss someone you like."
+    : isRewind
+    ? "Swiped too fast? Bring back people you passed on or liked by mistake."
+    : count > 0
       ? isVisitors
         ? `${count} ${count === 1 ? "person has" : "people have"} viewed your profile. Unlock blurred profiles and connect.`
         : `${count} ${count === 1 ? "person has" : "people have"} liked you. Unlock blurred profiles and match instantly.`
       : isVisitors
         ? "Upgrade to see who has been checking out your profile."
         : "Upgrade to unlock blurred profiles when someone likes you.";
+  const perks = isUnlimitedLikes
+    ? ["Like as many people as you want", "No 12-hour Like limit"]
+    : isRewind
+    ? ["Undo left and right swipes", "Rewind as many times as you like"]
+    : isVisitors
+      ? ["Reveal names and photos on Visited you", "See who checked out your profile first"]
+      : ["Reveal names and photos on Liked you", "Match instantly with people who like you"];
 
   const shortfall = Math.max(0, selected.price - walletBalance);
   const canAfford = shortfall === 0;
@@ -84,14 +102,12 @@ export function PricingInteraction({
           </span>
         </div>
         <ul className="mt-3 space-y-1.5 text-sm text-on-surface-variant">
-          <li className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-base text-primary">check_circle</span>
-            {isVisitors ? "Reveal names and photos on Visited you" : "Reveal names and photos on Liked you"}
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-base text-primary">check_circle</span>
-            {isVisitors ? "See who liked you too" : "See who viewed your profile"}
-          </li>
+          {perks.map((perk) => (
+            <li key={perk} className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-base text-primary">check_circle</span>
+              {perk}
+            </li>
+          ))}
           <li className="flex items-center gap-2">
             <span className="material-symbols-outlined text-base text-primary">check_circle</span>
             <span>

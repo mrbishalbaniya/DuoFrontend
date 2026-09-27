@@ -135,6 +135,10 @@ export interface Profile {
   pref_max_distance_km?: number;
   pref_relationship_goal?: "everyone" | "serious" | "casual" | "dating";
   pref_verified_only?: boolean;
+  pref_expand_distance?: boolean;
+  pref_expand_age?: boolean;
+  /** Rounded km from the viewer, only on discover results (0 = under 1 km). */
+  distance_km?: number | null;
   relationship_goal?: "serious" | "casual" | "dating" | "";
   location_ghost_mode?: boolean;
   location_visibility?: "friends" | "friends_except" | "only_these";
@@ -182,6 +186,11 @@ export interface SwipeResponse {
   match?: MatchSessionData & { compatibility_score?: number };
   match_id?: number;
   other_user_profile?: Profile;
+  /** Same swipe was already recorded; nothing changed. */
+  duplicate?: boolean;
+  likes_remaining?: number | null;
+  reset_at?: string | null;
+  likes?: LikeQuota;
 }
 
 export interface LikedProfile {
@@ -192,6 +201,22 @@ export interface LikedProfile {
   locked?: boolean;
 }
 
+/** Premium list a plan unlocks. Each has its own plans and pass. */
+export type SubscriptionFeature = "who_liked_you" | "visited_you" | "rewind" | "unlimited_likes";
+
+/** Free-tier Like quota, counted on the backend over a rolling window. */
+export interface LikeQuota {
+  unlimited: boolean;
+  /** null when unlimited. */
+  limit: number | null;
+  used: number;
+  /** null when unlimited. */
+  likes_remaining: number | null;
+  /** When the oldest counted Like expires, freeing one more. */
+  reset_at: string | null;
+  window_hours: number;
+}
+
 export interface SubscriptionPlan {
   plan_id: string;
   name: string;
@@ -200,12 +225,22 @@ export interface SubscriptionPlan {
   amount: number;
   duration_days: number;
   badge?: string | null;
+  feature?: SubscriptionFeature;
+  feature_label?: string;
+}
+
+export interface SubscriptionFeatureAccess {
+  label: string;
+  is_active: boolean;
+  expires_at: string | null;
 }
 
 export interface SubscriptionStatus {
+  /** True when any premium pass is active. */
   is_premium: boolean;
   expires_at: string | null;
   plan: SubscriptionPlan;
+  features?: Partial<Record<SubscriptionFeature, SubscriptionFeatureAccess>>;
 }
 
 export interface EsewaPaymentForm {

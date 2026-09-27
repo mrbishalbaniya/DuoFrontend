@@ -1,0 +1,207 @@
+/* Premium toast surface — frosted glass card, type-coloured accent, icon
+   badge, soft glow and a timer line. Colours come from the app theme via
+   the --ds-* tokens in app/globals.css, so light/dark switch automatically. */
+
+.dt-toast {
+  --dt-accent: var(--color-on-surface-variant, #9ca3af);
+  --dt-surface: color-mix(in srgb, var(--color-surface-container-high) 82%, transparent);
+  --dt-text: var(--color-on-surface);
+  --dt-muted: color-mix(in srgb, var(--color-on-surface) 62%, transparent);
+
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  padding: 14px 12px 14px 18px;
+  color: var(--dt-text);
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--dt-accent) 18%, transparent), transparent 55%),
+    var(--dt-surface);
+  border: 1px solid color-mix(in srgb, var(--dt-accent) 32%, var(--color-outline-variant));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, white 4%, transparent) inset,
+    0 18px 40px -16px color-mix(in srgb, var(--dt-accent) 45%, transparent),
+    0 10px 30px -12px rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+html.light .dt-toast {
+  --dt-surface: color-mix(in srgb, #ffffff 86%, transparent);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.6) inset,
+    0 18px 40px -18px color-mix(in srgb, var(--dt-accent) 40%, transparent),
+    0 10px 28px -14px rgba(15, 23, 42, 0.25);
+}
+
+.dt-toast[data-type="success"] { --dt-accent: var(--ds-blue-700); }
+.dt-toast[data-type="error"] { --dt-accent: var(--ds-red-800); }
+.dt-toast[data-type="warning"] { --dt-accent: var(--ds-amber-800); }
+.dt-toast[data-type="message"] { --dt-accent: color-mix(in srgb, var(--color-on-surface) 55%, transparent); }
+
+/* Accent strip down the left edge */
+.dt-toast::before {
+  content: "";
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, var(--dt-accent), color-mix(in srgb, var(--dt-accent) 40%, transparent));
+}
+
+.dt-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.dt-icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  color: #fff;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--dt-accent) 80%, white), var(--dt-accent));
+  box-shadow:
+    0 6px 14px -6px color-mix(in srgb, var(--dt-accent) 80%, transparent),
+    0 0 0 1px color-mix(in srgb, white 18%, transparent) inset;
+}
+
+.dt-toast[data-type="warning"] .dt-icon {
+  color: #1c1300;
+}
+
+.dt-toast[data-type="message"] .dt-icon {
+  color: var(--dt-text);
+  background: color-mix(in srgb, var(--color-on-surface) 10%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-on-surface) 12%, transparent) inset;
+}
+
+.dt-icon .material-symbols-outlined {
+  font-size: 19px;
+  font-variation-settings: "FILL" 1, "wght" 600;
+}
+
+.dt-body {
+  flex: 1;
+  min-width: 0;
+  padding-top: 1px;
+}
+
+.dt-label {
+  display: block;
+  margin-bottom: 1px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dt-accent);
+}
+
+.dt-toast[data-type="message"] .dt-label {
+  color: var(--dt-muted);
+}
+
+html.light .dt-toast[data-type="warning"] .dt-label {
+  color: color-mix(in srgb, var(--dt-accent) 70%, black);
+}
+
+.dt-text {
+  display: block;
+  font-weight: 500;
+  color: var(--dt-text);
+  overflow-wrap: anywhere;
+}
+
+.dt-close {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-top: 2px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dt-muted);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.dt-close:hover {
+  background: color-mix(in srgb, var(--color-on-surface) 9%, transparent);
+  color: var(--dt-text);
+}
+
+.dt-close:focus-visible {
+  outline: 2px solid var(--dt-accent);
+  outline-offset: 1px;
+}
+
+.dt-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+  padding-left: 44px;
+}
+
+.dt-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.2s ease, background 0.2s ease;
+}
+
+.dt-btn--ghost {
+  background: color-mix(in srgb, var(--color-on-surface) 8%, transparent);
+  color: var(--dt-text);
+}
+
+.dt-btn--primary {
+  background: var(--dt-accent);
+  color: #fff;
+}
+
+.dt-toast[data-type="message"] .dt-btn--primary {
+  background: var(--color-primary);
+}
+
+.dt-btn:hover {
+  filter: brightness(1.08);
+}
+
+/* Timer line along the bottom edge */
+.dt-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  transform-origin: left;
+  background: linear-gradient(90deg, var(--dt-accent), color-mix(in srgb, var(--dt-accent) 30%, transparent));
+  animation-name: dt-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes dt-progress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dt-progress { display: none; }
+}

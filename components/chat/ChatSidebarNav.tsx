@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import type { CSSProperties } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useUnreadMessagesBadge } from "@/hooks/useUnreadMessagesBadge";
+import "./sidebar-nav.css";
 
 type NavItem = {
   href: string;
@@ -50,7 +51,7 @@ function SidebarIconButton({
   label: string;
   badgeLabel?: string;
 }) {
-  const className = `relative flex h-11 w-11 items-center justify-center rounded-2xl transition-all active:scale-95 ${
+  const className = `sidebar-nav-btn relative flex h-11 w-11 items-center justify-center rounded-2xl transition-all active:scale-95 ${
     active
       ? accent
         ? "gradient-brand-br text-white shadow-[0_8px_20px] shadow-primary/30"
@@ -63,8 +64,10 @@ function SidebarIconButton({
   const iconEl = (
     <>
       <span
-        className="material-symbols-outlined text-[24px]"
-        style={active ? filledIconStyle : undefined}
+        className="sidebar-nav-icon material-symbols-outlined text-[24px]"
+        data-anim={icon}
+        data-active={active ? "true" : undefined}
+        aria-hidden="true"
       >
         {icon}
       </span>

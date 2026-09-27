@@ -97,7 +97,14 @@ $syncJob = Start-Job -Name "duo-frontend-sync" -ScriptBlock {
     foreach ($file in $FileList) {
       $from = Join-Path $SrcRoot $file
       if (Test-Path $from) {
-        Copy-Item -Force $from (Join-Path $DstRoot $file)
+        # Only copy when changed: rewriting package.json etc. every tick
+        # locks them while Turbopack reads, crashing the dev server.
+        $to = Join-Path $DstRoot $file
+        $srcItem = Get-Item $from
+        $dstItem = Get-Item $to -ErrorAction SilentlyContinue
+        if (-not $dstItem -or $dstItem.Length -ne $srcItem.Length -or $dstItem.LastWriteTimeUtc -ne $srcItem.LastWriteTimeUtc) {
+          Copy-Item -Force $from $to
+        }
       }
     }
   }
