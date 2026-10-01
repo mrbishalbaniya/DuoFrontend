@@ -18,6 +18,7 @@ const TYPE_KEYS: Record<WalletTransaction["type"], string> = {
 
 const PAYMENT_METHOD_KEYS: Record<string, string> = {
   esewa: "esewa",
+  stripe: "stripe",
   wallet: "wallet",
   gift: "gift",
   "": "unknown",
@@ -112,7 +113,7 @@ export function WalletTransactionDetailPage({ transactionId }: { transactionId: 
             <DetailRow
               label={t("detail.totalAmount")}
               value={
-                txn.payment_method === "esewa"
+                txn.payment_method === "esewa" || txn.payment_method === "stripe"
                   ? t("detail.nprValue", { amount: Number(txn.total_amount).toLocaleString("en-NP") })
                   : t("detail.coinsValue", { count: Number(txn.total_amount).toLocaleString("en-NP") })
               }

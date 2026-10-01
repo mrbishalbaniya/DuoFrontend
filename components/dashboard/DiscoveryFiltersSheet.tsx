@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import type { Profile } from "@/types";
 import api from "@/lib/api";
 import { detectUserLocation, type DetectedLocation } from "@/lib/geolocation";
@@ -415,6 +416,25 @@ export default function DiscoveryFiltersSheet({
               checked={draft.pref_verified_only}
               onChange={(value) => update("pref_verified_only", value)}
             />
+          </div>
+
+          <p className="dfs-caption">More preferences</p>
+          <div className="dfs-group">
+            <Link
+              href="/preferences"
+              onClick={onClose}
+              className="dfs-row dfs-row--button"
+            >
+              <span className="dfs-row-title">
+                Religion, caste, rashi, height, occupation
+                <span style={{ display: "block", fontSize: 12, opacity: 0.65, fontWeight: 400 }}>
+                  Open all match preferences
+                </span>
+              </span>
+              <span className="material-symbols-outlined" aria-hidden style={{ opacity: 0.6 }}>
+                chevron_right
+              </span>
+            </Link>
           </div>
 
           <p className="dfs-caption">If you run out of people nearby</p>

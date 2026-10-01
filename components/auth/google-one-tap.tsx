@@ -29,6 +29,26 @@ function getGoogleId(): GoogleAccountsId | undefined {
 let promptStarted = false;
 let activeHandler: ((response: CredentialResponse) => void) | null = null;
 
+// Google's script reports expected One Tap outcomes through console.error,
+// e.g. "[GSI_LOGGER]: FedCM get() rejects with NetworkError" when the browser
+// isn't signed in to Google or third-party sign-in is blocked. One Tap just
+// doesn't show in that case and the regular Google button still works, but
+// Next.js turns every console.error into an error overlay. Downgrade only
+// Google's own [GSI_LOGGER] lines to console.debug; all other errors pass through.
+let gsiLogFilterInstalled = false;
+function installGsiLogFilter() {
+  if (gsiLogFilterInstalled || typeof window === "undefined") return;
+  gsiLogFilterInstalled = true;
+  const originalError = console.error.bind(console);
+  console.error = (...args: unknown[]) => {
+    if (typeof args[0] === "string" && args[0].startsWith("[GSI_LOGGER]")) {
+      console.debug(...args);
+      return;
+    }
+    originalError(...args);
+  };
+}
+
 /**
  * Renders Google's "One Tap" prompt (the auto-detected account bubble in the
  * top-right corner). Uses the browser's existing Google session to offer a
@@ -76,6 +96,7 @@ export function GoogleOneTap({ onSuccess, onError, disabled = false }: GoogleOne
       const googleId = getGoogleId();
       if (!googleId || promptStarted) return;
       promptStarted = true;
+      installGsiLogFilter();
       googleId.initialize({
         client_id: clientId,
         callback: (response: CredentialResponse) => activeHandler?.(response),

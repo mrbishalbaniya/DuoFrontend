@@ -1,16 +1,34 @@
+import { RASHI_OPTIONS } from "@/lib/register/constants";
 import type { Profile, User } from "@/types";
 import { resolveMediaUrl } from "@/lib/mediaUrl";
 
 export type ParsedPrefValues = {
   caste?: string;
+  subCaste?: string;
   gotra?: string;
   horoscope?: string;
   birthTime?: string;
   birthPlace?: string;
+  languages?: string[];
   height?: string;
   company?: string;
   monthlyIncome?: string;
   preferredReligion?: string;
+  preferredCaste?: string;
+  preferredRashi?: string;
+  preferredMaxHeight?: string;
+  preferredLanguages?: string[];
+  preferredOccupations?: string[];
+  preferredEducationLevels?: string[];
+  preferredFieldsOfStudy?: string[];
+  preferredWorkPreferences?: string[];
+  preferredIncomes?: string[];
+  preferredPersonalities?: string[];
+  preferredLifestyles?: string[];
+  preferredExercise?: string[];
+  preferredInterests?: string[];
+  preferredSmoking?: string;
+  preferredDrinking?: string;
   interCaste?: string;
   interReligion?: string;
   lookingForText?: string;
@@ -132,7 +150,6 @@ export function buildProfileSections(user: User, profile: Profile) {
       { label: "Work preference", value: formatWorkPreference(profile.work_preference) },
     ] satisfies ProfileField[],
     education: [
-      { label: "Education", value: displayValue(profile.education) },
       { label: "Education level", value: displayValue(extra.educationLevel?.replace(/_/g, " ")) },
       { label: "Field of study", value: displayValue(extra.fieldOfStudy?.replace(/_/g, " ")) },
       { label: "Occupation", value: displayValue(profile.occupation) },
@@ -141,10 +158,12 @@ export function buildProfileSections(user: User, profile: Profile) {
     ] satisfies ProfileField[],
     background: [
       { label: "Caste", value: displayValue(extra.caste) },
+      { label: "Sub-caste / Clan", value: displayValue(extra.subCaste) },
       { label: "Gotra", value: displayValue(extra.gotra) },
       { label: "Horoscope", value: displayValue(extra.horoscope) },
       { label: "Birth time", value: displayValue(extra.birthTime) },
       { label: "Birth place", value: displayValue(extra.birthPlace) },
+      { label: "Languages", value: displayValue((extra.languages ?? []).join(", ")) },
     ] satisfies ProfileField[],
     about: [
       { label: "Bio", value: displayValue(profile.bio, "No bio yet") },
@@ -156,20 +175,33 @@ export function buildProfileSections(user: User, profile: Profile) {
       { label: "Age range", value: `${prefAgeMin} – ${prefAgeMax} years` },
       { label: "Min height", value: prefHeight },
       { label: "Preferred occupation", value: prefOccupation },
-      { label: "Preferred religion", value: displayValue(extra.preferredReligion, "Any religion") },
+      { label: "Preferred religion", value: formatPreferred(extra.preferredReligion, extra.interReligion, "religion") },
+      { label: "Preferred caste", value: formatPreferred(extra.preferredCaste, extra.interCaste, "caste") },
+      { label: "Preferred rashi", value: formatRashi(extra.preferredRashi) },
       { label: "Preferred location", value: prefLocation },
       { label: "Max distance", value: `${prefDistance} km` },
       { label: "Relationship preference", value: formatRelationshipGoal(profile.pref_relationship_goal || "everyone") },
       { label: "Verified profiles only", value: profile.pref_verified_only ? "Yes" : "No" },
-      { label: "Inter-caste", value: displayValue(extra.interCaste, "Open") },
-      { label: "Inter-religion", value: displayValue(extra.interReligion, "Open") },
     ] satisfies ProfileField[],
     status: [
       { label: "Profile completeness", value: `${profile.profile_completeness ?? 0}%` },
-      { label: "Identity verified", value: displayValue(profile.is_verified) },
       { label: "Onboarding complete", value: displayValue(profile.is_onboarded) },
     ] satisfies ProfileField[],
     lifestyleTags: (profile.lifestyle_tags ?? []).map(formatLifestyleTag),
     photos: getProfilePhotos(profile),
   };
+}
+
+/** Preferred religion/caste merged with the inter-religion/inter-caste answer. */
+function formatPreferred(specific: string | undefined, inter: string | undefined, kind: "caste" | "religion"): string {
+  const v = (specific ?? "").trim();
+  if (v) return kind === "religion" ? v.charAt(0).toUpperCase() + v.slice(1).replace(/_/g, "-") : v;
+  if ((inter ?? "").trim() === "no") return `Same ${kind} only`;
+  return `Any ${kind}`;
+}
+
+function formatRashi(value: string | undefined): string {
+  const v = (value ?? "").trim();
+  if (!v) return "Any rashi";
+  return RASHI_OPTIONS.find((option) => option.value === v)?.label ?? v;
 }

@@ -97,9 +97,6 @@ export function StepReview({ onSubmit, onBack, onEditStep, loading }: StepReview
             label="Relationship goal"
             value={labelFor(RELATIONSHIP_GOAL_OPTIONS, data.relationshipGoal)}
           />
-        </ReviewSection>
-
-        <ReviewSection title={REGISTRATION_STEP_LABELS[3]} step={3} onEdit={onEditStep}>
           <ReviewRow label="Country" value={data.country || "—"} />
           <ReviewRow label="Province" value={data.province || "—"} />
           <ReviewRow label="District" value={data.district || "—"} />
@@ -107,7 +104,7 @@ export function StepReview({ onSubmit, onBack, onEditStep, loading }: StepReview
           <ReviewRow label="Current location" value={data.currentLocation || "—"} />
         </ReviewSection>
 
-        <ReviewSection title={REGISTRATION_STEP_LABELS[4]} step={4} onEdit={onEditStep}>
+        <ReviewSection title={REGISTRATION_STEP_LABELS[3]} step={3} onEdit={onEditStep}>
           <ReviewRow
             label="Verified photos"
             value={`${data.photos.filter((photo) => photo.status === "approved").length} photo(s)`}

@@ -3,6 +3,7 @@
 import {
   memo,
   useEffect,
+  useRef,
   useState,
   type FormEvent,
 } from "react";
@@ -23,12 +24,6 @@ type ChatComposerInputProps = {
 /** Keeps draft text local so typing does not re-render the message list. */
 export const ChatComposerInput = memo(function ChatComposerInput({
   clearToken,
-  ...props
-}: ChatComposerInputProps & { clearToken: number }) {
-  return <ChatComposerInputInner key={clearToken} {...props} />;
-});
-
-const ChatComposerInputInner = memo(function ChatComposerInputInner({
   inputRef,
   placeholder,
   disabled,
@@ -39,17 +34,39 @@ const ChatComposerInputInner = memo(function ChatComposerInputInner({
   onFocusChange,
   onSubmit,
   onTyping,
-}: ChatComposerInputProps) {
+}: ChatComposerInputProps & { clearToken: number }) {
   const [value, setValue] = useState("");
 
+  // Clear in place when a message is sent. (Remounting the <input> via a
+  // key would drop keyboard focus after every send.)
+  const [seenClearToken, setSeenClearToken] = useState(clearToken);
+  if (seenClearToken !== clearToken) {
+    setSeenClearToken(clearToken);
+    setValue("");
+  }
+  const lastClearToken = useRef(clearToken);
   useEffect(() => {
-    if (!appendEmoji) return;
-    setValue((prev) => {
-      const next = prev + appendEmoji;
-      draftRef.current = next;
-      onHasTextChange(next.length > 0);
-      return next;
-    });
+    if (lastClearToken.current === clearToken) return;
+    lastClearToken.current = clearToken;
+    draftRef.current = "";
+    onHasTextChange(false);
+  }, [clearToken, draftRef, onHasTextChange]);
+
+  // Insert each pending emoji / starter exactly once. React re-runs effects on
+  // mount in development (and the parent clears the value asynchronously), which
+  // used to append the same text twice when the composer mounted with it pending.
+  const appendedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!appendEmoji) {
+      appendedRef.current = null;
+      return;
+    }
+    if (appendedRef.current === appendEmoji) return;
+    appendedRef.current = appendEmoji;
+    const next = draftRef.current + appendEmoji;
+    draftRef.current = next;
+    setValue(next);
+    onHasTextChange(next.length > 0);
     onAppendConsumed();
   }, [appendEmoji, draftRef, onAppendConsumed, onHasTextChange]);
 
@@ -60,7 +77,9 @@ const ChatComposerInputInner = memo(function ChatComposerInputInner({
       placeholder={placeholder}
       type="text"
       value={value}
-      disabled={disabled}
+      // readOnly (not disabled) so the field keeps focus while a message sends.
+      readOnly={disabled}
+      aria-disabled={disabled || undefined}
       onFocus={() => onFocusChange(true)}
       onBlur={() => onFocusChange(false)}
       onKeyDown={(e) => {

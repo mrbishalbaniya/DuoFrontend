@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { formatLifestyleTag } from "@/components/profile/LifestyleFields";
+import { useState, useEffect, useCallback, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLenis } from "lenis/react";
@@ -8,6 +9,8 @@ import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
 import BottomNav from "@/components/BottomNav";
 import { ProfileEditForm } from "@/components/profile/ProfileEditForm";
 import { ProfileDataSection } from "@/components/profile/ProfileDataSection";
+import { ProfileChecklist } from "@/components/profile/ProfileChecklist";
+import type { ProfileEditSection } from "@/components/profile/ProfileEditForm";
 import {
   ProfileHeaderSkeleton,
   ProfileSectionsSkeleton,
@@ -33,6 +36,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileUser, setProfileUser] = useState<User | null>(null);
   const [editing, setEditing] = useState(false);
+  const [editingSection, setEditingSection] = useState<ProfileEditSection | null>(null);
   const [formData, setFormData] = useState<ProfileEditFormData | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -136,6 +140,11 @@ export default function ProfilePage() {
     };
   }, [editing]);
 
+  // Partner Preferences moved to its own page; keep old links working.
+  useEffect(() => {
+    if (window.location.hash === "#partner-preferences") router.replace("/preferences");
+  }, [router]);
+
   const handleCancelEdit = () => {
     if (profile) {
       setFormData(profileToEditForm(profile));
@@ -143,6 +152,7 @@ export default function ProfilePage() {
     setSaveError(null);
     setLocationError(null);
     setEditing(false);
+    setEditingSection(null);
   };
 
   const handleSave = async () => {
@@ -157,6 +167,7 @@ export default function ProfilePage() {
       setFormData(profileToEditForm(updated));
       await fetchUser();
       setEditing(false);
+      setEditingSection(null);
     } catch (err) {
       setSaveError(
         err instanceof Error ? err.message : "Failed to save profile. Please try again."
@@ -168,6 +179,37 @@ export default function ProfilePage() {
 
   const sections =
     profile && profileUser ? buildProfileSections(profileUser, profile) : null;
+
+  const startSectionEdit = (section: ProfileEditSection) => {
+    if (profile) setFormData(profileToEditForm(profile));
+    setSaveError(null);
+    setEditingSection(section);
+  };
+
+  const renderSectionEditor = (section: ProfileEditSection) =>
+    formData ? (
+      <div className="space-y-3">
+        <ProfileEditForm
+          formData={formData}
+          onChange={setFormData}
+          onSave={() => void handleSave()}
+          onCancel={handleCancelEdit}
+          saving={saving}
+          detectingLocation={detectingLocation}
+          locationError={locationError}
+          onDetectLocation={() => void handleDetectLocation()}
+          onlySection={section}
+        />
+        {saveError ? <p className="text-center text-sm text-error">{saveError}</p> : null}
+      </div>
+    ) : null;
+
+  /** A view section, or its inline editor while that section is being edited. */
+  const sectionOrEditor = (section: ProfileEditSection, view: ReactNode) => (
+    <div id={`profile-section-${section}`} className="scroll-mt-6">
+      {editingSection === section ? renderSectionEditor(section) : view}
+    </div>
+  );
   const showContentSkeleton =
     authLoading || !profile || !profileUser || !sections || !formData;
 
@@ -183,7 +225,7 @@ export default function ProfilePage() {
         data-lenis-prevent
         aria-busy={showContentSkeleton}
       >
-        <div className="relative h-32 bg-gradient-to-br from-primary/30 via-secondary/50 to-accent/25 sm:h-40 md:h-48">
+        <div className="relative h-20 bg-gradient-to-br from-primary/30 via-secondary/50 to-accent/25 sm:h-24 md:h-28">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-transparent to-surface/80" />
           <div className="absolute inset-x-0 top-0 z-20 flex justify-end px-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:hidden">
             <Link href="/settings" aria-label="Settings" className="ios-nav-btn -mr-2">
@@ -192,7 +234,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="relative z-10 mx-auto -mt-14 max-w-7xl px-5 sm:-mt-16 sm:px-6 md:-mt-20">
+        <div className="relative z-10 mx-auto -mt-10 max-w-7xl px-5 sm:-mt-12 sm:px-6 md:-mt-16">
           {showContentSkeleton ? (
             <ProfileHeaderSkeleton />
           ) : (
@@ -218,19 +260,11 @@ export default function ProfilePage() {
                 </p>
               </div>
 
-              <div className="mb-2 hidden shrink-0 md:flex">
-                <button
-                  onClick={() => (editing ? handleCancelEdit() : setEditing(true))}
-                  className="rounded-full px-8 py-3 font-semibold text-white shadow-lg shadow-primary/20 transition-all gradient-brand active:scale-95"
-                >
-                  {editing ? "Cancel" : "Edit Profile"}
-                </button>
-              </div>
             </div>
           )}
         </div>
 
-        <div className="mx-auto mt-8 grid max-w-7xl grid-cols-1 gap-6 px-5 sm:px-6 md:mt-10 md:gap-8 lg:grid-cols-12">
+        <div className="mx-auto mt-6 grid max-w-7xl grid-cols-1 gap-6 px-5 sm:px-6 md:mt-8 md:gap-8 lg:grid-cols-12">
           <div className="space-y-6 lg:col-span-4 lg:col-start-1">
             {showContentSkeleton ? (
               <ProfileSidebarSkeleton />
@@ -249,24 +283,21 @@ export default function ProfilePage() {
                       style={{ width: `${profile.profile_completeness}%` }}
                     />
                   </div>
-                  <ul className="space-y-3.5">
-                    {[
-                      { done: !!profile.full_name, label: "Full name added" },
-                      { done: !!profile.education, label: "Education details" },
-                      { done: !!profile.bio, label: "Bio written" },
-                      { done: profile.is_verified, label: "Identity verified" },
-                    ].map((item, i) => (
-                      <li key={i} className="flex items-center gap-3 text-sm text-on-surface-variant">
-                        <span
-                          className={`material-symbols-outlined text-lg ${item.done ? "text-accent" : "text-primary/30"}`}
-                          style={item.done ? { fontVariationSettings: "'FILL' 1" } : undefined}
-                        >
-                          {item.done ? "check_circle" : "add_circle"}
-                        </span>
-                        {item.label}
-                      </li>
-                    ))}
-                  </ul>
+                  <ProfileChecklist
+                    items={profile.profile_checklist ?? []}
+                    onOpenSection={(section) => {
+                      if (section === "Verification") {
+                        router.push("/verify");
+                        return;
+                      }
+                      startSectionEdit(section as ProfileEditSection);
+                      requestAnimationFrame(() =>
+                        document
+                          .getElementById(`profile-section-${section}`)
+                          ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                      );
+                    }}
+                  />
                 </div>
 
                 {profile.is_verified ? (
@@ -308,11 +339,39 @@ export default function ProfilePage() {
                 )}
 
                 <button
-                  onClick={() => (editing ? handleCancelEdit() : setEditing(true))}
-                  className="w-full rounded-xl py-3.5 text-sm font-bold text-white shadow-lg shadow-primary/20 transition-all gradient-brand active:scale-[0.98] md:hidden"
+                  type="button"
+                  onClick={() => router.push("/preferences")}
+                  className="flex w-full items-center gap-4 rounded-2xl border border-primary/20 bg-primary/5 p-5 text-left transition-colors hover:bg-primary/10"
                 >
-                  {editing ? "Cancel Editing" : "Edit Profile"}
+                  <div className="shrink-0 rounded-full bg-primary/10 p-3 text-primary">
+                    <span className="material-symbols-outlined">tune</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-on-surface">Discovery preferences</p>
+                    <p className="text-xs text-on-surface-variant">Age range, distance, and match filters</p>
+                  </div>
+                  <span className="material-symbols-outlined text-on-surface-variant">
+                    chevron_right
+                  </span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => router.push("/account")}
+                  className="flex w-full items-center gap-4 rounded-2xl border border-primary/20 bg-primary/5 p-5 text-left transition-colors hover:bg-primary/10"
+                >
+                  <div className="shrink-0 rounded-full bg-primary/10 p-3 text-primary">
+                    <span className="material-symbols-outlined">person</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-on-surface">Account information</p>
+                    <p className="text-xs text-on-surface-variant">Email, username, phone &amp; verification</p>
+                  </div>
+                  <span className="material-symbols-outlined text-on-surface-variant">
+                    chevron_right
+                  </span>
+                </button>
+
               </>
             )}
           </div>
@@ -333,8 +392,12 @@ export default function ProfilePage() {
               />
             ) : (
               <div className="space-y-6 md:space-y-8">
-                {sections.photos.length > 0 ? (
-                  <ProfileDataSection title="Photos" icon="photo_library">
+                {sectionOrEditor(
+                  "Photos",
+                  <ProfileDataSection title="Photos" icon="photo_library" onEdit={() => startSectionEdit("Photos")}>
+                    {sections.photos.length === 0 ? (
+                      <p className="text-sm text-on-surface-variant">No photos yet.</p>
+                    ) : null}
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                       {sections.photos.map((url, index) => (
                         <div
@@ -352,23 +415,43 @@ export default function ProfilePage() {
                       ))}
                     </div>
                   </ProfileDataSection>
-                ) : null}
+                )}
 
-                <ProfileDataSection title="Account" icon="account_circle" fields={sections.account} />
-                <ProfileDataSection title="Personal" icon="person" fields={sections.personal} />
-                <ProfileDataSection title="About Me" icon="format_quote" fields={sections.about} />
-                <ProfileDataSection
-                  title="Education & Career"
-                  icon="school"
-                  fields={sections.education}
-                />
-                <ProfileDataSection
-                  title="Religion & Background"
-                  icon="temple_hindu"
-                  fields={sections.background}
-                />
+                {sectionOrEditor(
+                  "Personal",
+                  <ProfileDataSection
+                    title="Personal"
+                    icon="person"
+                    fields={sections.personal}
+                    onEdit={() => startSectionEdit("Personal")}
+                  />
+                )}
+                {sectionOrEditor(
+                  "Religion & Background",
+                  <ProfileDataSection
+                    title="Religion & Background"
+                    icon="temple_hindu"
+                    fields={sections.background}
+                    onEdit={() => startSectionEdit("Religion & Background")}
+                  />
+                )}
+                {sectionOrEditor(
+                  "Education & Career",
+                  <ProfileDataSection
+                    title="Education & Career"
+                    icon="school"
+                    fields={sections.education}
+                    onEdit={() => startSectionEdit("Education & Career")}
+                  />
+                )}
 
-                <ProfileDataSection title="Lifestyle & Interests" icon="style">
+                {sectionOrEditor(
+                  "Lifestyle & Interests",
+                <ProfileDataSection
+                    title="Lifestyle & Interests"
+                    icon="style"
+                    onEdit={() => startSectionEdit("Lifestyle & Interests")}
+                  >
                   {sections.lifestyleTags.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {sections.lifestyleTags.map((tag) => (
@@ -376,7 +459,7 @@ export default function ProfilePage() {
                           key={tag}
                           className="rounded-full border border-primary/15 bg-secondary px-3 py-1.5 text-xs font-semibold text-primary"
                         >
-                          {tag}
+                          {formatLifestyleTag(tag)}
                         </span>
                       ))}
                     </div>
@@ -384,13 +467,18 @@ export default function ProfilePage() {
                     <p className="text-sm text-on-surface-variant">No lifestyle tags yet.</p>
                   )}
                 </ProfileDataSection>
+                )}
 
-                <ProfileDataSection
-                  title="Partner Preferences"
-                  icon="favorite"
-                  fields={sections.preferences}
-                />
-                <ProfileDataSection title="Profile Status" icon="verified" fields={sections.status} />
+                {sectionOrEditor(
+                  "About",
+                  <ProfileDataSection
+                    title="About Me"
+                    icon="format_quote"
+                    fields={sections.about}
+                    onEdit={() => startSectionEdit("About")}
+                  />
+                )}
+
               </div>
             )}
           </div>

@@ -16,6 +16,10 @@ export type ProfileEditPhoto = {
    * predate this field (legacy profiles) are treated as approved since they
    * were already visible before this system existed. */
   moderationStatus?: ModerationStatus;
+  /** Result of this session's upload checks. Missing on photos loaded from the saved profile. */
+  status?: "approved" | "rejected";
+  /** Why the photo was rejected, shown on its card. */
+  error?: string;
 };
 
 export type ProfileEditFormData = {
@@ -41,10 +45,12 @@ export type ProfileEditFormData = {
   educationLevel: string;
   fieldOfStudy: string;
   caste: string;
+  subCaste: string;
   gotra: string;
   horoscope: string;
   birthTime: string;
   birthPlace: string;
+  languages: string[];
   lookingForText: string;
   futureGoals: string;
   pref_gender: string;
@@ -57,6 +63,21 @@ export type ProfileEditFormData = {
   pref_relationship_goal: string;
   pref_verified_only: boolean;
   preferredReligion: string;
+  preferredCaste: string;
+  preferredRashi: string;
+  preferredMaxHeight: string;
+  preferredLanguages: string[];
+  preferredOccupations: string[];
+  preferredEducationLevels: string[];
+  preferredFieldsOfStudy: string[];
+  preferredWorkPreferences: string[];
+  preferredIncomes: string[];
+  preferredPersonalities: string[];
+  preferredLifestyles: string[];
+  preferredExercise: string[];
+  preferredInterests: string[];
+  preferredSmoking: string;
+  preferredDrinking: string;
   interCaste: string;
   interReligion: string;
   photos: ProfileEditPhoto[];
@@ -101,10 +122,12 @@ export function profileToEditForm(profile: Profile): ProfileEditFormData {
     educationLevel: extra.educationLevel || "",
     fieldOfStudy: extra.fieldOfStudy || "",
     caste: extra.caste || "",
+    subCaste: extra.subCaste || "",
     gotra: extra.gotra || "",
     horoscope: extra.horoscope || "",
     birthTime: extra.birthTime || "",
     birthPlace: extra.birthPlace || "",
+    languages: Array.isArray(extra.languages) ? extra.languages : [],
     lookingForText: extra.lookingForText || "",
     futureGoals: extra.futureGoals || "",
     pref_gender: profile.pref_gender || "everyone",
@@ -117,6 +140,21 @@ export function profileToEditForm(profile: Profile): ProfileEditFormData {
     pref_relationship_goal: profile.pref_relationship_goal || "everyone",
     pref_verified_only: profile.pref_verified_only ?? false,
     preferredReligion: extra.preferredReligion || "",
+    preferredCaste: extra.preferredCaste || "",
+    preferredRashi: extra.preferredRashi || "",
+    preferredMaxHeight: extra.preferredMaxHeight || "",
+    preferredLanguages: Array.isArray(extra.preferredLanguages) ? extra.preferredLanguages : [],
+    preferredOccupations: Array.isArray(extra.preferredOccupations) ? extra.preferredOccupations : [],
+    preferredEducationLevels: Array.isArray(extra.preferredEducationLevels) ? extra.preferredEducationLevels : [],
+    preferredFieldsOfStudy: Array.isArray(extra.preferredFieldsOfStudy) ? extra.preferredFieldsOfStudy : [],
+    preferredWorkPreferences: Array.isArray(extra.preferredWorkPreferences) ? extra.preferredWorkPreferences : [],
+    preferredIncomes: Array.isArray(extra.preferredIncomes) ? extra.preferredIncomes : [],
+    preferredPersonalities: Array.isArray(extra.preferredPersonalities) ? extra.preferredPersonalities : [],
+    preferredLifestyles: Array.isArray(extra.preferredLifestyles) ? extra.preferredLifestyles : [],
+    preferredExercise: Array.isArray(extra.preferredExercise) ? extra.preferredExercise : [],
+    preferredInterests: Array.isArray(extra.preferredInterests) ? extra.preferredInterests : [],
+    preferredSmoking: extra.preferredSmoking || "",
+    preferredDrinking: extra.preferredDrinking || "",
     interCaste: extra.interCaste || "",
     interReligion: extra.interReligion || "",
     photos: buildPhotosFromProfile(profile),
@@ -132,14 +170,31 @@ function buildPrefValues(form: ProfileEditFormData, existing?: ParsedPrefValues)
     educationLevel: form.educationLevel.trim(),
     fieldOfStudy: form.fieldOfStudy.trim(),
     caste: form.caste.trim(),
+    subCaste: form.subCaste.trim(),
     gotra: form.gotra.trim(),
     horoscope: form.horoscope.trim(),
     dateOfBirth: form.dateOfBirth.trim(),
     birthTime: form.birthTime.trim(),
     birthPlace: form.birthPlace.trim(),
+    languages: form.languages,
     lookingForText: form.lookingForText.trim(),
     futureGoals: form.futureGoals.trim(),
     preferredReligion: form.preferredReligion.trim(),
+    preferredCaste: form.preferredCaste.trim(),
+    preferredRashi: form.preferredRashi.trim(),
+    preferredMaxHeight: form.preferredMaxHeight.trim(),
+    preferredLanguages: form.preferredLanguages,
+    preferredOccupations: form.preferredOccupations,
+    preferredEducationLevels: form.preferredEducationLevels,
+    preferredFieldsOfStudy: form.preferredFieldsOfStudy,
+    preferredWorkPreferences: form.preferredWorkPreferences,
+    preferredIncomes: form.preferredIncomes,
+    preferredPersonalities: form.preferredPersonalities,
+    preferredLifestyles: form.preferredLifestyles,
+    preferredExercise: form.preferredExercise,
+    preferredInterests: form.preferredInterests,
+    preferredSmoking: form.preferredSmoking.trim(),
+    preferredDrinking: form.preferredDrinking.trim(),
     interCaste: form.interCaste.trim(),
     interReligion: form.interReligion.trim(),
   });

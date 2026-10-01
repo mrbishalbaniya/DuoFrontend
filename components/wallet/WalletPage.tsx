@@ -7,12 +7,12 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import BottomNav from "@/components/BottomNav";
 import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
-import { EsewaLogo } from "@/components/payment/EsewaLogo";
 import Loader from "@/components/ui/loader";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
 import { formatCoinDelta, formatCoins, formatNprPrice } from "@/lib/coins";
 import { submitEsewaPayment } from "@/lib/esewa";
+import { PaymentMethodSheet, type PaymentMethod } from "@/components/wallet/PaymentMethodSheet";
 import type { CoinPack, WalletSummary, WalletTransaction } from "@/types";
 
 function RedeemGiftCardConfirmDialog({
@@ -151,6 +151,8 @@ export function WalletPage() {
   const [giftError, setGiftError] = useState<string | null>(null);
   const [giftSuccess, setGiftSuccess] = useState<string | null>(null);
   const [confirmingRedeem, setConfirmingRedeem] = useState(false);
+  const [selectedPack, setSelectedPack] = useState<{ coins: number; price: number } | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const loadWallet = useCallback(async () => {
     try {
@@ -183,18 +185,32 @@ export function WalletPage() {
     } else if (walletResult === "failed") {
       setNotice(t("purchaseFailed"));
       router.replace("/wallet");
+    } else if (walletResult === "canceled") {
+      setNotice(t("paymentCanceled"));
+      router.replace("/wallet");
     }
   }, [searchParams, fetchUser, loadWallet, router, t]);
 
-  const handleTopUp = async (amount: number) => {
+  const handleTopUp = async (amount: number, activeMethod: PaymentMethod) => {
     setToppingUp(true);
     setNotice(null);
     try {
+      if (activeMethod === "stripe") {
+        const session = await api.initiateStripeTopUp(amount);
+        if (!session.checkout_url) throw new Error(t("startStripeError"));
+        window.location.assign(session.checkout_url);
+        return;
+      }
       const payment = await api.initiateWalletTopUp(amount);
       submitEsewaPayment(payment.payment_url, payment.form);
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : t("startPaymentError"));
+      setNotice(
+        err instanceof Error
+          ? err.message
+          : t(activeMethod === "stripe" ? "startStripeError" : "startPaymentError")
+      );
       setToppingUp(false);
+      setSheetOpen(false);
     }
   };
 
@@ -230,6 +246,20 @@ export function WalletPage() {
       setRedeeming(false);
       setConfirmingRedeem(false);
     }
+  };
+
+  const methods = wallet?.payment_methods;
+  const esewaAvailable = methods ? methods.esewa : true;
+  const stripeAvailable = Boolean(methods?.stripe);
+  const stripeCurrency = methods?.stripe_currency || "NPR";
+  const stripeMinAmount = methods?.stripe_min_amount ?? 0;
+  const formatMethodPrice = (price: number, method: PaymentMethod) =>
+    method === "stripe" && stripeCurrency !== "NPR"
+      ? new Intl.NumberFormat(undefined, { style: "currency", currency: stripeCurrency }).format(price)
+      : formatNprPrice(price);
+  const openPaymentSheet = (coins: number, price: number) => {
+    setSelectedPack({ coins, price });
+    setSheetOpen(true);
   };
 
   const balance = wallet?.coins ?? wallet?.balance ?? user?.profile.wallet_balance ?? 0;
@@ -305,15 +335,14 @@ export function WalletPage() {
                           key={pack.id}
                           type="button"
                           disabled={toppingUp}
-                          onClick={() => void handleTopUp(pack.coins)}
-                          className="flex flex-col items-center justify-center gap-1 rounded-xl border border-white/10 bg-background/50 px-3 py-3 text-sm transition hover:border-[#60bb46]/40 hover:bg-[#60bb46]/10 disabled:opacity-60"
+                          onClick={() => openPaymentSheet(pack.coins, pack.price_npr)}
+                          className="flex flex-col items-center justify-center gap-1 rounded-xl border border-white/10 bg-background/50 px-3 py-3 text-sm transition hover:border-primary/40 hover:bg-primary/10 disabled:opacity-60"
                         >
                           <span className="flex items-center gap-1 font-semibold text-on-surface">
                             <span className="text-base" aria-hidden>🪙</span>
                             {pack.coins.toLocaleString("en-NP")}
                           </span>
                           <span className="flex items-center gap-1 text-[11px] text-on-surface-variant">
-                            <EsewaLogo className="size-3" />
                             {formatNprPrice(pack.price_npr)}
                           </span>
                         </button>
@@ -396,6 +425,20 @@ export function WalletPage() {
         </div>
       </div>
       <BottomNav />
+      <PaymentMethodSheet
+        open={sheetOpen}
+        coins={selectedPack?.coins ?? 0}
+        price={selectedPack?.price ?? 0}
+        esewaAvailable={esewaAvailable}
+        stripeAvailable={stripeAvailable}
+        stripeMinAmount={stripeMinAmount}
+        formatPrice={formatMethodPrice}
+        busy={toppingUp}
+        onClose={() => setSheetOpen(false)}
+        onConfirm={(method) => {
+          if (selectedPack) void handleTopUp(selectedPack.coins, method);
+        }}
+      />
       <RedeemGiftCardConfirmDialog
         open={confirmingRedeem}
         code={giftCode}

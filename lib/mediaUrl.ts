@@ -47,8 +47,10 @@ function remapPicsumUrl(url: string): string {
   return placeholderPhotoUrl(baseSeed, index, size);
 }
 
+/** Localhost media from a backend other than the configured one (e.g. an old dev port) is unreachable. */
 function isDeadLocalMediaUrl(url: string): boolean {
-  return url.startsWith("/media/") || url.includes("://localhost") && url.includes("/media/");
+  if (!(url.includes("://localhost") && url.includes("/media/"))) return false;
+  return !url.startsWith(`${API_ORIGIN}/media/`);
 }
 
 /** Resolve stored media URLs (Cloudinary HTTPS, legacy /media/, or broken picsum seeds). */

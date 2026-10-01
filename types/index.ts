@@ -125,6 +125,8 @@ export interface Profile {
   is_verified?: boolean;
   is_onboarded?: boolean;
   profile_completeness?: number;
+  /** Real completeness checklist from the backend, grouped by profile section. */
+  profile_checklist?: ProfileChecklistItem[];
   pref_age_min?: number;
   pref_age_max?: number;
   pref_min_height?: string;
@@ -199,6 +201,10 @@ export interface LikedProfile {
   liked_at?: string;
   action?: SwipeAction;
   locked?: boolean;
+  /** "matched" once you both liked each other. */
+  status?: "matched" | "pending";
+  /** Public conversation id when matched. */
+  conversation_id?: string | null;
 }
 
 /** Premium list a plan unlocks. Each has its own plans and pass. */
@@ -264,7 +270,7 @@ export interface InitiateSubscriptionResponse {
 }
 
 export type WalletTransactionStatus = "complete" | "pending" | "failed";
-export type WalletTransactionPaymentMethod = "esewa" | "wallet" | "gift" | "";
+export type WalletTransactionPaymentMethod = "esewa" | "stripe" | "wallet" | "gift" | "";
 
 export interface WalletTransaction {
   id: number;
@@ -300,6 +306,20 @@ export interface WalletSummary {
   top_up_presets: number[];
   coin_packs?: CoinPack[];
   transactions: WalletTransaction[];
+  payment_methods?: WalletPaymentMethods;
+}
+
+export interface WalletPaymentMethods {
+  esewa: boolean;
+  stripe: boolean;
+  stripe_currency: string;
+  stripe_min_amount?: number;
+}
+
+export interface StripeCheckoutResponse {
+  checkout_url: string;
+  session_id: string;
+  transaction_uuid: string;
 }
 
 export interface WalletPurchaseResponse {
@@ -339,6 +359,8 @@ export interface LikesYouResponse {
 export interface Match {
   id: number;
   other_user_profile: Profile;
+  /** Public chat id for this match. */
+  conversation_id?: string | null;
   matched_at?: string;
   compatibility_score?: number;
   shared_interests?: string[];
@@ -351,6 +373,14 @@ export interface Match {
   spark_factors?: string[];
   vision_insight?: string;
   communication_insight?: string;
+  /** True when the text below was written by the AI model (scores are always computed). */
+  ai_generated?: boolean;
+  pillar_notes?: { values: string; lifestyle: string; career: string; hobbies: string } | null;
+  conversation_starters?: string[];
+  /** "duo" = Duo's own trained model, "claude" = Claude, null = rule-based text. */
+  ai_provider?: "duo" | "claude" | null;
+  things_to_talk_about?: string[];
+  model_info?: { name?: string; version?: number; trained_at?: string; samples?: number; cv_auc?: number | null } | null;
 }
 
 export interface ChatMessage extends Message {
@@ -364,7 +394,8 @@ export interface ChatMessage extends Message {
   delivered_at?: string | null;
   read_at?: string | null;
   edited_at?: string | null;
-  message_type?: "text" | "image" | "voice";
+  message_type?: "text" | "image" | "voice" | "system";
+  event_code?: string | null;
   reply_to?: MessageReplyPreview | null;
   client_temp_id?: string;
   send_status?: "pending" | "sent" | "failed";
@@ -549,3 +580,10 @@ export interface SecurityEvent {
   is_read: boolean;
   created_at: string;
 }
+
+export type ProfileChecklistItem = {
+  section: string;
+  key: string;
+  label: string;
+  done: boolean;
+};

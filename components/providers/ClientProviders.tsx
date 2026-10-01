@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createQueryClient } from "@/lib/query/client";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { PremiumPaletteGuard } from "@/components/providers/PremiumPaletteGuard";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { GoogleOAuthProviderWrapper } from "@/components/auth/google-oauth-provider";
 import { OnboardingGate } from "@/components/auth/OnboardingGate";
@@ -26,6 +27,7 @@ export function ClientProviders({ children }: { children: ReactNode }) {
               <AuthProvider>
                 <OnboardingGate>
                   <CallBridge>
+                    <PremiumPaletteGuard />
                     <PushNotificationBridge />
                     <UnreadMessagesSync />
                     {children}

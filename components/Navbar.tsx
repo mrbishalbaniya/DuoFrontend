@@ -21,7 +21,17 @@ function getGreetingName(fullName?: string | null, username?: string | null) {
   return username || "there";
 }
 
-export default function Navbar() {
+export default function Navbar({
+  sticky = true,
+  inFlow = false,
+  homeStyle,
+}: {
+  sticky?: boolean;
+  /** Sit in the normal page flow (takes up space, scrolls away with the page). */
+  inFlow?: boolean;
+  /** Use the homepage look (solid logo, primary Sign In). Defaults to true on "/". */
+  homeStyle?: boolean;
+} = {}) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -49,11 +59,12 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [userMenuOpen]);
 
+  const isHomeStyle = homeStyle ?? pathname === "/";
   const greetingName = getGreetingName(user?.profile?.full_name, user?.username);
 
   return (
     <>
-      <header className="premium-nav fixed top-0 z-50 w-full">
+      <header className={`premium-nav ${inFlow ? "relative" : sticky ? "fixed" : "absolute"} top-0 z-50 w-full`}>
         <nav className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between px-4 sm:h-16 sm:px-6">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <button
@@ -64,7 +75,7 @@ export default function Navbar() {
             >
               <span className="material-symbols-outlined text-[22px]">menu</span>
             </button>
-            <Logo solid={pathname === "/"} />
+            <Logo solid={isHomeStyle} />
           </div>
 
           <div className="hidden items-center gap-8 md:flex">
@@ -140,7 +151,7 @@ export default function Navbar() {
               <Link
                 href="/login"
                 className={`flex rounded-full px-4 py-1.5 font-[var(--font-headline)] text-xs font-bold text-white shadow-lg shadow-primary/20 transition-all active:scale-95 sm:px-6 sm:py-2 sm:text-sm ${
-                  pathname === "/"
+                  isHomeStyle
                     ? "bg-primary hover:bg-primary/90"
                     : "gradient-brand-br"
                 }`}

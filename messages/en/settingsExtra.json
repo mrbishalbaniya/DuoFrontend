@@ -176,6 +176,7 @@
       },
       "paymentMethods": {
         "esewa": "eSewa",
+        "stripe": "Card (Stripe)",
         "wallet": "Wallet",
         "gift": "Gift",
         "unknown": "Unknown"

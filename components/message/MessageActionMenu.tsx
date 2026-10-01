@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useLayoutEffect, useRef, useState } from "react";
 import type { ChatMessage } from "@/types";
 import { QUICK_REACTIONS } from "./chatConstants";
 
@@ -23,6 +23,20 @@ export const MessageActionMenu = memo(function MessageActionMenu({
   onDeleteForMe: (msg: ChatMessage) => void;
   onDeleteForEveryone: (msg: ChatMessage) => void;
 }) {
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [openUp, setOpenUp] = useState(false);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setOpenUp(false);
+      return;
+    }
+    const menu = menuRef.current;
+    if (!menu) return;
+    const rect = menu.getBoundingClientRect();
+    if (rect.bottom > window.innerHeight - 8) setOpenUp(true);
+  }, [open]);
+
   return (
     <div className="relative shrink-0 self-center">
       <button
@@ -44,9 +58,10 @@ export const MessageActionMenu = memo(function MessageActionMenu({
 
       {open && (
         <div
-          className={`absolute top-full z-[60] mt-1 min-w-[180px] rounded-2xl border border-outline-variant bg-background p-2 shadow-2xl ${
-            msg.is_mine ? "left-0" : "right-0"
-          }`}
+          ref={menuRef}
+          className={`absolute z-[60] w-[220px] max-w-[calc(100vw-2rem)] whitespace-nowrap rounded-2xl border border-outline-variant bg-background p-2 shadow-2xl ${
+            openUp ? "bottom-full mb-1" : "top-full mt-1"
+          } ${msg.is_mine ? "right-0" : "left-0"}`}
           onClick={(e) => e.stopPropagation()}
         >
           <button

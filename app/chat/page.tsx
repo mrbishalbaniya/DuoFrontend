@@ -7,6 +7,7 @@ import { useLenis } from "lenis/react";
 import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
 import BottomNav from "@/components/BottomNav";
 import { ChatPageSkeleton } from "@/components/skeletons/ChatPageSkeleton";
+import { AppShellSkeleton } from "@/components/skeletons/AppShellSkeleton";
 
 const MessagesSection = dynamic(() => import("@/components/message/message"), {
   loading: () => <ChatPageSkeleton />,
@@ -46,7 +47,13 @@ function ChatPageContent() {
 
 export default function ChatPage() {
   return (
-    <Suspense fallback={<ChatPageSkeleton />}>
+    <Suspense
+      fallback={
+        <AppShellSkeleton label="Loading messages">
+          <ChatPageSkeleton />
+        </AppShellSkeleton>
+      }
+    >
       <ChatPageContent />
     </Suspense>
   );

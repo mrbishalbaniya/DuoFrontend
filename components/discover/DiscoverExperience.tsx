@@ -11,6 +11,7 @@ import {
   ProfileCardOverlay,
   ProfileDetailSheet,
 } from "@/components/discover/profileDiscoverUi";
+import { MatchHelpButton, MatchTour } from "@/components/discover/MatchTour";
 import { DiscoverPageSkeleton } from "@/components/skeletons/DiscoverPageSkeleton";
 import { PremiumUpgradeSheet } from "@/components/subscription/PremiumUpgradeSheet";
 import {
@@ -45,6 +46,7 @@ function FilterIconButton({
     <div className={`mx-auto hidden w-full shrink-0 justify-end pb-2 pt-1 md:flex ${MATCH_CARD_WIDTH}`}>
       <button
         type="button"
+        data-tour="filters"
         aria-label={activeCount > 0 ? `Open discovery filters, ${activeCount} active` : "Open discovery filters"}
         title="Filters"
         disabled={disabled}
@@ -74,47 +76,6 @@ function likesExhausted(quota: LikeQuota | null): boolean {
   return !quota.reset_at || new Date(quota.reset_at).getTime() > Date.now();
 }
 
-function formatResetTime(iso: string | null): string {
-  if (!iso) return "";
-  const date = new Date(iso);
-  const sameDay = date.toDateString() === new Date().toDateString();
-  const time = date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  return sameDay ? time : `tomorrow ${time}`;
-}
-
-/** Remaining free Likes under the action buttons; hidden for Unlimited likes. */
-function LikesRemaining({ quota, onUpgrade }: { quota: LikeQuota | null; onUpgrade: () => void }) {
-  if (!quota || quota.unlimited || quota.limit == null) return null;
-  const remaining = quota.likes_remaining ?? 0;
-  if (likesExhausted(quota)) {
-    return (
-      <p className="mt-2 flex items-center justify-center gap-1.5 text-xs text-on-surface-variant">
-        <span className="material-symbols-outlined text-[16px] text-error">heart_broken</span>
-        Out of Likes until {formatResetTime(quota.reset_at)} ·
-        <button type="button" onClick={onUpgrade} className="font-semibold text-primary hover:underline">
-          Go unlimited
-        </button>
-      </p>
-    );
-  }
-  return (
-    <p className="mt-2 flex items-center justify-center gap-1.5 text-xs text-on-surface-variant" aria-live="polite">
-      <span className="material-symbols-outlined text-[16px] text-emerald-500" style={{ fontVariationSettings: "'FILL' 1" }}>
-        favorite
-      </span>
-      <span className="font-semibold tabular-nums text-on-surface">{remaining}</span>
-      of {quota.limit} Likes left
-      {remaining <= 10 ? (
-        <>
-          {" · "}
-          <button type="button" onClick={onUpgrade} className="font-semibold text-primary hover:underline">
-            Go unlimited
-          </button>
-        </>
-      ) : null}
-    </p>
-  );
-}
 const discoverSwipedUserIds = new Set<number>();
 /** This session's swipes, newest last — what Rewind can bring back. */
 let discoverSwipeHistory: { userId: number; profile: Profile }[] = [];
@@ -290,9 +251,7 @@ export function DiscoverExperience() {
     async (filters: DiscoveryFilters) => {
       const found = await applyFilters(filters);
       showToast(
-        found > 0
-          ? `Filters applied. ${found} ${found === 1 ? "person matches" : "people match"} right now.`
-          : "Filters applied. Nobody matches yet, so try widening your search.",
+        found > 0 ? "Filters updated" : "Filters updated. No one matches yet.",
         { variant: found > 0 ? "success" : "warning" }
       );
     },
@@ -583,49 +542,54 @@ export function DiscoverExperience() {
             onOpenFilters={() => setFiltersOpen(true)}
           />
           <div className={`mx-auto flex min-h-0 flex-1 items-center justify-center overflow-hidden ${MATCH_CARD_WIDTH}`}>
-            <div className="space-y-5 px-2 text-center md:px-4">
-              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
-                <span className="material-symbols-outlined text-5xl text-primary/70">
-                  {filtered ? "filter_alt_off" : "favorite"}
+            <div className="relative w-full overflow-hidden rounded-[2rem] border border-outline-variant/30 bg-surface-container-low px-6 py-10 text-center shadow-xl md:px-10 md:py-12">
+              <div aria-hidden className="pointer-events-none absolute -top-24 left-1/2 h-56 w-56 -translate-x-1/2 rounded-full bg-primary/20 blur-3xl" />
+
+              <div aria-hidden className="relative mx-auto mb-8 h-36 w-28">
+                <div className="absolute inset-0 -rotate-12 rounded-2xl border border-outline-variant/40 bg-surface-container" />
+                <div className="absolute inset-0 rotate-12 rounded-2xl border border-outline-variant/40 bg-surface-container" />
+                <div className="absolute inset-0 flex items-center justify-center rounded-2xl gradient-brand shadow-lg">
+                  <span className="material-symbols-outlined text-5xl text-white" style={{ fontVariationSettings: "'FILL' 1" }}>
+                    {filtered ? "tune" : "favorite"}
+                  </span>
+                </div>
+                <span className="absolute -right-3 -top-3 flex h-8 w-8 animate-pulse items-center justify-center rounded-full bg-surface text-primary shadow-md ring-2 ring-primary/40">
+                  <span className="material-symbols-outlined text-[18px]">{filtered ? "search_off" : "check"}</span>
                 </span>
               </div>
-              <h2 className="font-[var(--font-headline)] text-2xl font-bold text-on-surface md:text-3xl">
-                {filtered ? "No one matches your filters" : "You are all caught up"}
+
+              <h2 className="relative font-[var(--font-headline)] text-2xl font-bold text-on-surface md:text-3xl">
+                {filtered ? "No one matches your filters" : "You're all caught up"}
               </h2>
-              <p className="mx-auto max-w-md text-on-surface-variant md:text-base">
+              <p className="relative mx-auto mt-3 max-w-sm text-sm leading-relaxed text-on-surface-variant md:text-base">
                 {filtered
-                  ? "Try a wider age range, a bigger distance, or fewer requirements. New people join Duo every day."
-                  : "You have seen everyone available right now. Check back soon as new people join Duo."}
+                  ? "Loosen a filter or two to see more people. New members join Duo every day."
+                  : "You've seen everyone nearby for now. Check back soon for new faces."}
               </p>
-              {swipeHistoryCount > 0 ? (
-                <button
-                  type="button"
-                  onClick={handleRewind}
-                  disabled={rewinding}
-                  className="mx-auto inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 px-4 py-2 text-sm font-semibold text-amber-400 transition-all hover:bg-amber-400/10 active:scale-95 disabled:opacity-50"
-                >
-                  <span className="material-symbols-outlined text-[18px]">replay</span>
-                  Rewind last swipe
-                  {rewindUnlocked === false ? (
-                    <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                      lock
-                    </span>
-                  ) : null}
-                </button>
+
+              {filtered ? (
+                <ul className="relative mx-auto mt-6 flex max-w-sm flex-wrap justify-center gap-2 text-xs font-medium text-on-surface-variant">
+                  {[
+                    ["cake", "Wider age range"],
+                    ["near_me", "Bigger distance"],
+                    ["checklist", "Fewer requirements"],
+                  ].map(([icon, label]) => (
+                    <li key={label} className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-3 py-1.5">
+                      <span className="material-symbols-outlined text-[16px] text-primary">{icon}</span>
+                      {label}
+                    </li>
+                  ))}
+                </ul>
               ) : null}
-              <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-                <button
-                  onClick={() => setFiltersOpen(true)}
-                  className="rounded-full border border-primary/20 bg-background px-8 py-3 font-bold text-primary shadow-sm transition-all hover:bg-secondary active:scale-95 md:px-10 md:py-3.5"
-                >
-                  Adjust filters
-                </button>
+
+              <div className="relative mt-8 flex flex-col gap-3">
                 {canWiden ? (
                   <button
                     onClick={() => void handleWidenSearch()}
                     disabled={widening}
-                    className="rounded-full px-8 py-3 font-bold text-white shadow-lg transition-all gradient-brand active:scale-95 disabled:opacity-60 md:px-10 md:py-3.5"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full py-3.5 font-bold text-white shadow-lg transition-all gradient-brand hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
                   >
+                    <span className="material-symbols-outlined text-[20px]">travel_explore</span>
                     {widening ? "Widening…" : "Widen my search"}
                   </button>
                 ) : (
@@ -633,15 +597,44 @@ export function DiscoverExperience() {
                     onClick={() => {
                       void fetchProfiles({ clearSwiped: true });
                     }}
-                    className="rounded-full px-8 py-3 font-bold text-white shadow-lg transition-all gradient-brand active:scale-95 md:px-10 md:py-3.5"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full py-3.5 font-bold text-white shadow-lg transition-all gradient-brand hover:brightness-110 active:scale-[0.98]"
                   >
+                    <span className="material-symbols-outlined text-[20px]">refresh</span>
                     Refresh
                   </button>
                 )}
+                <button
+                  onClick={() => setFiltersOpen(true)}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-outline-variant/50 py-3.5 font-bold text-on-surface transition-all hover:border-primary/50 hover:text-primary active:scale-[0.98]"
+                >
+                  <span className="material-symbols-outlined text-[20px]">tune</span>
+                  Adjust filters
+                  {activeFilterCount > 0 ? (
+                    <span className="rounded-full bg-primary px-2 py-0.5 text-xs text-white">{activeFilterCount}</span>
+                  ) : null}
+                </button>
+                {swipeHistoryCount > 0 ? (
+                  <button
+                    type="button"
+                    onClick={handleRewind}
+                    disabled={rewinding}
+                    className="mx-auto mt-1 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-amber-400 transition-all hover:bg-amber-400/10 active:scale-95 disabled:opacity-50"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">replay</span>
+                    Rewind last swipe
+                    {rewindUnlocked === false ? (
+                      <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                        lock
+                      </span>
+                    ) : null}
+                  </button>
+                ) : null}
               </div>
             </div>
           </div>
         </main>
+        {user ? <MatchTour userId={String(user.id)} /> : null}
+      <MatchHelpButton />
         <DashboardMenuSheet
           open={menuOpen}
           onClose={() => setMenuOpen(false)}
@@ -677,7 +670,7 @@ export function DiscoverExperience() {
           disabled={controlsDisabled}
         />
 
-        <div id={SHEET_ANCHOR_ID} className={`relative mx-auto mt-1 min-h-0 flex-1 md:mt-2 ${MATCH_CARD_WIDTH}`}>
+        <div id={SHEET_ANCHOR_ID} data-tour="card" className={`relative mx-auto mt-1 min-h-0 flex-1 md:mt-2 ${MATCH_CARD_WIDTH}`}>
           <SwipeableCardStack
             ref={stackRef}
             key={stackKey}
@@ -718,12 +711,13 @@ export function DiscoverExperience() {
             }}
             onRewind={handleRewind}
             rewindDisabled={swipeHistoryCount === 0}
-            rewindLocked={rewindUnlocked === false}
             rewinding={rewinding}
           />
-          <LikesRemaining quota={likeQuota} onUpgrade={() => void openLikesPaywall()} />
         </div>
       </main>
+
+      {user ? <MatchTour userId={String(user.id)} /> : null}
+      <MatchHelpButton />
 
       <DashboardMenuSheet
         open={menuOpen}

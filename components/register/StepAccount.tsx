@@ -321,11 +321,21 @@ export function StepAccount({ onContinue, onBack }: StepAccountProps) {
               autoFocus
               onComplete={(code) => void handleVerifyCode(code)}
             />
-            <p className="text-center text-xs text-on-surface-variant">
-              {otpVerifying
-                ? "Verifying your code…"
-                : "The code expires in 10 minutes. Check your spam folder if you don't see it."}
-            </p>
+            {otpVerifying ? (
+              <div className="w-full rounded-xl border border-primary/20 bg-primary/10 px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+                  <div>
+                    <p className="text-sm font-semibold text-on-surface">Verifying...</p>
+                    <p className="text-xs text-on-surface-variant">Checking your code</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-center text-xs text-on-surface-variant">
+                The code expires in 10 minutes. Check your spam folder if you don't see it.
+              </p>
+            )}
           </div>
 
           <div className="flex w-full items-center justify-between px-1 text-xs font-semibold">

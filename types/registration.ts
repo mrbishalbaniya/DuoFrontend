@@ -1,4 +1,4 @@
-export type RegistrationStep = 1 | 2 | 3 | 4 | 5;
+export type RegistrationStep = 1 | 2 | 3 | 4;
 
 export type GenderOption = "male" | "female" | "other";
 export type MaritalStatus = "never_married" | "divorced" | "widowed";
@@ -164,13 +164,12 @@ export interface RegistrationData {
 
 export const REGISTRATION_STEP_LABELS: Record<RegistrationStep, string> = {
   1: "Account",
-  2: "Basic Info",
-  3: "Location",
-  4: "Photos",
-  5: "Review",
+  2: "Basic Info & Location",
+  3: "Photos",
+  4: "Review",
 };
 
-export const TOTAL_REGISTRATION_STEPS = 5;
+export const TOTAL_REGISTRATION_STEPS = 4;
 
 export const initialRegistrationData = (): RegistrationData => ({
   phone: "",

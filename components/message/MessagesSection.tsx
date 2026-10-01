@@ -20,6 +20,7 @@ import {
   ChatPromptDialog,
 } from "@/components/chat/ChatConversationMenu";
 import { ProfileDetailSheet } from "@/components/discover/profileDiscoverUi";
+import { ChatDetailsPanel, type ChatDetailsTab } from "@/components/chat/ChatDetailsPanel";
 import {
   ChatMessagesSkeleton,
   ChatPageSkeleton,
@@ -59,6 +60,10 @@ import {
 } from "./chatMessageGrouping";
 import { ChatComposer } from "./ChatComposer";
 import { ChatMessageBubble } from "./ChatMessageBubble";
+import { useScreenshotDetection } from "@/lib/useScreenshotDetection";
+import { buildLocationMessage, getCurrentLocation } from "@/lib/chatLocation";
+import { pushToast } from "@/components/ui/toast";
+import { LocationConfirmDialog } from "./LocationConfirmDialog";
 import { ChatThreadHeader } from "./ChatThreadHeader";
 import { ConversationSidebar } from "./ConversationSidebar";
 import { ImageLightbox } from "./ImageLightbox";
@@ -96,6 +101,9 @@ export default function MessagesSection() {
   const [insightsOpen, setInsightsOpen] = useState(false);
   const [chatMenuOpen, setChatMenuOpen] = useState(false);
   const [profileSheetOpen, setProfileSheetOpen] = useState(false);
+  // Desktop right-hand panel (profile / match insights), like the map page's side panels.
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsTab, setDetailsTab] = useState<ChatDetailsTab>("profile");
   const [nicknameDialogOpen, setNicknameDialogOpen] = useState(false);
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
   const [unmatchDialogOpen, setUnmatchDialogOpen] = useState(false);
@@ -209,7 +217,9 @@ export default function MessagesSection() {
       resolveProfilePhotoUrl(otherProfile ?? {}),
     [otherProfile]
   );
-  const isTypingActive = isInputFocused || composerHasText;
+  // Collapse camera/image/mic only while there is text to send. Focus alone
+  // shouldn't hide them, since the field now stays focused between messages.
+  const isTypingActive = composerHasText;
   const attachmentSlideTransition = {
     type: "tween" as const,
     duration: 0.24,
@@ -227,6 +237,8 @@ export default function MessagesSection() {
 
     messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
   }, []);
+
+  const stickToBottomRef = useRef(true);
 
   const isNearBottomOfMessages = useCallback(() => {
     const container = messageListRef.current;
@@ -313,8 +325,6 @@ export default function MessagesSection() {
             ? { ...c, unread_count: 0 }
             : c
         );
-        const total = next.reduce((sum, c) => sum + (c.unread_count || 0), 0);
-        useUnreadMessagesStore.getState().setTotalUnread(total);
         return next;
       });
       if (convoDetail) {
@@ -487,28 +497,60 @@ export default function MessagesSection() {
     if (!selectedKey || loadingMessages) return;
     if (visibleMessages.length === 0) return;
     if (initialScrollDoneForKeyRef.current === selectedKey) return;
-    initialScrollDoneForKeyRef.current = selectedKey;
 
-    const frame = window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => scrollToLatestMessage("auto"));
+    // Mark done only once the scroll actually ran; a re-render in between
+    // used to cancel the frame after the key was already recorded.
+    stickToBottomRef.current = true;
+    let inner = 0;
+    const outer = window.requestAnimationFrame(() => {
+      inner = window.requestAnimationFrame(() => {
+        scrollToLatestMessage("auto");
+        initialScrollDoneForKeyRef.current = selectedKey;
+      });
     });
 
-    return () => window.cancelAnimationFrame(frame);
+    return () => {
+      window.cancelAnimationFrame(outer);
+      window.cancelAnimationFrame(inner);
+    };
   }, [selectedKey, loadingMessages, visibleMessages.length, scrollToLatestMessage]);
 
+  // Stay pinned to the newest message while content grows (images, maps,
+  // emoji and voice players finish loading after the first paint). Pinning
+  // stops as soon as the user scrolls up, and resumes near the bottom.
   useEffect(() => {
     const container = messageListRef.current;
     if (!container || !selectedKey || loadingMessages) return;
 
-    const observer = new ResizeObserver(() => {
-      if (isNearBottomOfMessages()) {
-        scrollToLatestMessage("auto");
+    const pin = () => {
+      if (stickToBottomRef.current) container.scrollTop = container.scrollHeight;
+    };
+    const onScroll = () => {
+      stickToBottomRef.current = isNearBottomOfMessages();
+    };
+    const resizeObserver = new ResizeObserver(pin);
+    resizeObserver.observe(container);
+    Array.from(container.children).forEach((child) => resizeObserver.observe(child));
+    const mutationObserver = new MutationObserver((records) => {
+      for (const rec of records) {
+        rec.addedNodes.forEach((node) => {
+          if (node instanceof Element && node.parentElement === container) resizeObserver.observe(node);
+        });
       }
+      pin();
     });
-    observer.observe(container);
+    mutationObserver.observe(container, { childList: true, subtree: true });
+    // Media 'load' events don't bubble, so listen in the capture phase.
+    container.addEventListener("load", pin, true);
+    container.addEventListener("scroll", onScroll, { passive: true });
 
-    return () => observer.disconnect();
-  }, [selectedKey, loadingMessages, visibleMessages.length, scrollToLatestMessage, isNearBottomOfMessages]);
+    return () => {
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      container.removeEventListener("load", pin, true);
+      container.removeEventListener("scroll", onScroll);
+    };
+  }, [selectedKey, loadingMessages, scrollToLatestMessage, isNearBottomOfMessages]);
 
   useEffect(() => {
     if (!selectedApiKey) {
@@ -540,6 +582,25 @@ export default function MessagesSection() {
     if (first) setSelectedKey(conversationPublicKey(first));
   }, [loadingConversations, selectedKey, filteredConversations, searchParams]);
 
+  // Keep the nav badge in sync. Done in an effect (not inside setState
+  // updaters) so we never update another component during render.
+  useEffect(() => {
+    if (loadingConversations) return;
+    const total = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+    useUnreadMessagesStore.getState().setTotalUnread(total);
+  }, [conversations, loadingConversations]);
+
+  // Ready to type as soon as a conversation opens (skip touch devices,
+  // where focusing would pop the on-screen keyboard unasked).
+  useEffect(() => {
+    if (selectedId == null) return;
+    if (window.matchMedia("(pointer: coarse)").matches) return;
+    const t = window.setTimeout(() => messageInputRef.current?.focus(), 50);
+    return () => window.clearTimeout(t);
+  }, [selectedId]);
+
+  const closeEmojiPicker = useCallback(() => setShowEmojiPicker(false), []);
+
   const handleWsMessage = useCallback(
     (data: Record<string, unknown>) => {
       if (!user?.id || !selectedId) return;
@@ -555,6 +616,7 @@ export default function MessagesSection() {
           timestamp: data.timestamp as string,
           sender_name: data.sender_name as string,
           message_type: data.message_type as ChatMessage["message_type"],
+          event_code: typeof data.event_code === "string" ? data.event_code : undefined,
           reply_to: data.reply_to as ChatMessage["reply_to"],
           is_mine: data.sender_id === user.id,
           is_read: false,
@@ -769,7 +831,11 @@ export default function MessagesSection() {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: facingMode } },
+        video: {
+          facingMode: { ideal: facingMode },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
         audio: false,
       });
       cameraStreamRef.current = stream;
@@ -885,8 +951,6 @@ export default function MessagesSection() {
     if (selectedId == null) return;
     setConversations((prev) => {
       const next = prev.filter((convo) => convo.id !== selectedId);
-      const total = next.reduce((sum, c) => sum + (c.unread_count || 0), 0);
-      useUnreadMessagesStore.getState().setTotalUnread(total);
       return next;
     });
     handleBackToList();
@@ -995,6 +1059,47 @@ export default function MessagesSection() {
     [selectedApiKey]
   );
 
+  useScreenshotDetection(Boolean(selectedApiKey), () => {
+    if (!selectedApiKey) return;
+    void api
+      .reportSecurityEvent(selectedApiKey, "SCREENSHOT_TAKEN")
+      .then((msg) => commitSentMessage(undefined, { ...(msg as ChatMessage), is_mine: true }))
+      .catch(() => {
+        /* backend may skip duplicates or blocked chats */
+      });
+  });
+
+  const [sharingLocation, setSharingLocation] = useState(false);
+  const [pendingLocation, setPendingLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [sendingLocation, setSendingLocation] = useState(false);
+
+  // Step 1: find the location, then ask before sending anything.
+  const handleShareLocation = async () => {
+    if (sharingLocation || !selectedApiKey) return;
+    setSharingLocation(true);
+    try {
+      setPendingLocation(await getCurrentLocation());
+    } catch (err) {
+      pushToast(err instanceof Error ? err.message : "Couldn't find your location.", "error");
+    } finally {
+      setSharingLocation(false);
+    }
+  };
+
+  // Step 2: user confirmed in the dialog.
+  const confirmShareLocation = async (address: string | null) => {
+    if (!pendingLocation || sendingLocation) return;
+    setSendingLocation(true);
+    try {
+      await handleSend(null, null, buildLocationMessage(pendingLocation.lat, pendingLocation.lng, address));
+      setPendingLocation(null);
+    } finally {
+      setSendingLocation(false);
+    }
+  };
+
+  const cancelShareLocation = useCallback(() => setPendingLocation(null), []);
+
   const handleSend = async (
     e?: FormEvent | React.KeyboardEvent | null,
     imageUrl: string | null = null,
@@ -1041,11 +1146,14 @@ export default function MessagesSection() {
       if (selectedApiKey) messagesCacheRef.current.set(selectedApiKey, next);
       return next;
     });
-    clearComposerDraft();
+    // A location (text override without an image) must not wipe a typed draft.
+    if (contentOverride === undefined || imageUrl) clearComposerDraft();
     setReplyingTo(null);
     setShowEmojiPicker(false);
     setAttachmentsExpanded(false);
-    window.requestAnimationFrame(() => scrollToLatestMessage("smooth"));
+    // Sending always returns to the newest message and re-enables pinning.
+    stickToBottomRef.current = true;
+    window.requestAnimationFrame(() => scrollToLatestMessage("auto"));
 
     const wsPayload = {
       type: "chat_message",
@@ -1084,6 +1192,7 @@ export default function MessagesSection() {
       markMessageFailed(clientTempId);
     } finally {
       setSending(false);
+      requestAnimationFrame(() => messageInputRef.current?.focus());
     }
   };
 
@@ -1204,8 +1313,6 @@ export default function MessagesSection() {
         messagesCacheRef.current.delete(key);
         setConversations((prev) => {
           const next = prev.filter((c) => c.id !== convo.id);
-          const total = next.reduce((sum, c) => sum + (c.unread_count || 0), 0);
-          useUnreadMessagesStore.getState().setTotalUnread(total);
           return next;
         });
         if (selectedId === convo.id) {
@@ -1419,7 +1526,7 @@ export default function MessagesSection() {
 
   const addEmoji = (emoji: string) => {
     setPendingEmoji(emoji);
-    setShowEmojiPicker(false);
+    // Stay open so several emojis can be picked; outside click / Esc closes it.
     setAttachmentsExpanded(false);
     requestAnimationFrame(() => messageInputRef.current?.focus());
   };
@@ -1656,13 +1763,22 @@ export default function MessagesSection() {
               Select a conversation to start messaging
             </div>
           ) : (
-            <div className="flex h-full min-h-0 flex-col">
+            <div
+              className="relative flex h-full min-h-0"
+              style={{ "--chat-details-width": "min(26rem, 40vw)" } as React.CSSProperties}
+            >
+            <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
               {insightsOpen && selected?.match_id ? (
                 <MatchInsightsPanel
                   matchId={selected.match_id}
                   myProfile={user?.profile}
                   otherProfile={otherProfile}
                   onClose={() => setInsightsOpen(false)}
+                  onUseStarter={(text) => {
+                    setInsightsOpen(false);
+                    setPendingEmoji(text);
+                    window.setTimeout(() => messageInputRef.current?.focus(), 60);
+                  }}
                 />
               ) : (
                 <>
@@ -1677,10 +1793,22 @@ export default function MessagesSection() {
                 onBack={handleBackToList}
                 onOpenInsights={() => {
                   setChatMenuOpen(false);
-                  setInsightsOpen(true);
+                  if (!isMobile) {
+                    setDetailsTab("insights");
+                    setDetailsOpen(true);
+                  } else {
+                    setInsightsOpen(true);
+                  }
                 }}
                 onChatMenuOpenChange={setChatMenuOpen}
-                onShowProfile={() => setProfileSheetOpen(true)}
+                onShowProfile={() => {
+                  if (!isMobile) {
+                    setDetailsTab("profile");
+                    setDetailsOpen(true);
+                  } else {
+                    setProfileSheetOpen(true);
+                  }
+                }}
                 onEditNickname={() => setNicknameDialogOpen(true)}
                 onBlock={() => setBlockDialogOpen(true)}
                 onUnmatch={() => setUnmatchDialogOpen(true)}
@@ -1693,6 +1821,7 @@ export default function MessagesSection() {
                     conversationId: String(selected.public_id),
                     callType: "voice",
                     remoteName: otherDisplayName,
+                    remotePhoto: otherAvatarSrc ?? "",
                   });
                 }}
                 onVideoCall={() => {
@@ -1701,6 +1830,7 @@ export default function MessagesSection() {
                     conversationId: String(selected.public_id),
                     callType: "video",
                     remoteName: otherDisplayName,
+                    remotePhoto: otherAvatarSrc ?? "",
                   });
                 }}
               />
@@ -1775,12 +1905,32 @@ export default function MessagesSection() {
                         onDeleteForEveryone={handleDeleteForEveryone}
                         onImageClick={setLightboxSrc}
                         onRetry={retryFailedMessage}
+                        onCallBack={(video) => {
+                          if (!selected?.public_id) return;
+                          void call.startOutgoing({
+                            conversationId: String(selected.public_id),
+                            callType: video ? "video" : "voice",
+                            remoteName: otherDisplayName,
+                            remotePhoto: otherAvatarSrc ?? "",
+                          });
+                        }}
                       />
                     )
                   )
                 )}
                 <div ref={messagesEndRef} />
               </div>
+
+              {pendingLocation ? (
+                <LocationConfirmDialog
+                  lat={pendingLocation.lat}
+                  lng={pendingLocation.lng}
+                  recipientName={otherDisplayName}
+                  sending={sendingLocation}
+                  onConfirm={(address) => void confirmShareLocation(address)}
+                  onCancel={cancelShareLocation}
+                />
+              ) : null}
 
               <ChatComposer
                 replyingTo={replyingTo}
@@ -1789,6 +1939,7 @@ export default function MessagesSection() {
                 showEmojiPicker={showEmojiPicker}
                 onAddEmoji={addEmoji}
                 onToggleEmojiPicker={() => setShowEmojiPicker(!showEmojiPicker)}
+                onCloseEmojiPicker={closeEmojiPicker}
                 handleSend={(e) => void handleSend(e)}
                 fileInputRef={fileInputRef}
                 onFileUpload={handleFileUpload}
@@ -1821,9 +1972,48 @@ export default function MessagesSection() {
                 cameraStarting={cameraStarting}
                 cameraVideoRef={cameraVideoRef}
                 onCapturePhoto={() => void capturePhotoFromCamera()}
+                onShareLocation={() => void handleShareLocation()}
+                sharingLocation={sharingLocation}
               />
                 </>
               )}
+            </div>
+            {!isMobile ? (
+              <ChatDetailsPanel
+                open={detailsOpen}
+                tab={detailsTab}
+                onTabChange={setDetailsTab}
+                onToggle={() => setDetailsOpen((o) => !o)}
+                profile={otherProfile ?? null}
+                matchId={selected?.match_id ?? null}
+                myProfile={user?.profile}
+                conversationId={selected?.public_id ?? selectedApiKey ?? null}
+                onOpenImage={setLightboxSrc}
+                matchedAt={selected?.match_created_at ?? null}
+                onVoiceCall={() => {
+                  if (!selected?.public_id) return;
+                  void call.startOutgoing({
+                    conversationId: String(selected.public_id),
+                    callType: "voice",
+                    remoteName: otherDisplayName,
+                    remotePhoto: otherAvatarSrc ?? "",
+                  });
+                }}
+                onVideoCall={() => {
+                  if (!selected?.public_id) return;
+                  void call.startOutgoing({
+                    conversationId: String(selected.public_id),
+                    callType: "video",
+                    remoteName: otherDisplayName,
+                    remotePhoto: otherAvatarSrc ?? "",
+                  });
+                }}
+                onUseStarter={(text) => {
+                  setPendingEmoji(text);
+                  window.setTimeout(() => messageInputRef.current?.focus(), 60);
+                }}
+              />
+            ) : null}
             </div>
           )}
         </motion.main>

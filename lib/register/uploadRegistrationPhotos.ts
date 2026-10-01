@@ -7,6 +7,7 @@ export async function uploadRegistrationPhotos(photos: RegistrationPhoto[]): Pro
   galleryUrls: string[];
   analyses?: PhotoAnalysis[];
 }> {
+  photos = (photos ?? []).filter(Boolean);
   if (!photos.length) {
     return { profilePhotoUrl: "", galleryUrls: [] };
   }

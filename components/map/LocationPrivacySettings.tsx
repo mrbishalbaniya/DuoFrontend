@@ -67,7 +67,7 @@ function FriendPicker({
   return (
     <div className="mt-2 space-y-2">
       <p className="px-1 text-[12px] text-on-surface-variant">{hint}</p>
-      <ul className="ios-inset-group max-h-48 overflow-y-auto overscroll-contain">
+      <ul className="ios-inset-group max-h-48 overflow-y-auto overscroll-contain" data-lenis-prevent>
         {matches.map((match) => {
           const profile = match.other_user_profile as Profile | undefined;
           const userId = friendUserId(match);

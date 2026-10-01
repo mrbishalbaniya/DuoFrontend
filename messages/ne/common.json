@@ -63,7 +63,8 @@
       "language": "भाषा",
       "help": "सहायता",
       "about": "बारेमा",
-      "dangerZone": "जोखिमपूर्ण क्षेत्र"
+      "dangerZone": "जोखिमपूर्ण क्षेत्र",
+      "matchPreferences": "म्याच प्राथमिकताहरू"
     },
     "items": {
       "walletTitle": "डुओ वालेट",
@@ -106,12 +107,17 @@
       "versionTitle": "संस्करण",
       "deleteAccountTitle": "खाता मेटाउनुहोस्",
       "deleteAccountDescription": "आफ्नो खाता र डाटा स्थायी रूपमा हटाउनुहोस्",
-      "logOutTitle": "लगआउट"
+      "logOutTitle": "लगआउट",
+      "matchPrefsTitle": "साथी प्राथमिकताहरू",
+      "matchPrefsDescription": "धर्म, जात, राशि, उमेर, उचाइ र अन्य",
+      "emailPrefsTitle": "इमेल सूचनाहरू",
+      "emailPrefsDescription": "Duo ले कुन इमेल पठाउने छान्नुहोस्"
     },
     "logOutDialog": {
-      "title": "लगआउट गर्ने हो?",
-      "description": "तपाईंको खातामा पहुँच गर्न फेरि साइन इन गर्नुपर्नेछ।",
-      "confirm": "लगआउट"
+      "title": "Duo बाट लगआउट गर्ने हो?",
+      "description": "तपाईं यस डिभाइसबाट साइन आउट हुनुहुनेछ। तपाईंका म्याच र च्याटहरू सुरक्षित रहन्छन्, जुनसुकै बेला फेरि साइन इन गर्न सक्नुहुन्छ।",
+      "confirm": "हो, लगआउट गर्नुहोस्",
+      "cancel": "होइन, लगइन रहनुहोस्"
     }
   },
   "languageRegion": {
@@ -150,6 +156,234 @@
     "back": "पछाडि",
     "startPaymentError": "eSewa भुक्तानी सुरु गर्न सकिएन।",
     "redeemSuccess": "+{amount} कोइन तपाईंको वालेटमा थपियो!",
-    "redeemError": "यो कोड रिडिम गर्न सकिएन।"
+    "redeemError": "यो कोड रिडिम गर्न सकिएन।",
+    "payWith": "भुक्तानी विधि",
+    "payWithEsewa": "eSewa",
+    "payWithCard": "कार्ड",
+    "paymentCanceled": "भुक्तानी रद्द गरियो।",
+    "startStripeError": "कार्ड भुक्तानी सुरु गर्न सकिएन।",
+    "payWithEsewaHint": "नेपालमा वालेट र मोबाइल बैंकिङ",
+    "payWithCardHint": "Stripe मार्फत Visa, Mastercard आदि",
+    "choosePaymentMethod": "भुक्तानी विधि छान्नुहोस्",
+    "choosePaymentSubtitle": "भुक्तानीपछि कोइन तुरुन्तै वालेटमा थपिन्छ।",
+    "coinsCount": "{count} कोइन",
+    "payButton": "{method} बाट {price} तिर्नुहोस्",
+    "redirecting": "रिडाइरेक्ट हुँदै…",
+    "close": "बन्द गर्नुहोस्",
+    "cardMinNote": "{amount} कोइनदेखि उपलब्ध",
+    "secureCheckoutNote": "तपाईंले सुरक्षित चेकआउट पेजमा भुक्तानी पूरा गर्नुहुनेछ"
+  },
+  "appearance": {
+    "title": "रूप-रङ्ग",
+    "modeHeading": "मोड",
+    "paletteHeading": "रङ्ग थिम",
+    "paletteHint": "Duo भरका बटन, हाइलाइट र ग्रेडियन्टका लागि रङ्ग छान्नुहोस्।",
+    "premiumBadge": "प्रिमियम",
+    "freeBadge": "निःशुल्क",
+    "active": "सक्रिय",
+    "locked": "Duo प्रिमियमबाट खोल्नुहोस्",
+    "upgradeTitle": "प्रिमियम थिमहरू",
+    "upgradeBody": "सबै रङ्ग थिम र थप डार्क तथा लाइट शैलीहरू खोल्न Duo प्रिमियममा अपग्रेड गर्नुहोस्।",
+    "upgradeCta": "अपग्रेड",
+    "previewHeading": "पूर्वावलोकन",
+    "previewName": "एलेक्स, २६",
+    "previewBio": "कफी, हाइकिङ र राति अबेरसम्मका कुरा।",
+    "previewLike": "मन पर्यो",
+    "previewMessage": "सन्देश",
+    "palettes": {
+      "rose": {
+        "name": "रोज",
+        "description": "Duo को आफ्नै गुलाबी"
+      },
+      "ocean": {
+        "name": "ओसन",
+        "description": "शान्त, सफा नीलो"
+      },
+      "aurum": {
+        "name": "अरम",
+        "description": "न्यानो सुनौलो"
+      },
+      "amethyst": {
+        "name": "एमेथिस्ट",
+        "description": "शाही बैजनी"
+      },
+      "emerald": {
+        "name": "एमराल्ड",
+        "description": "ताजा हरियो"
+      },
+      "sunset": {
+        "name": "सनसेट",
+        "description": "साँझको सुन्तला"
+      },
+      "midnight": {
+        "name": "मिडनाइट",
+        "description": "गहिरो इन्डिगो"
+      },
+      "noir": {
+        "name": "नोआर",
+        "description": "कालो-सेतो मात्र"
+      },
+      "lagoon": {
+        "name": "लगुन",
+        "description": "उष्ण हरियो-नीलो"
+      },
+      "crimson": {
+        "name": "क्रिमसन",
+        "description": "गाढा रातो"
+      },
+      "sakura": {
+        "name": "साकुरा",
+        "description": "नरम गुलाबी फूल"
+      },
+      "mocha": {
+        "name": "मोका",
+        "description": "कफी खैरो"
+      },
+      "neon": {
+        "name": "नियोन",
+        "description": "चम्किलो नीलो र बैजनी"
+      },
+      "royal": {
+        "name": "रोयल",
+        "description": "नीलो र सुनौलो"
+      },
+      "valentine": {
+        "name": "भ्यालेन्टाइन",
+        "description": "रातो गुलाफ"
+      },
+      "blush": {
+        "name": "ब्लस",
+        "description": "नरम गुलाबी"
+      },
+      "passion": {
+        "name": "प्यासन",
+        "description": "गाढा वाइन रातो"
+      },
+      "cupid": {
+        "name": "क्युपिड",
+        "description": "गुलाबी र बैजनी"
+      },
+      "honeymoon": {
+        "name": "हनिमुन",
+        "description": "रोज-गोल्ड चमक"
+      },
+      "twilight": {
+        "name": "ट्वाइलाइट",
+        "description": "रोमान्टिक साँझ"
+      }
+    },
+    "darkStylesHeading": "डार्क मोड शैलीहरू",
+    "darkStylesHint": "डार्क मोड कस्तो देखिने छान्नुहोस्। छान्दा डार्क मोडमा जान्छ।",
+    "lightStylesHeading": "लाइट मोड शैलीहरू",
+    "lightStylesHint": "लाइट मोड कस्तो देखिने छान्नुहोस्। छान्दा लाइट मोडमा जान्छ।",
+    "darkStyles": {
+      "default": {
+        "name": "चारकोल",
+        "description": "Duo को क्लासिक डार्क"
+      },
+      "amoled": {
+        "name": "AMOLED",
+        "description": "पूरै कालो, ब्याट्री बचत"
+      },
+      "dim": {
+        "name": "डिम",
+        "description": "नरम नीलो-खैरो"
+      },
+      "graphite": {
+        "name": "ग्राफाइट",
+        "description": "तटस्थ खैरो"
+      },
+      "nord": {
+        "name": "नर्ड",
+        "description": "हिमाली स्लेट नीलो"
+      },
+      "velvet": {
+        "name": "भेल्भेट",
+        "description": "गाढा बैजनी अँध्यारो"
+      }
+    },
+    "lightStyles": {
+      "default": {
+        "name": "स्नो",
+        "description": "Duo को क्लासिक लाइट"
+      },
+      "cream": {
+        "name": "क्रिम",
+        "description": "न्यानो, आँखालाई सजिलो"
+      },
+      "frost": {
+        "name": "फ्रस्ट",
+        "description": "चिसो हल्का नीलो"
+      },
+      "sand": {
+        "name": "स्यान्ड",
+        "description": "माटो रङ्ग"
+      },
+      "mist": {
+        "name": "मिस्ट",
+        "description": "हल्का लेभेन्डर"
+      },
+      "paper": {
+        "name": "पेपर",
+        "description": "उच्च कन्ट्रास्ट सेतो"
+      }
+    },
+    "iconSetsHeading": "नेभबार आइकन",
+    "iconSetsHint": "मोबाइल र डेस्कटपको नेभिगेसन बारका लागि आइकन शैली छान्नुहोस्।",
+    "iconSets": {
+      "classic": "क्लासिक",
+      "romance": "रोमान्स",
+      "cupid": "क्युपिड",
+      "cosmic": "कस्मिक",
+      "royal": "रोयल",
+      "nature": "प्रकृति",
+      "playful": "रमाइलो"
+    }
+  },
+  "mailPrefs": {
+    "title": "इमेल सूचनाहरू",
+    "sendingTo": "इमेल पठाइने ठेगाना",
+    "loadError": "तपाईंको इमेल प्राथमिकता लोड गर्न सकिएन।",
+    "saveError": "परिवर्तन सुरक्षित गर्न सकिएन। फेरि प्रयास गर्नुहोस्।",
+    "master": {
+      "title": "इमेल सूचनाहरू",
+      "description": "Duo का सबै ऐच्छिक इमेल रोक्न बन्द गर्नुहोस्।"
+    },
+    "masterOffHint": "छुट्टाछुट्टै प्रकार छान्न इमेल सूचना खोल्नुहोस्।",
+    "categoriesHeading": "मलाई केको इमेल पठाउने",
+    "categories": {
+      "matches": {
+        "title": "नयाँ म्याच",
+        "description": "तपाईं र अर्को व्यक्तिले एकअर्कालाई मन पराउँदा"
+      },
+      "payments": {
+        "title": "भुक्तानी र रसिद",
+        "description": "सदस्यता भुक्तानी, कोइन रिचार्ज र वालेट रसिद"
+      },
+      "verification": {
+        "title": "प्रमाणीकरण अपडेट",
+        "description": "प्रमाणित ब्याज थपिँदा वा हटाइँदा"
+      },
+      "announcements": {
+        "title": "घोषणाहरू",
+        "description": "Duo टोलीका महत्त्वपूर्ण समाचार र अपडेट"
+      },
+      "marketing": {
+        "title": "अफर र सुझाव",
+        "description": "छुट, प्रमोसन र डेटिङ सुझाव"
+      }
+    },
+    "alwaysHeading": "सधैं पठाइन्छ",
+    "alwaysOn": "सधैं खुला",
+    "always": {
+      "security": {
+        "title": "सुरक्षा कोड",
+        "description": "साइन-इन कोड, पासवर्ड रिसेट र इमेल परिवर्तन"
+      },
+      "account": {
+        "title": "खाता स्थिति",
+        "description": "खाता निष्क्रिय वा पुनः सक्रिय हुँदा"
+      }
+    }
   }
 }

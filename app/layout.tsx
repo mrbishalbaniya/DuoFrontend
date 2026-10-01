@@ -46,6 +46,14 @@ const themeInitScript = `
     document.documentElement.classList.add(resolved);
     document.documentElement.dataset.theme = resolved;
     document.documentElement.style.colorScheme = resolved;
+    var palette = localStorage.getItem("duo_palette");
+    var palettes = ["rose", "ocean", "lagoon", "aurum", "amethyst", "emerald", "sunset", "midnight", "noir", "crimson", "sakura", "mocha", "neon", "royal", "valentine", "blush", "passion", "cupid", "honeymoon", "twilight"];
+    document.documentElement.dataset.palette = palettes.indexOf(palette) >= 0 ? palette : "rose";
+    var darkStyles = ["default", "amoled", "dim", "graphite", "nord", "velvet"];
+    var lightStyles = ["default", "cream", "frost", "sand", "mist", "paper"];
+    var surface = localStorage.getItem(resolved === "dark" ? "duo_dark_style" : "duo_light_style");
+    var allowed = resolved === "dark" ? darkStyles : lightStyles;
+    document.documentElement.dataset.surface = allowed.indexOf(surface) >= 0 ? surface : "default";
   } catch (e) {}
 })();
 `;

@@ -31,6 +31,7 @@ export function DashboardActionBar({
       <button
         type="button"
         aria-label="Skip profile"
+        data-tour="skip"
         disabled={disabled}
         onClick={onSkip}
         className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-error/30 bg-background text-error shadow-[0_8px_24px] shadow-error/10 outline-none transition-all hover:bg-error/10 focus-visible:border-error active:scale-95 disabled:opacity-50 md:h-16 md:w-16"
@@ -41,6 +42,7 @@ export function DashboardActionBar({
       {onRewind ? (
         <button
           type="button"
+          data-tour="rewind"
           aria-label={rewindLocked ? "Rewind last swipe (premium)" : "Rewind last swipe"}
           title={rewindLocked ? "Rewind · Premium" : "Rewind"}
           disabled={disabled || rewindDisabled || rewinding}
@@ -65,6 +67,7 @@ export function DashboardActionBar({
       <button
         type="button"
         aria-label="Like profile"
+        data-tour="like"
         disabled={disabled}
         onClick={onLike}
         className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-emerald-400/40 bg-background text-emerald-500 shadow-[0_8px_24px] shadow-emerald-500/10 outline-none transition-all hover:bg-emerald-500/10 focus-visible:border-emerald-400 active:scale-95 disabled:opacity-50 md:h-16 md:w-16"

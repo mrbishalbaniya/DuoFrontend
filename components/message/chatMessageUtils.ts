@@ -1,8 +1,10 @@
+import { parseLocationMessage } from "@/lib/chatLocation";
 import { resolveMediaUrl } from "@/lib/mediaUrl";
 import type { ChatMessage, Conversation } from "@/types";
 import { VOICE_MESSAGE_LABEL } from "./chatConstants";
 import { normalizeReactionsOnePerUser } from "./chatReactions";
 import { getMessageBodyText } from "./chatMessageGrouping";
+import { screenEventText } from "./SystemEventMessage";
 
 export function isAudioMediaUrl(url?: string | null): boolean {
   if (!url) return false;
@@ -28,6 +30,18 @@ export function isVoiceOnlyMessage(msg: ChatMessage): boolean {
 export function isTextOnlyMessage(msg: ChatMessage): boolean {
   if (isVoiceMessage(msg) || msg.image_url) return false;
   return Boolean(msg.content?.trim()) || Boolean(msg.is_deleted_for_everyone);
+}
+
+const EMOJI_ONLY = /^(?:\p{Extended_Pictographic}|\p{Emoji_Modifier}|\p{Regional_Indicator}|\uFE0F|\u200D|\s)+$/u;
+
+/** 1-8 emojis and nothing else: shown large without a bubble. */
+export function isEmojiOnlyMessage(msg: ChatMessage): boolean {
+  if (msg.image_url || msg.message_type === "voice" || msg.message_type === "system") return false;
+  if (msg.reply_to || msg.is_deleted_for_everyone) return false;
+  const text = (msg.content || "").trim();
+  if (!text || !EMOJI_ONLY.test(text)) return false;
+  const count = [...text.replace(/\s/g, "")].filter((ch) => /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(ch)).length;
+  return count > 0 && count <= 8;
 }
 
 export function isCompactBubble(msg: ChatMessage): boolean {
@@ -73,8 +87,23 @@ export function getReplyPreview(msg: ChatMessage, fallbackName?: string): string
 }
 
 export function lastMessagePreview(convo: Conversation): string {
-  if (typeof convo.last_message === "string") return convo.last_message;
-  return convo.last_message?.content || "Start the conversation!";
+  const raw =
+    typeof convo.last_message === "string" ? convo.last_message : convo.last_message?.content;
+  // System events (screenshots, older call logs) may start with an emoji.
+  const text = (raw || "").replace(/^[\p{Extended_Pictographic}\uFE0F\u200D\s]+/u, "").trim();
+  // Screen-capture notices read "You took a screenshot" / "<First> took a screenshot".
+  // The API sends the full message here; the Conversation type only lists a few fields.
+  const lastObj =
+    convo.last_message && typeof convo.last_message === "object"
+      ? (convo.last_message as Partial<ChatMessage>)
+      : null;
+  if (lastObj && (lastObj.message_type === "system" || lastObj.event_code)) {
+    const notice = screenEventText({ ...lastObj, content: text } as ChatMessage);
+    if (notice) return notice;
+  }
+  const youPrefix = /^You:\s*/i.test(text) ? "You: " : "";
+  if (parseLocationMessage(text.replace(/^You:\s*/i, ""))) return `${youPrefix}Shared a location`;
+  return text || "Start the conversation!";
 }
 
 export function getConversationLastActivity(convo: Conversation): string | undefined {

@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import Loader from "@/components/ui/loader";
 
 const AccountPage = dynamic(
-  () => import("@/components/account/AccountPage").then((m) => m.AccountPage),
+  () => import("@/components/account/AccountSettingsPage").then((m) => m.AccountPage),
   {
     loading: () => (
       <div className="flex h-[100dvh] items-center justify-center bg-surface">

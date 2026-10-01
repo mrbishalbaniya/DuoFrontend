@@ -4,16 +4,12 @@ import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import Loader from "@/components/ui/loader";
+import { SettingsPageSkeleton } from "@/components/skeletons/SettingsPageSkeleton";
 
 const SettingsPage = dynamic(
   () => import("@/components/settings/SettingsPage").then((m) => m.SettingsPage),
   {
-    loading: () => (
-      <div className="flex h-[100dvh] items-center justify-center bg-surface">
-        <Loader pageName="Settings" />
-      </div>
-    ),
+    loading: () => <SettingsPageSkeleton />,
   }
 );
 
@@ -28,11 +24,7 @@ export default function SettingsRoutePage() {
   }, [loading, user, router]);
 
   if (loading || !user) {
-    return (
-      <div className="flex h-[100dvh] items-center justify-center bg-surface">
-        <Loader pageName="Settings" />
-      </div>
-    );
+    return <SettingsPageSkeleton />;
   }
 
   return <SettingsPage />;

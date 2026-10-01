@@ -3,11 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { RegistrationStepper } from "@/components/register/RegistrationStepper";
 import { StepAccount } from "@/components/register/StepAccount";
 import { StepBasicInfo } from "@/components/register/StepBasicInfo";
-import { StepLocation } from "@/components/register/StepLocation";
 import { StepPhotos } from "@/components/register/StepPhotos";
 import { StepReview } from "@/components/register/StepReview";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,6 +18,8 @@ import { getRegistrationEmail, mapRegistrationToProfile } from "@/lib/register/m
 import { uploadRegistrationPhotos } from "@/lib/register/uploadRegistrationPhotos";
 import { useRegistrationStore } from "@/store/registrationStore";
 import type { RegistrationStep } from "@/types/registration";
+
+// Registration flow: Account → Basic Info & Location → Photos → Review
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -54,12 +55,24 @@ export default function RegisterPage() {
   }, [emailVerified, goToStep, setAccountSubStep, step]);
   const { showErrorToast } = useToast();
 
+  // Holds the in-flight sign-up so a double tap can't create two accounts.
+  const createAccountPromise = useRef<Promise<void> | null>(null);
+
   const createAccount = useCallback(async () => {
     if (accountCreated || data.signedUpWithGoogle) return;
+    if (createAccountPromise.current) return createAccountPromise.current;
     const email = getRegistrationEmail(data);
     const fullName = `${data.firstName} ${data.lastName}`.trim() || "Duo Member";
-    await register(email, data.password, fullName);
-    setAccountCreated(true);
+    const pending = (async () => {
+      await register(email, data.password, fullName);
+      setAccountCreated(true);
+    })();
+    createAccountPromise.current = pending;
+    try {
+      await pending;
+    } finally {
+      createAccountPromise.current = null;
+    }
   }, [accountCreated, data, register, setAccountCreated]);
 
   const handleContinue = useCallback(async () => {
@@ -147,10 +160,8 @@ export default function RegisterPage() {
       case 2:
         return <StepBasicInfo onContinue={handleContinue} onBack={prevStep} />;
       case 3:
-        return <StepLocation onContinue={handleContinue} onBack={prevStep} />;
-      case 4:
         return <StepPhotos onContinue={handleContinue} onBack={prevStep} />;
-      case 5:
+      case 4:
         return (
           <StepReview
             onSubmit={handleSubmit}

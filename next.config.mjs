@@ -5,6 +5,7 @@ import createNextIntlPlugin from "next-intl/plugin";
 // Map/tile providers used by MapLibre (basemaps, terrain, satellite, labels).
 const MAP_TILE_HOSTS = [
   "https://*.cartocdn.com",
+  "https://tile.openstreetmap.org",
   "https://server.arcgisonline.com",
   "https://*.tile.opentopomap.org",
   "https://tile.opentopomap.org",
@@ -38,6 +39,7 @@ function buildContentSecurityPolicy() {
 
   const imgSrc = [
     "'self'",
+    (process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "") ?? ""),
     "data:",
     "blob:",
     "https://res.cloudinary.com",
@@ -45,8 +47,11 @@ function buildContentSecurityPolicy() {
     "https://images.unsplash.com",
     "https://cdn.esewa.com.np",
     "https://picsum.photos",
+    "https://assets.21st.dev",
     ...MAP_TILE_HOSTS,
-  ].join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return [
     "default-src 'self'",
@@ -60,7 +65,7 @@ function buildContentSecurityPolicy() {
     `img-src ${imgSrc}`,
     "font-src 'self' data:",
     `connect-src ${connectSrc}`,
-    "media-src 'self' blob: https://res.cloudinary.com",
+    "media-src 'self' blob: https://res.cloudinary.com https://assets.21st.dev",
     "frame-src 'self' https://accounts.google.com https://*.readyplayer.me",
   ].join("; ");
 }
@@ -117,15 +122,22 @@ const nextConfig = {  poweredByHeader: false,
             value: buildContentSecurityPolicy(),
           },
         ],      },
-      {
-        source: "/_next/static/(.*)",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
-      },
+      // Long-lived caching only for production builds, whose chunk names are
+      // content-hashed. In dev, Turbopack reuses chunk names when their
+      // contents change, so "immutable" left browsers stuck on stale code.
+      ...(process.env.NODE_ENV === "production"
+        ? [
+            {
+              source: "/_next/static/(.*)",
+              headers: [
+                {
+                  key: "Cache-Control",
+                  value: "public, max-age=31536000, immutable",
+                },
+              ],
+            },
+          ]
+        : []),
     ];
   },
 };

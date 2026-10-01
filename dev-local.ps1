@@ -19,6 +19,7 @@ $syncFiles = @(
   "tsconfig.json",
   "eslint.config.mjs",
   "next-env.d.ts",
+  "middleware.ts",
   ".env.local"
 )
 

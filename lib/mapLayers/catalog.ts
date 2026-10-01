@@ -62,14 +62,6 @@ export const MAP_LAYER_CATALOG: MapLayerDefinition[] = [
 
   L("duo", "duo-profiles", "Match Photos", "favorite", { defaultOn: true }),
   L("duo", "duo-user-location", "Your Location", "my_location", { defaultOn: true }),
-  L("duo", "duo-activity-heatmap", "Live Activity Heatmap", "local_fire_department", {
-    defaultOn: true,
-    description: "Glowing social activity zones",
-  }),
-  L("duo", "duo-activity-trending", "Trending Zones", "whatshot"),
-  L("duo", "duo-activity-nearby", "Nearby Activity", "near_me"),
-  L("duo", "duo-activity-events", "Events", "celebration"),
-  L("duo", "duo-activity-friends", "Friends Activity", "group"),
 
   L("developer", "dev-tile-grid", "Tile Grid", "grid_3x3"),
   L("developer", "dev-fps", "FPS Counter", "speed"),

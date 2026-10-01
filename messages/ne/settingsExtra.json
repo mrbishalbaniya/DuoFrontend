@@ -176,6 +176,7 @@
       },
       "paymentMethods": {
         "esewa": "eSewa",
+        "stripe": "कार्ड (Stripe)",
         "wallet": "वालेट",
         "gift": "उपहार",
         "unknown": "अज्ञात"

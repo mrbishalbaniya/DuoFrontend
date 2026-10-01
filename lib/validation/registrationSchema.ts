@@ -64,13 +64,11 @@ export const basicInfoSchema = z
     maritalStatus: z
       .enum(["never_married", "divorced", "widowed"], {
         message: "Select marital status",
-      })
-      .optional(),
+      }),
     relationshipGoal: z
       .enum(["dating", "serious", "marriage", "friendship"], {
         message: "Select relationship goal",
-      })
-      .optional(),
+      }),
   })
   .superRefine((data, ctx) => {
     const age = calculateAgeFromDob(data.dateOfBirth);

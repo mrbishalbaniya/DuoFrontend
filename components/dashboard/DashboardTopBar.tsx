@@ -20,6 +20,7 @@ export function DashboardTopBar({
         <button
           type="button"
           aria-label="Open menu"
+          data-tour="menu"
           disabled={disabled}
           onClick={onOpenMenu}
           className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/20 bg-background text-primary shadow-[0_4px_16px] shadow-primary/10 transition-all hover:bg-secondary active:scale-95 disabled:opacity-50"
@@ -33,6 +34,7 @@ export function DashboardTopBar({
 
         <button
           type="button"
+          data-tour="filters"
           aria-label={
             activeFilterCount > 0
               ? `Open discovery filters, ${activeFilterCount} active`

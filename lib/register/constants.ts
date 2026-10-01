@@ -259,6 +259,66 @@ export const INTEREST_OPTIONS = [
   "Spirituality",
 ] as const;
 
+/**
+ * Full interest catalogue for the profile and preferences pages, grouped the
+ * way popular dating apps (Hinge, Bumble, Tinder "Passions") group them, plus
+ * interests common in Nepal. The original INTEREST_OPTIONS names are kept
+ * verbatim so tags already saved still match.
+ */
+export const INTEREST_GROUPS = [
+  {
+    title: "Outdoors & Adventure",
+    items: [
+      "Trekking", "Hiking", "Travel", "Nature", "Camping", "Mountaineering", "Rafting",
+      "Paragliding", "Cycling", "Road Trips", "Bike Rides", "Bird Watching", "Gardening", "Beaches",
+    ],
+  },
+  {
+    title: "Sports & Fitness",
+    items: [
+      "Fitness", "Gym", "Running", "Yoga", "Cricket", "Football", "Futsal", "Basketball",
+      "Volleyball", "Badminton", "Table Tennis", "Swimming", "Martial Arts", "Boxing", "Chess",
+    ],
+  },
+  {
+    title: "Music & Arts",
+    items: [
+      "Music", "Singing", "Guitar", "Dancing", "Concerts", "Art", "Painting", "Sketching",
+      "Photography", "Writing", "Poetry", "Theatre", "Crafts", "Fashion", "Design",
+    ],
+  },
+  {
+    title: "Entertainment",
+    items: [
+      "Movies", "Web Series", "K-Drama", "Anime", "Gaming", "Board Games", "Stand-up Comedy",
+      "Podcasts", "Karaoke", "Bollywood", "Nepali Films",
+    ],
+  },
+  {
+    title: "Food & Drink",
+    items: [
+      "Cooking", "Baking", "Foodie", "Street Food", "Momo Lover", "Coffee", "Tea", "Cafe Hopping",
+      "Vegetarian", "Trying New Restaurants",
+    ],
+  },
+  {
+    title: "Learning & Career",
+    items: [
+      "Reading", "Coding", "Technology", "Business", "Entrepreneurship", "Startups", "Investing",
+      "Science", "History", "Languages", "Public Speaking", "Self Improvement",
+    ],
+  },
+  {
+    title: "Culture & Values",
+    items: [
+      "Spirituality", "Meditation", "Volunteering", "Social Work", "Environment", "Festivals",
+      "Heritage & Temples", "Astrology", "Family Time", "Pets", "Dogs", "Cats",
+    ],
+  },
+] as const;
+
+export const ALL_INTEREST_OPTIONS: string[] = INTEREST_GROUPS.flatMap((group) => [...group.items]);
+
 export const LOOKING_FOR_OPTIONS = [
   { value: "male", label: "Male" },
   { value: "female", label: "Female" },
@@ -281,3 +341,56 @@ export const MARRIAGE_PREF_OPTIONS = [
 
 export const HEIGHT_FEET = [4, 5, 6, 7] as const;
 export const HEIGHT_INCHES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const;
+
+
+/** Occupation groups for partner preferences. Profiles store free-text occupations,
+ * so each group matches by keywords (mirrored in matching/recommendation/scoring.py). */
+export const OCCUPATION_PREF_OPTIONS = [
+  { value: "software", label: "Software / IT" },
+  { value: "engineer", label: "Engineer" },
+  { value: "doctor", label: "Doctor" },
+  { value: "health", label: "Nurse / Healthcare" },
+  { value: "teacher", label: "Teacher / Professor" },
+  { value: "business", label: "Business Owner / Entrepreneur" },
+  { value: "banking", label: "Banking / Finance" },
+  { value: "accountant", label: "Accountant / CA" },
+  { value: "government", label: "Government Officer" },
+  { value: "security", label: "Army / Police" },
+  { value: "lawyer", label: "Lawyer / Legal" },
+  { value: "creative", label: "Designer / Creative" },
+  { value: "architect", label: "Architect" },
+  { value: "marketing", label: "Marketing / Sales" },
+  { value: "manager", label: "Manager / Executive" },
+  { value: "consultant", label: "Consultant" },
+  { value: "aviation", label: "Pilot / Aviation" },
+  { value: "hospitality", label: "Hospitality / Tourism" },
+  { value: "media", label: "Media / Journalist" },
+  { value: "ngo", label: "NGO / INGO" },
+  { value: "research", label: "Researcher / Scientist" },
+  { value: "abroad", label: "Working Abroad" },
+  { value: "student", label: "Student" },
+] as const;
+
+/**
+ * Languages for the profile. Nepal list follows the most-spoken mother tongues
+ * in Nepal's 2021 census; the others are widely spoken internationally or
+ * popular to learn among Nepalis (study / work abroad).
+ */
+export const LANGUAGE_GROUPS = [
+  {
+    title: "Languages of Nepal",
+    items: [
+      "Nepali", "Maithili", "Bhojpuri", "Tharu", "Tamang", "Nepal Bhasa (Newari)", "Bajjika",
+      "Magar", "Doteli", "Urdu", "Awadhi", "Limbu", "Gurung", "Baitadeli", "Rai (Bantawa)",
+      "Achhami", "Sherpa", "Rajbanshi", "Sunuwar", "Thakali", "Tibetan",
+    ],
+  },
+  {
+    title: "Widely spoken",
+    items: ["English", "Hindi", "Bengali", "Arabic", "Chinese (Mandarin)", "Spanish", "Portuguese", "Russian"],
+  },
+  {
+    title: "Popular to learn",
+    items: ["Korean", "Japanese", "German", "French", "Italian", "Turkish", "Hebrew", "Malay", "Dutch"],
+  },
+] as const;

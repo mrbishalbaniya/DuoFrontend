@@ -1,4 +1,5 @@
 import type {
+  StripeCheckoutResponse,
   Conversation,
   ConversationDetail,
   LikeQuota,
@@ -548,6 +549,13 @@ class ApiClient {
     return this.request<Profile>("/profiles/me/");
   }
 
+  async updateUsername(username: string): Promise<User> {
+    return this.request<User>("/auth/me/username/", {
+      method: "PATCH",
+      body: JSON.stringify({ username }),
+    });
+  }
+
   async updateProfile(data: Partial<Profile>): Promise<Profile> {
     return this.request<Profile>("/profiles/me/", {
       method: "PUT",
@@ -596,41 +604,80 @@ class ApiClient {
     return this.uploadRequest<{ image_url: string }>("/profiles/me/upload-photo/", formData);
   }
 
+  /**
+   * Upload a photo for AI verification.
+   *
+   * Error handling:
+   * - 429 throws RateLimitError with `retryAfterSeconds`. It is never retried
+   *   automatically, because retries would only extend the lockout.
+   * - Network failures and 502/503/504 are retried up to 2 times with backoff.
+   *   The same `idempotencyKey` is sent on every attempt, so the server replays
+   *   a finished result instead of creating a duplicate photo.
+   * - Timeouts are not retried: the server may still be processing the photo.
+   * - Other errors throw ApiRequestError with the server's `code`.
+   */
   async uploadAndAnalyzePhoto(
     file: File,
-    options?: { isPrimary?: boolean }
+    options?: { isPrimary?: boolean; idempotencyKey?: string }
   ): Promise<PhotoUploadAnalysisResponse> {
     const formData = new FormData();
     formData.append("image", file);
     if (options?.isPrimary) {
       formData.append("is_primary", "true");
     }
+    const headers: Record<string, string> = {};
+    if (options?.idempotencyKey) headers["Idempotency-Key"] = options.idempotencyKey;
 
     // AI verification (face detection, quality checks) can legitimately take
     // a few seconds, but the request must not hang forever — a stalled
     // network call or a wedged backend would otherwise leave the photo tile
     // spinning indefinitely with no way for the user to retry.
     const UPLOAD_TIMEOUT_MS = 45_000;
-    const doUpload = () => {
+    const RETRY_DELAYS_MS = [1_000, 3_000];
+    const RETRYABLE_STATUSES = new Set([502, 503, 504]);
+
+    const doUpload = async (): Promise<Response> => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
-      return fetch(`${this.baseUrl}/photos/upload/`, {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-        signal: controller.signal,
-      }).finally(() => clearTimeout(timeout));
+      try {
+        return await fetch(`${this.baseUrl}/photos/upload/`, {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+          headers,
+          signal: controller.signal,
+        });
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          throw new ApiRequestError(
+            "Upload timed out. Check your connection and try again.",
+            0,
+            { code: "timeout" }
+          );
+        }
+        throw new ApiRequestError("Can't reach the server. Check your connection and try again.", 0, {
+          code: "network_error",
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
     };
 
-    let response: Response;
-    try {
-      response = await doUpload();
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        throw new Error("Upload timed out. Check your connection and try again.");
+    const doUploadWithRetry = async (): Promise<Response> => {
+      for (let attempt = 0; ; attempt++) {
+        const canRetry = attempt < RETRY_DELAYS_MS.length;
+        try {
+          const res = await doUpload();
+          if (!RETRYABLE_STATUSES.has(res.status) || !canRetry) return res;
+        } catch (error) {
+          const code = error instanceof ApiRequestError ? error.data.code : null;
+          if (code !== "network_error" || !canRetry) throw error;
+        }
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt]));
       }
-      throw error;
-    }
+    };
+
+    let response = await doUploadWithRetry();
     if (response.status === 401) {
       const refreshed = await this.refreshSession();
       if (!refreshed) {
@@ -638,19 +685,28 @@ class ApiClient {
         if (shouldRedirectToLogin()) window.location.href = "/login";
         throw new Error("Authentication failed");
       }
-      try {
-        response = await doUpload();
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
-          throw new Error("Upload timed out. Check your connection and try again.");
-        }
-        throw error;
-      }
+      response = await doUploadWithRetry();
     }
 
     const data = (await response.json().catch(() => ({}))) as PhotoUploadAnalysisResponse & {
       detail?: string;
+      message?: string;
+      code?: string;
+      retry_after?: number;
     };
+
+    if (response.status === 429) {
+      const headerWait = Number(response.headers.get("Retry-After"));
+      const retryAfterSeconds = Math.max(
+        1,
+        Math.ceil(data.retry_after ?? (Number.isFinite(headerWait) && headerWait > 0 ? headerWait : 60))
+      );
+      throw new RateLimitError(
+        data.message ?? data.detail ?? "Too many uploads. Please wait and try again.",
+        retryAfterSeconds,
+        data as unknown as Record<string, unknown>
+      );
+    }
 
     if (!response.ok) {
       if (data.analysis) {
@@ -660,7 +716,13 @@ class ApiClient {
         }
         return { ...data, success: false };
       }
-      throw new Error(String(data.detail ?? "Failed to analyze profile photo"));
+      const message =
+        data.message ??
+        data.detail ??
+        (response.status >= 500
+          ? "Something went wrong on our side. Please try again."
+          : "Failed to analyze profile photo");
+      throw new ApiRequestError(String(message), response.status, data as unknown as Record<string, unknown>);
     }
 
     if (!data.analysis?.face_detected) {
@@ -872,6 +934,17 @@ class ApiClient {
     return this.request<ProfileVisitorsResponse>("/matching/profile-visitors/");
   }
 
+  async getWritingSuggestions(
+    field: "bio" | "looking_for" | "future_goals",
+    draft: Record<string, unknown>,
+    variant = 0
+  ): Promise<{ field: string; suggestions: string[]; based_on: string[]; model?: Record<string, unknown> }> {
+    return this.request("/profiles/me/writing-suggestions/", {
+      method: "POST",
+      body: JSON.stringify({ field, draft, variant }),
+    });
+  }
+
   async recordProfileVisit(profileId: number | string): Promise<void> {
     await this.request(`/profiles/${profileId}/visit/`, { method: "POST" });
   }
@@ -918,6 +991,13 @@ class ApiClient {
     });
   }
 
+  async initiateStripeTopUp(amount: number): Promise<StripeCheckoutResponse> {
+    return this.request<StripeCheckoutResponse>("/wallet/topup/stripe/", {
+      method: "POST",
+      body: JSON.stringify({ amount }),
+    });
+  }
+
   async purchaseWithWallet(planId: string): Promise<WalletPurchaseResponse> {
     return this.request<WalletPurchaseResponse>("/wallet/purchase/", {
       method: "POST",
@@ -947,8 +1027,8 @@ class ApiClient {
     return this.request<LikedProfile[]>("/matching/skipped-by-you/");
   }
 
-  async getMatchInsights(matchId: number): Promise<Match> {
-    return this.request<Match>(`/matching/insights/${matchId}/`);
+  async getMatchInsights(matchId: number, options?: { refresh?: boolean }): Promise<Match> {
+    return this.request<Match>(`/matching/insights/${matchId}/${options?.refresh ? "?refresh=1" : ""}`);
   }
 
   async getConversations(options?: { archived?: boolean; unread?: boolean }): Promise<Conversation[]> {
@@ -1078,6 +1158,35 @@ class ApiClient {
     return this.request(`/calls/${callId}/hangup/`, { method: "POST" });
   }
 
+  async getConversationMedia(
+    conversationId: number | string,
+    limit = 60
+  ): Promise<{
+    count: number;
+    from_me: number;
+    from_them: number;
+    results: { id: number; image_url: string; is_mine: boolean; timestamp: string }[];
+  }> {
+    return this.request(`/chat/conversations/${conversationId}/media/?limit=${limit}`, {}, this.chatBaseUrl);
+  }
+
+  async markCallBusy(callId: string) {
+    return this.request(`/calls/${callId}/busy/`, { method: "POST" });
+  }
+
+  /** Fire-and-forget end request that survives page unload. */
+  endCallOnUnload(callId: string, action: "reject" | "cancel" | "hangup") {
+    try {
+      void fetch(`${this.baseUrl}/calls/${callId}/${action}/`, {
+        method: "POST",
+        credentials: "include",
+        keepalive: true,
+      }).catch(() => {});
+    } catch {
+      // Page is closing; nothing else to do.
+    }
+  }
+
   async uploadChatImage(file: File): Promise<{ image_url: string }> {
     const formData = new FormData();
     formData.append("image", file);
@@ -1134,6 +1243,17 @@ class ApiClient {
     return this.request<{ detail: string }>(
       `/chat/conversations/${conversationId}/clear/`,
       { method: "POST" },
+      this.chatBaseUrl
+    );
+  }
+
+  async reportSecurityEvent(
+    conversationId: number | string,
+    eventCode: "SCREENSHOT_TAKEN" | "SCREEN_RECORDING_STARTED" | "SCREEN_RECORDING_STOPPED"
+  ): Promise<Message> {
+    return this.request<Message>(
+      `/chat/conversations/${conversationId}/security-events/`,
+      { method: "POST", body: JSON.stringify({ event_code: eventCode }) },
       this.chatBaseUrl
     );
   }
@@ -1360,6 +1480,19 @@ export class ApiRequestError extends Error {
   }
 }
 
+/** The server rate-limited this request (HTTP 429). Do not retry before `retryAt`. */
+export class RateLimitError extends ApiRequestError {
+  retryAfterSeconds: number;
+  retryAt: number;
+
+  constructor(message: string, retryAfterSeconds: number, data: Record<string, unknown> = {}) {
+    super(message, 429, data);
+    this.name = "RateLimitError";
+    this.retryAfterSeconds = retryAfterSeconds;
+    this.retryAt = Date.now() + retryAfterSeconds * 1000;
+  }
+}
+
 /** Free Like limit reached for the current window. */
 export class LikeLimitError extends Error {
   quota: LikeQuota | null;
@@ -1405,6 +1538,12 @@ export type NotificationPreferences = {
   payment_enabled: boolean;
   sound_enabled: boolean;
   vibration_enabled: boolean;
+  email_enabled: boolean;
+  email_matches: boolean;
+  email_payments: boolean;
+  email_verification: boolean;
+  email_announcements: boolean;
+  email_marketing: boolean;
 };
 
 const api = new ApiClient();

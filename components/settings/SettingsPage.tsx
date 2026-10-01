@@ -6,10 +6,10 @@ import { useTranslations } from "next-intl";
 import { useState, useEffect, type ReactNode } from "react";
 import { useLenis } from "lenis/react";
 import { ChatSidebarNav } from "@/components/chat/ChatSidebarNav";
-import { ChatConfirmDialog } from "@/components/chat/ChatConversationMenu";
 import BottomNav from "@/components/BottomNav";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTheme, type ThemeMode } from "@/contexts/ThemeContext";
+import { useTheme } from "@/contexts/ThemeContext";
+import api from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const APP_VERSION = "0.1.0";
@@ -106,38 +106,69 @@ function SettingsRow({
   );
 }
 
-function ThemeOption({
-  mode,
-  label,
-  icon,
-  active,
-  onSelect,
+function LogoutDialog({
+  open,
+  title,
+  confirmLabel,
+  cancelLabel,
+  onCancel,
+  onConfirm,
 }: {
-  mode: ThemeMode;
-  label: string;
-  icon: string;
-  active: boolean;
-  onSelect: (mode: ThemeMode) => void;
+  open: boolean;
+  title: string;
+  confirmLabel: string;
+  cancelLabel: string;
+  onCancel: () => void;
+  onConfirm: () => void;
 }) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onCancel]);
+
+  if (!open) return null;
+
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(mode)}
-      className={cn(
-        "flex flex-1 flex-col items-center gap-2 rounded-xl border px-3 py-3 text-center transition-all md:px-4 md:py-4",
-        active
-          ? "border-primary bg-primary/10 text-primary"
-          : "border-outline-variant/25 text-on-surface-variant hover:border-primary/20 hover:bg-surface-container-high/50"
-      )}
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      onClick={onCancel}
     >
-      <span
-        className="material-symbols-outlined text-[24px]"
-        style={active ? { fontVariationSettings: "'FILL' 1" } : undefined}
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="logout-title"
+        className="w-full max-w-sm rounded-3xl border border-outline-variant/20 bg-surface-container p-6 text-center shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
       >
-        {icon}
-      </span>
-      <span className="text-xs font-semibold">{label}</span>
-    </button>
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-500/15 text-red-400">
+          <span className="material-symbols-outlined text-3xl">logout</span>
+        </div>
+        <h2 id="logout-title" className="mt-4 text-xl font-bold text-on-surface">
+          {title}
+        </h2>
+        <div className="mt-6 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="w-full rounded-full bg-red-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+          >
+            {confirmLabel}
+          </button>
+          <button
+            type="button"
+            autoFocus
+            onClick={onCancel}
+            className="w-full rounded-full border border-outline-variant/40 py-3 text-sm font-semibold text-on-surface transition-colors hover:bg-secondary"
+          >
+            {cancelLabel}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -145,12 +176,28 @@ export function SettingsPage() {
   const t = useTranslations("settings");
   const router = useRouter();
   const { user, logout } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const { theme } = useTheme();
   const lenis = useLenis();
 
   const profile = user?.profile;
   const isVerified = profile?.is_verified;
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+
+  // Same live balance as the Wallet page; the profile value is only a fallback.
+  const [walletCoins, setWalletCoins] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getWallet()
+      .then((wallet) => {
+        if (!cancelled) setWalletCoins(wallet.coins ?? wallet.balance ?? null);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const coinBalance = walletCoins ?? profile?.wallet_balance ?? null;
 
   useEffect(() => {
     lenis?.stop();
@@ -183,10 +230,10 @@ export function SettingsPage() {
                     description={t("items.walletDescription")}
                     href="/wallet"
                     trailing={
-                      profile?.wallet_balance != null ? (
-                        <span className="flex items-center gap-1 text-sm font-semibold tabular-nums text-on-surface">
-                          <span className="material-symbols-outlined text-base text-primary">toll</span>
-                          {profile.wallet_balance.toLocaleString("en-NP")}
+                      coinBalance != null ? (
+                        <span className="flex items-center gap-1.5 text-sm font-semibold tabular-nums text-on-surface">
+                          <span className="text-base leading-none" aria-hidden>🪙</span>
+                          {coinBalance.toLocaleString("en-NP")}
                         </span>
                       ) : undefined
                     }
@@ -228,33 +275,28 @@ export function SettingsPage() {
                   />
                 </SettingsSection>
 
+                <SettingsSection title={t("sections.matchPreferences")}>
+                  <SettingsRow
+                    icon="favorite"
+                    title={t("items.matchPrefsTitle")}
+                    description={t("items.matchPrefsDescription")}
+                    href="/preferences"
+                  />
+                </SettingsSection>
+
                 <SettingsSection title={t("sections.appearance")}>
-                  <div className="px-4 py-4 md:px-5 md:py-5">
-                    <p className="mb-3 text-sm text-on-surface-variant">{t("items.themeLabel")}</p>
-                    <div className="flex gap-2 sm:gap-3">
-                      <ThemeOption
-                        mode="dark"
-                        label={t("items.themeDark")}
-                        icon="dark_mode"
-                        active={theme === "dark"}
-                        onSelect={setTheme}
-                      />
-                      <ThemeOption
-                        mode="light"
-                        label={t("items.themeLight")}
-                        icon="light_mode"
-                        active={theme === "light"}
-                        onSelect={setTheme}
-                      />
-                      <ThemeOption
-                        mode="system"
-                        label={t("items.themeSystem")}
-                        icon="routine"
-                        active={theme === "system"}
-                        onSelect={setTheme}
-                      />
-                    </div>
-                  </div>
+                  <SettingsRow
+                    icon="palette"
+                    title={t("items.themeLabel")}
+                    description={
+                      theme === "dark"
+                        ? t("items.themeDark")
+                        : theme === "light"
+                          ? t("items.themeLight")
+                          : t("items.themeSystem")
+                    }
+                    href="/settings/Appearance"
+                  />
                 </SettingsSection>
 
                 <SettingsSection title={t("sections.notifications")}>
@@ -264,6 +306,12 @@ export function SettingsPage() {
                     description={t("items.notificationPrefsDescription")}
                     href="/notifications"
                   />
+                  <SettingsRow
+                    icon="mail"
+                    title={t("items.emailPrefsTitle")}
+                    description={t("items.emailPrefsDescription")}
+                    href="/settings/mails"
+                  />
                 </SettingsSection>
 
                 <SettingsSection title={t("sections.privacy")}>
@@ -272,13 +320,6 @@ export function SettingsPage() {
                     title={t("items.locationPrivacyTitle")}
                     description={t("items.locationPrivacyDescription")}
                     href="/map"
-                  />
-                  <SettingsDivider />
-                  <SettingsRow
-                    icon="tune"
-                    title={t("items.discoveryPrefsTitle")}
-                    description={t("items.discoveryPrefsDescription")}
-                    href="/profile"
                   />
                   <SettingsDivider />
                   <SettingsRow
@@ -398,13 +439,12 @@ export function SettingsPage() {
         </div>
       </div>
 
-      <ChatConfirmDialog
+      <LogoutDialog
         open={logoutConfirmOpen}
         title={t("logOutDialog.title")}
-        description={t("logOutDialog.description")}
         confirmLabel={t("logOutDialog.confirm")}
-        destructive
-        onClose={() => setLogoutConfirmOpen(false)}
+        cancelLabel={t("logOutDialog.cancel")}
+        onCancel={() => setLogoutConfirmOpen(false)}
         onConfirm={() => {
           setLogoutConfirmOpen(false);
           handleLogout();

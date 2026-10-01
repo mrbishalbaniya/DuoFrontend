@@ -1,12 +1,11 @@
-"use client";
-
-import { SecurityPageShell } from "@/components/security/SecurityPageShell";
+import { MarketingPage } from "@/components/marketing/MarketingPage";
 
 export interface LegalSection {
   heading: string;
   body: string[];
 }
 
+/** Terms / Privacy: public page with the site navbar and footer (no app sidebar). */
 export function LegalPage({
   title,
   updatedLabel,
@@ -19,33 +18,27 @@ export function LegalPage({
   sections: LegalSection[];
 }) {
   return (
-    <SecurityPageShell title={title} backHref="/settings">
-      <div className="space-y-6">
-        <p className="px-1 text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
-          {updatedLabel}
-        </p>
-        <p className="px-1 text-sm leading-relaxed text-on-surface-variant">{intro}</p>
-
-        <div className="space-y-5">
-          {sections.map((section) => (
-            <section
-              key={section.heading}
-              className="rounded-2xl border border-primary/10 bg-secondary/30 p-5"
-            >
-              <h2 className="font-[var(--font-headline)] text-base font-bold text-on-surface">
-                {section.heading}
-              </h2>
-              <div className="mt-2 space-y-2">
-                {section.body.map((paragraph, idx) => (
-                  <p key={idx} className="text-sm leading-relaxed text-on-surface-variant">
-                    {paragraph}
-                  </p>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
+    <MarketingPage eyebrow={updatedLabel} title={title} intro={intro} cta={null}>
+      <div className="mx-auto max-w-3xl space-y-4">
+        {sections.map((section, index) => (
+          <section
+            key={section.heading}
+            className="rounded-2xl border border-primary/10 bg-secondary/30 p-5 sm:p-6"
+          >
+            <h2 className="flex items-baseline gap-3 font-[var(--font-headline)] text-lg font-bold text-on-surface">
+              <span className="text-sm font-semibold text-primary">{String(index + 1).padStart(2, "0")}</span>
+              {section.heading}
+            </h2>
+            <div className="mt-3 space-y-2.5">
+              {section.body.map((paragraph, idx) => (
+                <p key={idx} className="text-sm leading-relaxed text-on-surface-variant sm:text-[15px]">
+                  {paragraph}
+                </p>
+              ))}
+            </div>
+          </section>
+        ))}
       </div>
-    </SecurityPageShell>
+    </MarketingPage>
   );
 }

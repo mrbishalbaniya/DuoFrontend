@@ -15,6 +15,7 @@ type PaymentMethodFilter = "all" | WalletTransactionPaymentMethod;
 const PAYMENT_METHOD_OPTIONS: { value: PaymentMethodFilter; label: string }[] = [
   { value: "all", label: "All methods" },
   { value: "esewa", label: "eSewa" },
+  { value: "stripe", label: "Card (Stripe)" },
   { value: "wallet", label: "Wallet balance" },
   { value: "gift", label: "Gift card" },
 ];

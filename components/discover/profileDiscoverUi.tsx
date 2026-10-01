@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { Profile } from "@/types";
 import api from "@/lib/api";
+import { buildPublicProfile } from "@/lib/profile/publicProfile";
 import { resolveProfilePhotoUrls } from "@/lib/mediaUrl";
 import { useIsClient } from "@/lib/useIsClient";
 import { useSheetAnchor } from "@/lib/useSheetAnchor";
@@ -39,10 +40,111 @@ export function ProfileCardOverlay({
   onInfoClick?: () => void;
   infoDisabled?: boolean;
 }) {
+  const photos = getProfilePhotos(profile);
+  // Index is tied to the profile it was set for, so a new profile starts on photo 1.
+  const [photoState, setPhotoState] = useState({ profileId: profile.id, index: 0 });
+  const photoIndex = photoState.profileId === profile.id ? photoState.index : 0;
+  const tapStart = useRef<{ x: number; y: number; t: number } | null>(null);
+
+  // Preload the other photos so tapping through doesn't flash.
+  const photoKey = photos.join("|");
+  useEffect(() => {
+    if (!isTopCard) return;
+    photoKey
+      .split("|")
+      .slice(1)
+      .forEach((src) => {
+        const img = new Image();
+        img.src = src;
+      });
+  }, [isTopCard, photoKey]);
+
   if (!isTopCard) return null;
+
+  const hasGallery = photos.length > 1;
+  const current = Math.min(photoIndex, photos.length - 1);
+
+  // The card itself is draggable, so only treat a short, still press as a tap.
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    tapStart.current = { x: e.clientX, y: e.clientY, t: Date.now() };
+  };
+  const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const start = tapStart.current;
+    tapStart.current = null;
+    if (!start || !hasGallery) return;
+    const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+    if (moved > 8 || Date.now() - start.t > 400) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const goBack = e.clientX - rect.left < rect.width / 3;
+    const next = goBack ? Math.max(0, photoIndex - 1) : Math.min(photos.length - 1, photoIndex + 1);
+    setPhotoState({ profileId: profile.id, index: next });
+  };
 
   return (
     <>
+      {/* Photos after the first are drawn over the stack's base image. */}
+      {hasGallery && current > 0 ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <div className="pointer-events-none absolute inset-0 z-[5] overflow-hidden bg-black">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={photos[current]}
+            alt={`${profile.full_name} photo ${current + 1}`}
+            draggable={false}
+            className="absolute inset-0 h-full w-full select-none object-cover object-top"
+          />
+        </div>
+      ) : null}
+
+      {hasGallery ? (
+        <>
+          <div
+            className="absolute inset-0 z-10"
+            onPointerDown={onPointerDown}
+            onPointerUp={onPointerUp}
+            aria-hidden
+          />
+          {/* Stories-style photo progress: soft top scrim, seen + current bars filled */}
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 z-20 h-20"
+            style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.45), rgba(0,0,0,0))" }}
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center gap-1 px-3 pt-2.5"
+            role="progressbar"
+            aria-label="Photos"
+            aria-valuemin={1}
+            aria-valuemax={photos.length}
+            aria-valuenow={current + 1}
+          >
+            {photos.map((src, index) => (
+              <span
+                key={`${index}-${src}`}
+                className="relative h-[3px] flex-1 overflow-hidden rounded-full"
+                style={{ backgroundColor: "rgba(255,255,255,0.3)", boxShadow: "0 1px 2px rgba(0,0,0,0.25)" }}
+              >
+                <span
+                  className="absolute inset-y-0 left-0 rounded-full bg-white"
+                  style={{
+                    width: index <= current ? "100%" : "0%",
+                    opacity: index < current ? 0.85 : 1,
+                    transition: "width 260ms ease, opacity 260ms ease",
+                  }}
+                />
+              </span>
+            ))}
+          </div>
+          <span
+            className="pointer-events-none absolute right-3 top-6 z-20 rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
+            style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}
+            aria-hidden
+          >
+            {current + 1} / {photos.length}
+          </span>
+        </>
+      ) : null}
+
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20">
         <div
           className="absolute inset-x-0 bottom-0 h-[42%] min-h-[140px] bg-gradient-to-t from-black/90 via-black/55 to-transparent"
@@ -70,6 +172,7 @@ export function ProfileCardOverlay({
             <button
               type="button"
               aria-label="View profile details"
+              data-tour="profile"
               disabled={infoDisabled}
               onClick={(e) => {
                 e.stopPropagation();
@@ -110,18 +213,7 @@ export function ProfileDetailSheet({
   const mounted = useIsClient();
   const rootRef = useRef<HTMLDivElement>(null);
   useSheetAnchor(open && mounted, rootRef);
-  const tags = Array.isArray(profile?.lifestyle_tags) ? profile.lifestyle_tags : [];
-
-  const goal = profile?.relationship_goal ? RELATIONSHIP_GOAL_LABELS[profile.relationship_goal] : "";
-  const detailItems = profile
-    ? [
-        { label: "Looking for", value: goal, icon: "favorite" },
-        { label: "Education", value: profile.education, icon: "school" },
-        { label: "Occupation", value: profile.occupation, icon: "work" },
-        { label: "Religion", value: profile.religion, icon: "temple_hindu" },
-        { label: "Work style", value: profile.work_preference, icon: "business_center" },
-      ].filter((item) => item.value)
-    : [];
+  const details = profile ? buildPublicProfile(profile) : null;
 
   useEffect(() => {
     if (!open) return;
@@ -216,20 +308,29 @@ export function ProfileDetailSheet({
             ) : null}
           </div>
 
-          {profile.bio ? (
+          {details?.bio ? (
             <>
               <p className="dfs-caption">About</p>
               <div className="dfs-group">
-                <p className="pds-text">{profile.bio}</p>
+                <p className="pds-text">{details.bio}</p>
               </div>
             </>
           ) : null}
 
-          {detailItems.length > 0 ? (
+          {details?.lookingFor ? (
             <>
-              <p className="dfs-caption">Basics</p>
+              <p className="dfs-caption">What I&apos;m looking for</p>
               <div className="dfs-group">
-                {detailItems.map((item) => (
+                <p className="pds-text">{details.lookingFor}</p>
+              </div>
+            </>
+          ) : null}
+
+          {details?.sections.map((section) => (
+            <div key={section.title}>
+              <p className="dfs-caption">{section.title}</p>
+              <div className="dfs-group">
+                {section.rows.map((item) => (
                   <div key={item.label} className="dfs-row">
                     <span className="pds-row-icon" aria-hidden>
                       <span className="material-symbols-outlined">{item.icon}</span>
@@ -241,15 +342,15 @@ export function ProfileDetailSheet({
                   </div>
                 ))}
               </div>
-            </>
-          ) : null}
+            </div>
+          ))}
 
-          {tags.length > 0 ? (
+          {details && details.interests.length > 0 && morePhotos.length === 0 ? (
             <>
-              <p className="dfs-caption">Lifestyle</p>
+              <p className="dfs-caption">Interests</p>
               <div className="dfs-group">
                 <div className="pds-chips">
-                  {tags.map((tag) => (
+                  {details.interests.map((tag) => (
                     <span key={tag} className="pds-chip">
                       {tag}
                     </span>
@@ -259,13 +360,39 @@ export function ProfileDetailSheet({
             </>
           ) : null}
 
+          {details?.futureGoals ? (
+            <>
+              <p className="dfs-caption">Future goals</p>
+              <div className="dfs-group">
+                <p className="pds-text">{details.futureGoals}</p>
+              </div>
+            </>
+          ) : null}
+
           {morePhotos.length > 0 ? (
             <>
               <p className="dfs-caption">Photos</p>
               {morePhotos.map((url, index) => (
-                <div key={url} className="pds-photo">
-                  <img src={url} alt={`${profile.full_name} photo ${index + 2}`} loading="lazy" />
-                </div>
+                <Fragment key={`${index}-${url}`}>
+                  <div className="pds-photo">
+                    <img src={url} alt={`${profile.full_name} photo ${index + 2}`} loading="lazy" />
+                  </div>
+                  {/* Interests sit right below the 2nd photo */}
+                  {index === 0 && details && details.interests.length > 0 ? (
+                  <>
+                    <p className="dfs-caption">Interests</p>
+                    <div className="dfs-group">
+                      <div className="pds-chips">
+                        {details.interests.map((tag) => (
+                          <span key={tag} className="pds-chip">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                  ) : null}
+                </Fragment>
               ))}
             </>
           ) : null}

@@ -46,7 +46,7 @@ export default function VerifyPage() {
             <span className="material-symbols-outlined text-xl">arrow_back</span>
           </Link>
           <h1 className="font-[var(--font-headline)] text-lg font-bold text-on-surface">
-            Identity Verification
+            Verify profile
           </h1>
         </header>
         <div className="min-h-0 flex-1 overflow-hidden" data-lenis-prevent>

@@ -25,8 +25,25 @@ export function DeleteAccountPage() {
     if (!authLoading && !user) router.push("/login");
   }, [authLoading, user, router]);
 
-  const handleDelete = async (e: FormEvent) => {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  // Submitting the form only opens the final "are you sure?" dialog.
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
+    setError("");
+    setConfirmOpen(true);
+  };
+
+  useEffect(() => {
+    if (!confirmOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !submitting) setConfirmOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [confirmOpen, submitting]);
+
+  const handleDelete = async () => {
     setError("");
     setSubmitting(true);
     try {
@@ -36,6 +53,7 @@ export function DeleteAccountPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not delete your account.");
       setSubmitting(false);
+      setConfirmOpen(false);
     }
   };
 
@@ -48,7 +66,7 @@ export function DeleteAccountPage() {
               <span className="material-symbols-outlined">warning</span>
             </div>
             <div>
-              <p className="font-semibold text-red-400">This can't be easily undone</p>
+              <p className="font-semibold text-red-400">This can&apos;t be easily undone</p>
               <p className="mt-1 text-sm text-on-surface-variant">
                 Deleting your account will immediately:
               </p>
@@ -84,12 +102,12 @@ export function DeleteAccountPage() {
           </button>
         </div>
       ) : (
-        <form onSubmit={(e) => void handleDelete(e)} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {error ? <SecurityNotice tone="error">{error}</SecurityNotice> : null}
 
           <div className="space-y-2">
             <label className="block px-1 text-sm font-semibold text-on-surface-variant" htmlFor="delete-reason">
-              Tell us why you're leaving (optional)
+              Tell us why you&apos;re leaving (optional)
             </label>
             <textarea
               id="delete-reason"
@@ -147,6 +165,48 @@ export function DeleteAccountPage() {
           </div>
         </form>
       )}
+
+      {confirmOpen ? (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onClick={() => !submitting && setConfirmOpen(false)}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-title"
+            className="w-full max-w-sm rounded-3xl border border-outline-variant/20 bg-surface-container p-6 text-center shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-500/15 text-red-400">
+              <span className="material-symbols-outlined text-3xl">delete_forever</span>
+            </div>
+            <h2 id="delete-title" className="mt-4 text-xl font-bold text-on-surface">
+              Delete your account?
+            </h2>
+            <p className="mt-2 text-sm text-on-surface-variant">This can&apos;t be undone.</p>
+            <div className="mt-6 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => void handleDelete()}
+                disabled={submitting}
+                className="w-full rounded-full bg-red-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-60"
+              >
+                {submitting ? "Deleting…" : "Yes, delete my account"}
+              </button>
+              <button
+                type="button"
+                autoFocus
+                disabled={submitting}
+                onClick={() => setConfirmOpen(false)}
+                className="w-full rounded-full border border-outline-variant/40 py-3 text-sm font-semibold text-on-surface transition-colors hover:bg-secondary disabled:opacity-60"
+              >
+                No, keep my account
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </SecurityPageShell>
   );
 }
