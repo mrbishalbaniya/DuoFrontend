@@ -72,11 +72,16 @@ export async function proxyToBackend(
   }
 
   const responseBody = await backendRes.arrayBuffer();
+  const responseHeaders = new Headers({
+    "content-type": backendRes.headers.get("content-type") ?? "application/json",
+  });
+  // App-specific metadata headers (e.g. X-Duo-Discover-Expanded) must reach the client.
+  backendRes.headers.forEach((value, key) => {
+    if (key.toLowerCase().startsWith("x-duo-")) responseHeaders.set(key, value);
+  });
   const response = new NextResponse(responseBody, {
     status: backendRes.status,
-    headers: {
-      "content-type": backendRes.headers.get("content-type") ?? "application/json",
-    },
+    headers: responseHeaders,
   });
 
   if (access && backendRes.ok && backendRes.status !== 401) {

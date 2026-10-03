@@ -58,7 +58,8 @@ export function getBasemapStyle(baseMapId: string): string | StyleSpecification 
           labels: {
             type: "raster",
             tiles: [
-              "https://a.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}.png",
+              // Esri reference labels: keyless (CARTO's raster label tiles now need a key).
+              "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
             ],
             tileSize: 256,
             maxzoom: 19,

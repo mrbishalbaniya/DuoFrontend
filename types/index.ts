@@ -21,10 +21,24 @@ export interface PhotoAnalysis {
   created_at: string;
 }
 
+export type ModerationStatus = "PENDING" | "APPROVED" | "REJECTED" | "MANUAL_REVIEW";
+
+export interface ProfilePhoto {
+  id: number;
+  url: string;
+  status: ModerationStatus;
+  rejection_reason: string;
+  uploaded_at: string;
+  moderated_at: string | null;
+  order: number;
+  is_primary: boolean;
+}
+
 export interface PhotoUploadAnalysisResponse {
   success: boolean;
   image_url?: string;
   analysis: PhotoAnalysis;
+  photo?: ProfilePhoto;
   detail?: string;
 }
 
@@ -111,6 +125,8 @@ export interface Profile {
   is_verified?: boolean;
   is_onboarded?: boolean;
   profile_completeness?: number;
+  /** Real completeness checklist from the backend, grouped by profile section. */
+  profile_checklist?: ProfileChecklistItem[];
   pref_age_min?: number;
   pref_age_max?: number;
   pref_min_height?: string;
@@ -121,6 +137,10 @@ export interface Profile {
   pref_max_distance_km?: number;
   pref_relationship_goal?: "everyone" | "serious" | "casual" | "dating";
   pref_verified_only?: boolean;
+  pref_expand_distance?: boolean;
+  pref_expand_age?: boolean;
+  /** Rounded km from the viewer, only on discover results (0 = under 1 km). */
+  distance_km?: number | null;
   relationship_goal?: "serious" | "casual" | "dating" | "";
   location_ghost_mode?: boolean;
   location_visibility?: "friends" | "friends_except" | "only_these";
@@ -135,6 +155,8 @@ export interface Profile {
   subscription_expires_at?: string | null;
   wallet_balance?: number;
   preview_distance_km?: number;
+  app_language?: "en" | "ne";
+  app_region?: string;
 }
 
 export interface User {
@@ -166,6 +188,11 @@ export interface SwipeResponse {
   match?: MatchSessionData & { compatibility_score?: number };
   match_id?: number;
   other_user_profile?: Profile;
+  /** Same swipe was already recorded; nothing changed. */
+  duplicate?: boolean;
+  likes_remaining?: number | null;
+  reset_at?: string | null;
+  likes?: LikeQuota;
 }
 
 export interface LikedProfile {
@@ -174,6 +201,26 @@ export interface LikedProfile {
   liked_at?: string;
   action?: SwipeAction;
   locked?: boolean;
+  /** "matched" once you both liked each other. */
+  status?: "matched" | "pending";
+  /** Public conversation id when matched. */
+  conversation_id?: string | null;
+}
+
+/** Premium list a plan unlocks. Each has its own plans and pass. */
+export type SubscriptionFeature = "who_liked_you" | "visited_you" | "rewind" | "unlimited_likes";
+
+/** Free-tier Like quota, counted on the backend over a rolling window. */
+export interface LikeQuota {
+  unlimited: boolean;
+  /** null when unlimited. */
+  limit: number | null;
+  used: number;
+  /** null when unlimited. */
+  likes_remaining: number | null;
+  /** When the oldest counted Like expires, freeing one more. */
+  reset_at: string | null;
+  window_hours: number;
 }
 
 export interface SubscriptionPlan {
@@ -184,12 +231,22 @@ export interface SubscriptionPlan {
   amount: number;
   duration_days: number;
   badge?: string | null;
+  feature?: SubscriptionFeature;
+  feature_label?: string;
+}
+
+export interface SubscriptionFeatureAccess {
+  label: string;
+  is_active: boolean;
+  expires_at: string | null;
 }
 
 export interface SubscriptionStatus {
+  /** True when any premium pass is active. */
   is_premium: boolean;
   expires_at: string | null;
   plan: SubscriptionPlan;
+  features?: Partial<Record<SubscriptionFeature, SubscriptionFeatureAccess>>;
 }
 
 export interface EsewaPaymentForm {
@@ -212,13 +269,27 @@ export interface InitiateSubscriptionResponse {
   form: EsewaPaymentForm;
 }
 
+export type WalletTransactionStatus = "complete" | "pending" | "failed";
+export type WalletTransactionPaymentMethod = "esewa" | "stripe" | "wallet" | "gift" | "";
+
 export interface WalletTransaction {
-  type: "top_up" | "purchase" | "adjustment";
+  id: number;
+  type: "top_up" | "purchase" | "adjustment" | "gift_redeem";
   amount: string;
   balance_after: string;
+  total_amount: string;
+  status: WalletTransactionStatus;
+  payment_method: WalletTransactionPaymentMethod;
   description: string;
   reference_id: string;
   created_at: string;
+  updated_at: string;
+}
+
+export interface WalletTransactionListResponse {
+  results: WalletTransaction[];
+  has_more: boolean;
+  next_before: number | null;
 }
 
 export interface CoinPack {
@@ -235,6 +306,20 @@ export interface WalletSummary {
   top_up_presets: number[];
   coin_packs?: CoinPack[];
   transactions: WalletTransaction[];
+  payment_methods?: WalletPaymentMethods;
+}
+
+export interface WalletPaymentMethods {
+  esewa: boolean;
+  stripe: boolean;
+  stripe_currency: string;
+  stripe_min_amount?: number;
+}
+
+export interface StripeCheckoutResponse {
+  checkout_url: string;
+  session_id: string;
+  transaction_uuid: string;
 }
 
 export interface WalletPurchaseResponse {
@@ -242,6 +327,12 @@ export interface WalletPurchaseResponse {
   expires_at: string;
   balance: number;
   plan: SubscriptionPlan;
+}
+
+export interface GiftCardRedeemResponse {
+  detail: string;
+  amount: number;
+  balance: number;
 }
 
 export interface VisitedProfile {
@@ -268,6 +359,8 @@ export interface LikesYouResponse {
 export interface Match {
   id: number;
   other_user_profile: Profile;
+  /** Public chat id for this match. */
+  conversation_id?: string | null;
   matched_at?: string;
   compatibility_score?: number;
   shared_interests?: string[];
@@ -280,6 +373,14 @@ export interface Match {
   spark_factors?: string[];
   vision_insight?: string;
   communication_insight?: string;
+  /** True when the text below was written by the AI model (scores are always computed). */
+  ai_generated?: boolean;
+  pillar_notes?: { values: string; lifestyle: string; career: string; hobbies: string } | null;
+  conversation_starters?: string[];
+  /** "duo" = Duo's own trained model, "claude" = Claude, null = rule-based text. */
+  ai_provider?: "duo" | "claude" | null;
+  things_to_talk_about?: string[];
+  model_info?: { name?: string; version?: number; trained_at?: string; samples?: number; cv_auc?: number | null } | null;
 }
 
 export interface ChatMessage extends Message {
@@ -293,7 +394,8 @@ export interface ChatMessage extends Message {
   delivered_at?: string | null;
   read_at?: string | null;
   edited_at?: string | null;
-  message_type?: "text" | "image" | "voice";
+  message_type?: "text" | "image" | "voice" | "system";
+  event_code?: string | null;
   reply_to?: MessageReplyPreview | null;
   client_temp_id?: string;
   send_status?: "pending" | "sent" | "failed";
@@ -323,6 +425,8 @@ export interface Conversation {
   is_archived?: boolean;
   is_muted?: boolean;
   is_pinned?: boolean;
+  /** Receiver-side: hide profanity/insults sent to me in this chat (default true). */
+  filter_offensive?: boolean;
 }
 
 export interface ConversationDetail extends Conversation {
@@ -387,3 +491,101 @@ export interface MatchSessionData {
   match_id?: number;
   compatibility_score?: number;
 }
+
+// ── Security Center ─────────────────────────────────────────────
+
+export type TwoFactorMethod = "email" | "totp" | "sms";
+
+export interface SecurityRecommendation {
+  id: string;
+  title: string;
+  description: string;
+  action: string;
+}
+
+export interface SecurityOverview {
+  two_factor_enabled: boolean;
+  two_factor_method: TwoFactorMethod | null;
+  biometric_enabled: boolean;
+  active_devices: number;
+  active_sessions: number;
+  unread_alerts: number;
+  remember_device_days: number;
+  current_device_id: string;
+  has_backup_codes: boolean;
+  backup_codes_remaining: number;
+  security_score: number;
+  recommendations: SecurityRecommendation[];
+  email_verified: boolean;
+  phone_verified: boolean;
+  trusted_device_active: boolean;
+  recent_suspicious: boolean;
+}
+
+export interface SecurityDevice {
+  id: number;
+  device_id: string;
+  device_name: string;
+  model: string;
+  platform: "android" | "ios" | "web" | "unknown";
+  platform_label: string;
+  os_version: string;
+  app_version: string;
+  browser: string;
+  ip_address: string | null;
+  location: string;
+  country: string;
+  city: string;
+  is_trusted: boolean;
+  is_trusted_active: boolean;
+  is_current: boolean;
+  last_active: string;
+  login_time: string;
+}
+
+export interface LoginHistoryEntry {
+  id: number;
+  success: boolean;
+  ip_address: string | null;
+  location: string;
+  country: string;
+  city: string;
+  device_name: string;
+  browser: string;
+  os_name: string;
+  failure_reason: string;
+  event_type: string;
+  is_current: boolean;
+  created_at: string;
+}
+
+export type SecurityAlertSeverity = "info" | "warning" | "critical";
+
+export interface BlockedUser {
+  id: number;
+  username: string;
+  full_name: string;
+  photo_url: string;
+  blocked_at: string;
+}
+
+export type SupportRequestCategory = "contact" | "bug";
+
+export interface SecurityEvent {
+  id: number;
+  event_type: string;
+  title: string;
+  message: string;
+  metadata: Record<string, unknown>;
+  ip_address: string | null;
+  severity: SecurityAlertSeverity;
+  is_read: boolean;
+  created_at: string;
+}
+
+export type ProfileChecklistItem = {
+  section: string;
+  key: string;
+  label: string;
+  done: boolean;
+};

@@ -1,0 +1,141 @@
+{
+  "map": {
+    "page": {
+      "title": "साथीहरूको नक्सा",
+      "hideFriendsPanel": "साथी प्यानल लुकाउनुहोस्",
+      "showFriendsPanel": "साथी प्यानल देखाउनुहोस्",
+      "loading": "लोड हुँदैछ…",
+      "findingLocation": "तपाईंको स्थान पत्ता लगाउँदै…",
+      "matchesNearby": "नजिकै {count, plural, one {# म्याच} other {# म्याचहरू}}",
+      "couldNotLoadMatches": "तपाईंका म्याचहरू लोड गर्न सकिएन।",
+      "tryAgain": "फेरि प्रयास गर्नुहोस्",
+      "emptyState": "नक्सामा देख्नको लागि कसैसँग म्याच गर्नुहोस्।",
+      "startMatching": "म्याचिङ सुरु गर्नुहोस्",
+      "openChat": "च्याट खोल्नुहोस्",
+      "getDirections": "दिशा निर्देशन पाउनुहोस्",
+      "closePreview": "पूर्वावलोकन बन्द गर्नुहोस्",
+      "locationFallback": "नेपाल",
+      "hideSettingsPanel": "सेटिङ प्यानल लुकाउनुहोस्",
+      "showSettingsPanel": "सेटिङ प्यानल देखाउनुहोस्"
+    },
+    "controls": {
+      "mapStyle": "नक्सा शैली",
+      "mapSettings": "नक्सा सेटिङहरू",
+      "zoomIn": "जुम इन गर्नुहोस्",
+      "zoomOut": "जुम आउट गर्नुहोस्",
+      "recenterNorth": "उत्तरतिर पुनः केन्द्रित गर्नुहोस्",
+      "hideMapTools": "नक्सा उपकरणहरू लुकाउनुहोस्",
+      "showMapTools": "नक्सा उपकरणहरू देखाउनुहोस्",
+      "centerOnLocation": "मेरो स्थानमा केन्द्रित गर्नुहोस्"
+    },
+    "privacy": {
+      "sectionTitle": "स्थान गोपनीयता",
+      "ghostModeTitle": "घोस्ट मोड",
+      "ghostModeDescription": "सक्षम गरिँदा, तपाईंका साथीहरूले तपाईंको स्थान देख्न सक्दैनन्",
+      "whoCanSee": "मेरो स्थान कसले देख्न सक्छ",
+      "visibilityFriendsLabel": "मेरा साथीहरू",
+      "visibilityFriendsDescription": "सबै म्याचहरूले तपाईंको स्थान देख्न सक्छन्",
+      "visibilityFriendsExceptLabel": "मेरा साथीहरू, यी बाहेक…",
+      "visibilityFriendsExceptDescription": "छानिएका म्याचहरूबाट लुकाउनुहोस्",
+      "visibilityOnlyTheseLabel": "यी साथीहरू मात्र",
+      "visibilityOnlyTheseDescription": "छानिएका म्याचहरूले मात्र तपाईंलाई देख्न सक्छन्",
+      "hintExcept": "छानिएका साथीहरूले तपाईंको स्थान देख्ने छैनन्",
+      "hintOnly": "छानिएका साथीहरूले मात्र तपाईंको स्थान देख्ने छन्",
+      "pickerEmpty": "तपाईंको स्थान कसले देख्न सक्छ भनी छनौट गर्न कसैसँग म्याच गर्नुहोस्।",
+      "friendFallback": "साथी",
+      "saveError": "स्थान गोपनीयता सुरक्षित गर्न सकिएन।",
+      "saved": "सुरक्षित गरियो"
+    },
+    "settingsSidebar": {
+      "title": "सेटिङहरू",
+      "privacyOptionsCount": "गोपनीयता · {count} नक्सा विकल्पहरू",
+      "closeSettings": "सेटिङ बन्द गर्नुहोस्",
+      "searchTitle": "नक्सा सेटिङ"
+    },
+    "browseSheet": {
+      "dragHandle": "नक्सा वा सूची देखाउन तान्नुहोस्",
+      "friendsNearby": "नजिकै {count, plural, one {# साथी} other {# साथीहरू}}",
+      "mapTab": "नक्सा",
+      "listTab": "सूची"
+    },
+    "friendsSidebar": {
+      "title": "साथीहरू",
+      "loading": "लोड हुँदैछ…",
+      "findingLocation": "तपाईंको स्थान पत्ता लगाउँदै…",
+      "matchesNear": "तपाईं नजिक {count, plural, one {# म्याच} other {# म्याचहरू}}",
+      "tryAgain": "फेरि प्रयास गर्नुहोस्",
+      "emptyTitle": "नक्सामा अहिलेसम्म कुनै साथी छैन",
+      "emptyDescription": "यहाँ देख्नको लागि कसैसँग म्याच गर्नुहोस्।",
+      "goToDiscover": "डिस्कभरमा जानुहोस्"
+    },
+    "matchCard": {
+      "locationHidden": "स्थान लुकाइएको",
+      "locationFallback": "नेपाल",
+      "notSharing": "तपाईंसँग स्थान साझा गरिएको छैन"
+    },
+    "heatmap": {
+      "badgeTrending": "ट्रेन्डिङ",
+      "badgeEvent": "कार्यक्रम",
+      "badgePopular": "लोकप्रिय",
+      "badgeRecommended": "सिफारिस गरिएको",
+      "levelLow": "कम गतिविधि",
+      "levelModerate": "मध्यम गतिविधि",
+      "levelHigh": "उच्च गतिविधि",
+      "levelTrending": "ट्रेन्डिङ क्षेत्र",
+      "levelViral": "भाइरल क्षेत्र",
+      "levelFallback": "गतिविधि क्षेत्र",
+      "close": "बन्द गर्नुहोस्",
+      "activeUsers": "सक्रिय प्रयोगकर्ताहरू",
+      "activityScore": "गतिविधि स्कोर",
+      "friendsNearby": "नजिकैका साथीहरू",
+      "nearbyEvents": "नजिकैका कार्यक्रमहरू",
+      "messagesCount": "{count} सन्देशहरू",
+      "matchesCount": "{count} म्याचहरू",
+      "likesCount": "{count} लाइकहरू"
+    },
+    "layers": {
+      "removeFromFavorites": "मनपर्नेबाट हटाउनुहोस्",
+      "addToFavorites": "मनपर्नेमा थप्नुहोस्",
+      "searchPlaceholder": "खोज्नुहोस्…",
+      "searchAriaLabel": "{title} खोज्नुहोस्",
+      "clearSearch": "खोज हटाउनुहोस्",
+      "favorites": "मनपर्ने",
+      "noResults": "तपाईंको खोजसँग मिल्ने कुनै विकल्प छैन।",
+      "closeTitled": "{title} बन्द गर्नुहोस्",
+      "close": "बन्द गर्नुहोस्",
+      "defaultSearchTitle": "विकल्पहरू",
+      "styleTitle": "नक्सा शैली",
+      "styleSubtitle": "एउटा रूप छान्नुहोस्",
+      "settingsTitle": "नक्सा सेटिङहरू",
+      "settingsSubtitle": "गोपनीयता · {count} नक्सा विकल्पहरू"
+    },
+    "weather": {
+      "couldNotLoad": "मौसम लोड गर्न सकिएन",
+      "title": "मौसम",
+      "subtitle": "प्रत्यक्ष अवस्था · स्न्याप नक्सा शैली",
+      "close": "बन्द गर्नुहोस्",
+      "loadingConditions": "प्रत्यक्ष अवस्था लोड हुँदैछ…",
+      "wind": "हावा",
+      "humidity": "आर्द्रता",
+      "pressure": "चाप",
+      "visibility": "दृश्यता",
+      "uvIndex": "UV सूचकांक",
+      "aqi": "AQI",
+      "clouds": "बादल",
+      "sun": "सूर्य",
+      "feels": "महसुस {temp}°C · {description}",
+      "hourly": "घण्टागत",
+      "sevenDay": "७-दिन",
+      "updated": "अद्यावधिक {time}",
+      "updatedJustNow": "भर्खरै",
+      "aqiGood": "राम्रो",
+      "aqiFair": "ठीकै",
+      "aqiModerate": "मध्यम",
+      "aqiPoor": "खराब",
+      "aqiVeryPoor": "धेरै खराब"
+    },
+    "skeleton": {
+      "loadingMap": "नक्सा लोड हुँदैछ"
+    }
+  }
+}

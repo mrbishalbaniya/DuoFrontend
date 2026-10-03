@@ -1,0 +1,389 @@
+{
+  "nav": {
+    "home": "गृह",
+    "discover": "खोज",
+    "chat": "च्याट",
+    "match": "म्याच",
+    "map": "नक्सा",
+    "profile": "प्रोफाइल"
+  },
+  "login": {
+    "welcomeBack": "फेरि स्वागत छ",
+    "subtitle": "जारी राख्न आफ्नो विवरण प्रविष्ट गर्नुहोस्",
+    "emailLabel": "इमेल",
+    "emailPlaceholder": "you@example.com",
+    "passwordLabel": "पासवर्ड",
+    "passwordPlaceholder": "तपाईंको पासवर्ड",
+    "forgotPassword": "पासवर्ड बिर्सनुभयो?",
+    "loginButton": "लगइन",
+    "loggingIn": "साइन इन हुँदै...",
+    "or": "वा",
+    "newToDuo": "डुओमा नयाँ?",
+    "createAccount": "खाता बनाउनुहोस्",
+    "privacyPolicy": "गोपनीयता नीति",
+    "termsOfService": "सेवाका सर्तहरू",
+    "helpCenter": "सहायता केन्द्र",
+    "twoFactorTitle": "दुई-चरण प्रमाणीकरण",
+    "twoFactorSubtitleTotp": "आफ्नो प्रमाणीकरण एपबाट ६ अंकको कोड प्रविष्ट गर्नुहोस्।",
+    "twoFactorSubtitleEmail": "हामीले इमेल गरेको ६ अंकको कोड प्रविष्ट गर्नुहोस्।",
+    "verificationCode": "प्रमाणीकरण कोड",
+    "backupCodeHint": "तपाईं आफ्नो ब्याकअप रिकभरी कोडहरू मध्ये एउटा पनि प्रविष्ट गर्न सक्नुहुन्छ।",
+    "verifyButton": "प्रमाणित गरी साइन इन गर्नुहोस्",
+    "verifying": "प्रमाणित हुँदै...",
+    "backToLogin": "लगइनमा फर्कनुहोस्",
+    "resendCode": "कोड पुन: पठाउनुहोस्",
+    "sendingCode": "पठाउँदै...",
+    "tagline": "तपाईंको डिजिटल विरासत फेला पार्नुहोस्",
+    "passwordResetSuccess": "तपाईंको पासवर्ड अपडेट भएको छ। नयाँ पासवर्डले साइन इन गर्नुहोस्।",
+    "accountDeleted": "तपाईंको खाता निष्क्रिय पारिएको छ। तपाईंलाई बिदाइ गर्दा दुःख लाग्यो।",
+    "signInWithOtp": "इमेल कोडले साइन इन",
+    "useYourPassword": "बरु आफ्नो पासवर्ड प्रयोग गर्नुहोस्",
+    "otpLoginTitle": "कोडले साइन इन गर्नुहोस्",
+    "otpLoginSubtitle": "आफ्नो इमेल प्रविष्ट गर्नुहोस् र हामी तपाईंलाई एक-पटके लगइन कोड पठाउनेछौं।",
+    "otpLoginSentSubtitle": "हामीले {email} मा पठाएको ६ अंकको कोड प्रविष्ट गर्नुहोस्।",
+    "sendLoginCode": "लगइन कोड पठाउनुहोस्",
+    "newCodeSent": "तपाईंको इमेलमा नयाँ कोड पठाइयो।",
+    "emailRequired": "इमेल आवश्यक छ।",
+    "couldNotSendLoginCode": "लगइन कोड पठाउन सकिएन। कृपया फेरि प्रयास गर्नुहोस्।",
+    "invalidLoginCode": "अमान्य वा म्याद सकिएको कोड।",
+    "couldNotResendCode": "कोड पुन: पठाउन सकिएन। कृपया फेरि प्रयास गर्नुहोस्।",
+    "useDifferentEmail": "फरक इमेल प्रयोग गर्नुहोस्",
+    "resendCodeIn": "{seconds} सेकेन्डमा कोड पुन: पठाउनुहोस्"
+  },
+  "settings": {
+    "title": "सेटिङहरू",
+    "sections": {
+      "wallet": "वालेट",
+      "verification": "प्रमाणीकरण",
+      "account": "खाता",
+      "appearance": "रूप-रङ्ग",
+      "notifications": "सूचनाहरू",
+      "privacy": "गोपनीयता",
+      "security": "सुरक्षा",
+      "language": "भाषा",
+      "help": "सहायता",
+      "about": "बारेमा",
+      "dangerZone": "जोखिमपूर्ण क्षेत्र",
+      "matchPreferences": "म्याच प्राथमिकताहरू"
+    },
+    "items": {
+      "walletTitle": "डुओ वालेट",
+      "walletDescription": "eSewa बाट कोइन किन्नुहोस् र प्रिमियममा खर्च गर्नुहोस्",
+      "verifyProfileTitle": "आफ्नो प्रोफाइल प्रमाणित गर्नुहोस्",
+      "verifyProfileDescription": "प्रमाणित ब्याज पाउन सेल्फी लिनुहोस्",
+      "accountInfoTitle": "खाता जानकारी",
+      "accountInfoDescription": "इमेल, प्रयोगकर्ता नाम, फोन र प्रमाणीकरण",
+      "verifiedProfileTitle": "प्रमाणित प्रोफाइल",
+      "verifiedProfileDescription": "तपाईंको पहिचान प्रमाणित गरिएको छ।",
+      "themeLabel": "थिम",
+      "themeDark": "डार्क",
+      "themeLight": "लाइट",
+      "themeSystem": "सिस्टम",
+      "notificationPrefsTitle": "सूचना प्राथमिकताहरू",
+      "notificationPrefsDescription": "पुश सूचना र श्रेणीहरू व्यवस्थापन गर्नुहोस्",
+      "locationPrivacyTitle": "स्थान गोपनीयता",
+      "locationPrivacyDescription": "नक्सामा तपाईंलाई कसले देख्छ भनी नियन्त्रण गर्नुहोस्",
+      "discoveryPrefsTitle": "खोज प्राथमिकताहरू",
+      "discoveryPrefsDescription": "उमेर दायरा, दूरी, र म्याच फिल्टरहरू",
+      "chatPrivacyTitle": "च्याट गोपनीयता",
+      "chatPrivacyDescription": "प्रत्येक कुराकानीमा स्क्रिनसट अलर्ट र सुरक्षित च्याट",
+      "blockedUsersTitle": "ब्लक गरिएका प्रयोगकर्ताहरू",
+      "blockedUsersDescription": "तपाईंले ब्लक गरेका मानिसहरू व्यवस्थापन गर्नुहोस्",
+      "securityCenterTitle": "सुरक्षा केन्द्र",
+      "securityCenterDescription": "2FA, डिभाइस, लगइन इतिहास र अलर्टहरू",
+      "contactSupportDescription": "डुओ टिमबाट मद्दत लिनुहोस्",
+      "versionLabel": "{version} · डुओ वेब",
+      "appLanguageTitle": "एप भाषा",
+      "regionTitle": "क्षेत्र",
+      "helpCenterTitle": "सहायता केन्द्र",
+      "helpCenterDescription": "गाइड र समस्या समाधान",
+      "contactSupportTitle": "सहायतालाई सम्पर्क गर्नुहोस्",
+      "faqTitle": "बारम्बार सोधिने प्रश्नहरू",
+      "faqDescription": "सामान्य प्रश्नहरूका जवाफहरू",
+      "reportBugTitle": "बग रिपोर्ट गर्नुहोस्",
+      "reportBugDescription": "के गलत भयो हामीलाई भन्नुहोस्",
+      "privacyPolicyTitle": "गोपनीयता नीति",
+      "termsTitle": "सेवाका सर्तहरू",
+      "versionTitle": "संस्करण",
+      "deleteAccountTitle": "खाता मेटाउनुहोस्",
+      "deleteAccountDescription": "आफ्नो खाता र डाटा स्थायी रूपमा हटाउनुहोस्",
+      "logOutTitle": "लगआउट",
+      "matchPrefsTitle": "साथी प्राथमिकताहरू",
+      "matchPrefsDescription": "धर्म, जात, राशि, उमेर, उचाइ र अन्य",
+      "emailPrefsTitle": "इमेल सूचनाहरू",
+      "emailPrefsDescription": "Duo ले कुन इमेल पठाउने छान्नुहोस्"
+    },
+    "logOutDialog": {
+      "title": "Duo बाट लगआउट गर्ने हो?",
+      "description": "तपाईं यस डिभाइसबाट साइन आउट हुनुहुनेछ। तपाईंका म्याच र च्याटहरू सुरक्षित रहन्छन्, जुनसुकै बेला फेरि साइन इन गर्न सक्नुहुन्छ।",
+      "confirm": "हो, लगआउट गर्नुहोस्",
+      "cancel": "होइन, लगइन रहनुहोस्"
+    }
+  },
+  "languageRegion": {
+    "title": "भाषा र क्षेत्र",
+    "appLanguage": "एप भाषा",
+    "helperText": "तपाईंको एप भाषा परिवर्तन गर्दा इन्टरफेस तुरुन्तै अपडेट हुन्छ।",
+    "region": "क्षेत्र",
+    "regionHint": "क्षेत्रीय सामग्री र ढाँचाको लागि प्रयोग गरिन्छ — यसले तपाईं कोसँग म्याच हुनुहुन्छ भन्नेमा असर गर्दैन।",
+    "saved": "सुरक्षित गरियो।",
+    "loadError": "तपाईंको भाषा सेटिङहरू लोड गर्न सकिएन।",
+    "saveError": "तपाईंको परिवर्तनहरू सुरक्षित गर्न सकिएन।"
+  },
+  "wallet": {
+    "title": "वालेट",
+    "subtitle": "eSewa बाट कोइन किन्नुहोस् र डिस्कवरबाट डुओ प्रिमियममा खर्च गर्नुहोस्।",
+    "yourCoins": "तपाईंका कोइनहरू",
+    "premiumActiveUntil": "{date} सम्म प्रिमियम सक्रिय छ",
+    "buyCoins": "कोइन किन्नुहोस्",
+    "redeemGiftCard": "गिफ्ट कार्ड रिडिम गर्नुहोस्",
+    "redeemButton": "रिडिम गर्नुहोस्",
+    "redeeming": "रिडिम हुँदै…",
+    "redeemPlaceholder": "XXXX-XXXX-XXXX-XXXX",
+    "redeemConfirmTitle": "यो गिफ्ट कार्ड रिडिम गर्ने हो?",
+    "redeemConfirmDescription": "तपाईं <b>{code}</b> रिडिम गर्न लाग्नुभएको छ। प्रत्येक कोड एक पटक मात्र प्रयोग गर्न सकिन्छ।",
+    "cancel": "रद्द गर्नुहोस्",
+    "confirmRedeem": "हो, रिडिम गर्नुहोस्",
+    "recentActivity": "भर्खरको गतिविधि",
+    "viewAll": "सबै हेर्नुहोस्",
+    "noTransactions": "अहिलेसम्म कुनै कारोबार छैन",
+    "coinsAddedSuccess": "कोइनहरू सफलतापूर्वक थपियो।",
+    "purchaseFailed": "कोइन खरिद पूरा भएन।",
+    "couldNotLoad": "वालेट लोड गर्न सकिएन।",
+    "coinPackPurchase": "कोइन प्याक खरिद",
+    "giftCardRedeemed": "गिफ्ट कार्ड रिडिम गरियो",
+    "purchase": "खरिद",
+    "back": "पछाडि",
+    "startPaymentError": "eSewa भुक्तानी सुरु गर्न सकिएन।",
+    "redeemSuccess": "+{amount} कोइन तपाईंको वालेटमा थपियो!",
+    "redeemError": "यो कोड रिडिम गर्न सकिएन।",
+    "payWith": "भुक्तानी विधि",
+    "payWithEsewa": "eSewa",
+    "payWithCard": "कार्ड",
+    "paymentCanceled": "भुक्तानी रद्द गरियो।",
+    "startStripeError": "कार्ड भुक्तानी सुरु गर्न सकिएन।",
+    "payWithEsewaHint": "नेपालमा वालेट र मोबाइल बैंकिङ",
+    "payWithCardHint": "Stripe मार्फत Visa, Mastercard आदि",
+    "choosePaymentMethod": "भुक्तानी विधि छान्नुहोस्",
+    "choosePaymentSubtitle": "भुक्तानीपछि कोइन तुरुन्तै वालेटमा थपिन्छ।",
+    "coinsCount": "{count} कोइन",
+    "payButton": "{method} बाट {price} तिर्नुहोस्",
+    "redirecting": "रिडाइरेक्ट हुँदै…",
+    "close": "बन्द गर्नुहोस्",
+    "cardMinNote": "{amount} कोइनदेखि उपलब्ध",
+    "secureCheckoutNote": "तपाईंले सुरक्षित चेकआउट पेजमा भुक्तानी पूरा गर्नुहुनेछ"
+  },
+  "appearance": {
+    "title": "रूप-रङ्ग",
+    "modeHeading": "मोड",
+    "paletteHeading": "रङ्ग थिम",
+    "paletteHint": "Duo भरका बटन, हाइलाइट र ग्रेडियन्टका लागि रङ्ग छान्नुहोस्।",
+    "premiumBadge": "प्रिमियम",
+    "freeBadge": "निःशुल्क",
+    "active": "सक्रिय",
+    "locked": "Duo प्रिमियमबाट खोल्नुहोस्",
+    "upgradeTitle": "प्रिमियम थिमहरू",
+    "upgradeBody": "सबै रङ्ग थिम र थप डार्क तथा लाइट शैलीहरू खोल्न Duo प्रिमियममा अपग्रेड गर्नुहोस्।",
+    "upgradeCta": "अपग्रेड",
+    "previewHeading": "पूर्वावलोकन",
+    "previewName": "एलेक्स, २६",
+    "previewBio": "कफी, हाइकिङ र राति अबेरसम्मका कुरा।",
+    "previewLike": "मन पर्यो",
+    "previewMessage": "सन्देश",
+    "palettes": {
+      "rose": {
+        "name": "रोज",
+        "description": "Duo को आफ्नै गुलाबी"
+      },
+      "ocean": {
+        "name": "ओसन",
+        "description": "शान्त, सफा नीलो"
+      },
+      "aurum": {
+        "name": "अरम",
+        "description": "न्यानो सुनौलो"
+      },
+      "amethyst": {
+        "name": "एमेथिस्ट",
+        "description": "शाही बैजनी"
+      },
+      "emerald": {
+        "name": "एमराल्ड",
+        "description": "ताजा हरियो"
+      },
+      "sunset": {
+        "name": "सनसेट",
+        "description": "साँझको सुन्तला"
+      },
+      "midnight": {
+        "name": "मिडनाइट",
+        "description": "गहिरो इन्डिगो"
+      },
+      "noir": {
+        "name": "नोआर",
+        "description": "कालो-सेतो मात्र"
+      },
+      "lagoon": {
+        "name": "लगुन",
+        "description": "उष्ण हरियो-नीलो"
+      },
+      "crimson": {
+        "name": "क्रिमसन",
+        "description": "गाढा रातो"
+      },
+      "sakura": {
+        "name": "साकुरा",
+        "description": "नरम गुलाबी फूल"
+      },
+      "mocha": {
+        "name": "मोका",
+        "description": "कफी खैरो"
+      },
+      "neon": {
+        "name": "नियोन",
+        "description": "चम्किलो नीलो र बैजनी"
+      },
+      "royal": {
+        "name": "रोयल",
+        "description": "नीलो र सुनौलो"
+      },
+      "valentine": {
+        "name": "भ्यालेन्टाइन",
+        "description": "रातो गुलाफ"
+      },
+      "blush": {
+        "name": "ब्लस",
+        "description": "नरम गुलाबी"
+      },
+      "passion": {
+        "name": "प्यासन",
+        "description": "गाढा वाइन रातो"
+      },
+      "cupid": {
+        "name": "क्युपिड",
+        "description": "गुलाबी र बैजनी"
+      },
+      "honeymoon": {
+        "name": "हनिमुन",
+        "description": "रोज-गोल्ड चमक"
+      },
+      "twilight": {
+        "name": "ट्वाइलाइट",
+        "description": "रोमान्टिक साँझ"
+      }
+    },
+    "darkStylesHeading": "डार्क मोड शैलीहरू",
+    "darkStylesHint": "डार्क मोड कस्तो देखिने छान्नुहोस्। छान्दा डार्क मोडमा जान्छ।",
+    "lightStylesHeading": "लाइट मोड शैलीहरू",
+    "lightStylesHint": "लाइट मोड कस्तो देखिने छान्नुहोस्। छान्दा लाइट मोडमा जान्छ।",
+    "darkStyles": {
+      "default": {
+        "name": "चारकोल",
+        "description": "Duo को क्लासिक डार्क"
+      },
+      "amoled": {
+        "name": "AMOLED",
+        "description": "पूरै कालो, ब्याट्री बचत"
+      },
+      "dim": {
+        "name": "डिम",
+        "description": "नरम नीलो-खैरो"
+      },
+      "graphite": {
+        "name": "ग्राफाइट",
+        "description": "तटस्थ खैरो"
+      },
+      "nord": {
+        "name": "नर्ड",
+        "description": "हिमाली स्लेट नीलो"
+      },
+      "velvet": {
+        "name": "भेल्भेट",
+        "description": "गाढा बैजनी अँध्यारो"
+      }
+    },
+    "lightStyles": {
+      "default": {
+        "name": "स्नो",
+        "description": "Duo को क्लासिक लाइट"
+      },
+      "cream": {
+        "name": "क्रिम",
+        "description": "न्यानो, आँखालाई सजिलो"
+      },
+      "frost": {
+        "name": "फ्रस्ट",
+        "description": "चिसो हल्का नीलो"
+      },
+      "sand": {
+        "name": "स्यान्ड",
+        "description": "माटो रङ्ग"
+      },
+      "mist": {
+        "name": "मिस्ट",
+        "description": "हल्का लेभेन्डर"
+      },
+      "paper": {
+        "name": "पेपर",
+        "description": "उच्च कन्ट्रास्ट सेतो"
+      }
+    },
+    "iconSetsHeading": "नेभबार आइकन",
+    "iconSetsHint": "मोबाइल र डेस्कटपको नेभिगेसन बारका लागि आइकन शैली छान्नुहोस्।",
+    "iconSets": {
+      "classic": "क्लासिक",
+      "romance": "रोमान्स",
+      "cupid": "क्युपिड",
+      "cosmic": "कस्मिक",
+      "royal": "रोयल",
+      "nature": "प्रकृति",
+      "playful": "रमाइलो"
+    }
+  },
+  "mailPrefs": {
+    "title": "इमेल सूचनाहरू",
+    "sendingTo": "इमेल पठाइने ठेगाना",
+    "loadError": "तपाईंको इमेल प्राथमिकता लोड गर्न सकिएन।",
+    "saveError": "परिवर्तन सुरक्षित गर्न सकिएन। फेरि प्रयास गर्नुहोस्।",
+    "master": {
+      "title": "इमेल सूचनाहरू",
+      "description": "Duo का सबै ऐच्छिक इमेल रोक्न बन्द गर्नुहोस्।"
+    },
+    "masterOffHint": "छुट्टाछुट्टै प्रकार छान्न इमेल सूचना खोल्नुहोस्।",
+    "categoriesHeading": "मलाई केको इमेल पठाउने",
+    "categories": {
+      "matches": {
+        "title": "नयाँ म्याच",
+        "description": "तपाईं र अर्को व्यक्तिले एकअर्कालाई मन पराउँदा"
+      },
+      "payments": {
+        "title": "भुक्तानी र रसिद",
+        "description": "सदस्यता भुक्तानी, कोइन रिचार्ज र वालेट रसिद"
+      },
+      "verification": {
+        "title": "प्रमाणीकरण अपडेट",
+        "description": "प्रमाणित ब्याज थपिँदा वा हटाइँदा"
+      },
+      "announcements": {
+        "title": "घोषणाहरू",
+        "description": "Duo टोलीका महत्त्वपूर्ण समाचार र अपडेट"
+      },
+      "marketing": {
+        "title": "अफर र सुझाव",
+        "description": "छुट, प्रमोसन र डेटिङ सुझाव"
+      }
+    },
+    "alwaysHeading": "सधैं पठाइन्छ",
+    "alwaysOn": "सधैं खुला",
+    "always": {
+      "security": {
+        "title": "सुरक्षा कोड",
+        "description": "साइन-इन कोड, पासवर्ड रिसेट र इमेल परिवर्तन"
+      },
+      "account": {
+        "title": "खाता स्थिति",
+        "description": "खाता निष्क्रिय वा पुनः सक्रिय हुँदा"
+      }
+    }
+  }
+}

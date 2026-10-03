@@ -185,7 +185,7 @@ function TopSwipeCard({
       <img
         src={image}
         alt=""
-        className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover"
+        className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-top"
         draggable={false}
       />
 
@@ -408,7 +408,7 @@ export const SwipeableCardStack = React.forwardRef<
               <img
                 src={image}
                 alt=""
-                className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover"
+                className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-top"
                 draggable={false}
               />
               {renderOverlay?.(index, false)}

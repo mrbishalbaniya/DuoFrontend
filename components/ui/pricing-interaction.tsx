@@ -1,9 +1,9 @@
 "use client";
 
 import NumberFlow from "@number-flow/react";
+import Link from "next/link";
 import React from "react";
-import { EsewaLogo } from "@/components/payment/EsewaLogo";
-import { formatCoins, formatNprPrice } from "@/lib/coins";
+import { formatCoins } from "@/lib/coins";
 
 export type PricingPlanOption = {
   planId: string;
@@ -17,7 +17,7 @@ type PricingInteractionProps = {
   plans: PricingPlanOption[];
   likesCount?: number;
   visitorsCount?: number;
-  variant?: "likes" | "visitors";
+  variant?: "likes" | "visitors" | "rewind" | "unlimited_likes";
   walletBalance?: number;
   topUpPresets?: number[];
   purchasing?: boolean;
@@ -32,11 +32,9 @@ export function PricingInteraction({
   visitorsCount = 0,
   variant = "likes",
   walletBalance = 0,
-  topUpPresets = [500, 1000, 2000, 5000],
   purchasing = false,
   toppingUp = false,
   onPurchase,
-  onTopUp,
 }: PricingInteractionProps) {
   const popularIndex = plans.findIndex((plan) => plan.badge === "Popular");
   const defaultIndex = popularIndex >= 0 ? popularIndex : 0;
@@ -50,16 +48,34 @@ export function PricingInteraction({
   if (!selected) return null;
 
   const isVisitors = variant === "visitors";
-  const headline = isVisitors ? "See who viewed you" : "See who liked you";
+  const isRewind = variant === "rewind";
+  const isUnlimitedLikes = variant === "unlimited_likes";
+  const headline = isUnlimitedLikes
+    ? "Keep liking without limits"
+    : isRewind
+      ? "Rewind your last swipe"
+      : isVisitors
+        ? "See who viewed you"
+        : "See who liked you";
   const count = isVisitors ? visitorsCount : likesCount;
-  const subtitle =
-    count > 0
+  const subtitle = isUnlimitedLikes
+    ? "You've used your free Likes for now. Go unlimited so you never miss someone you like."
+    : isRewind
+    ? "Swiped too fast? Bring back people you passed on or liked by mistake."
+    : count > 0
       ? isVisitors
         ? `${count} ${count === 1 ? "person has" : "people have"} viewed your profile. Unlock blurred profiles and connect.`
         : `${count} ${count === 1 ? "person has" : "people have"} liked you. Unlock blurred profiles and match instantly.`
       : isVisitors
         ? "Upgrade to see who has been checking out your profile."
         : "Upgrade to unlock blurred profiles when someone likes you.";
+  const perks = isUnlimitedLikes
+    ? ["Like as many people as you want", "No 12-hour Like limit"]
+    : isRewind
+    ? ["Undo left and right swipes", "Rewind as many times as you like"]
+    : isVisitors
+      ? ["Reveal names and photos on Visited you", "See who checked out your profile first"]
+      : ["Reveal names and photos on Liked you", "Match instantly with people who like you"];
 
   const shortfall = Math.max(0, selected.price - walletBalance);
   const canAfford = shortfall === 0;
@@ -69,7 +85,7 @@ export function PricingInteraction({
     <div className="flex w-full max-w-sm flex-col items-center gap-4">
       <div className="w-full text-left">
         <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-primary">
-          <span className="material-symbols-outlined text-sm">toll</span>
+          <span aria-hidden>🪙</span>
           Duo Coins
         </div>
         <h2 className="font-[var(--font-headline)] text-xl font-bold text-on-surface">
@@ -81,19 +97,17 @@ export function PricingInteraction({
         <div className="mt-3 flex items-center justify-between rounded-2xl border border-white/10 bg-surface-variant/30 px-4 py-3">
           <span className="text-sm text-on-surface-variant">Your coins</span>
           <span className="flex items-center gap-1.5 text-lg font-bold tabular-nums text-on-surface">
-            <span className="material-symbols-outlined text-base text-primary">toll</span>
+            <span className="text-base" aria-hidden>🪙</span>
             <NumberFlow value={walletBalance} />
           </span>
         </div>
         <ul className="mt-3 space-y-1.5 text-sm text-on-surface-variant">
-          <li className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-base text-primary">check_circle</span>
-            {isVisitors ? "Reveal names and photos on Visited you" : "Reveal names and photos on Liked you"}
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-base text-primary">check_circle</span>
-            {isVisitors ? "See who liked you too" : "See who viewed your profile"}
-          </li>
+          {perks.map((perk) => (
+            <li key={perk} className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-base text-primary">check_circle</span>
+              {perk}
+            </li>
+          ))}
           <li className="flex items-center gap-2">
             <span className="material-symbols-outlined text-base text-primary">check_circle</span>
             <span>
@@ -169,36 +183,12 @@ export function PricingInteraction({
 
         {!canAfford ? (
           <div className="mt-4 border-t border-white/10 pt-4">
-            <p className="mb-3 text-center text-sm text-on-surface-variant">
-              Buy coins with eSewa to unlock this pass.
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {topUpPresets.map((amount) => (
-                <button
-                  key={amount}
-                  type="button"
-                  disabled={busy}
-                  onClick={() => onTopUp(amount)}
-                  className="inline-flex flex-col items-center justify-center gap-0.5 rounded-xl border border-white/10 bg-background/50 px-3 py-2.5 text-sm font-semibold text-on-surface transition hover:border-[#60bb46]/40 hover:bg-[#60bb46]/10 disabled:opacity-60"
-                >
-                  <span className="flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm text-primary">toll</span>
-                    {amount.toLocaleString("en-NP")}
-                  </span>
-                  <span className="flex items-center gap-1 text-[10px] font-normal text-on-surface-variant">
-                    <EsewaLogo className="size-3" />
-                    {formatNprPrice(amount)}
-                  </span>
-                </button>
-              ))}
-            </div>
-            {toppingUp ? (
-              <p className="mt-2 text-center text-xs text-on-surface-variant">Redirecting to eSewa…</p>
-            ) : (
-              <p className="mt-2 text-center text-[11px] text-on-surface-variant/70">
-                1 NPR via eSewa = 1 Duo Coin
-              </p>
-            )}
+            <Link
+              href="/wallet"
+              className="block text-center text-sm font-semibold text-primary hover:underline"
+            >
+              Don&apos;t have coins? Recharge
+            </Link>
           </div>
         ) : (
           <p className="mt-2 text-center text-[11px] text-on-surface-variant/70">

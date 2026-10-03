@@ -46,6 +46,10 @@ export function ChatThreadHeader({
 
   onReport,
 
+  filterOffensive,
+
+  onToggleFilter,
+
   onVoiceCall,
 
   onVideoCall,
@@ -85,6 +89,10 @@ export function ChatThreadHeader({
   onClearHistory: () => void;
 
   onReport: () => void;
+
+  filterOffensive?: boolean;
+
+  onToggleFilter?: () => void;
 
   onVoiceCall?: () => void;
 
@@ -253,6 +261,10 @@ export function ChatThreadHeader({
             onClearHistory={onClearHistory}
 
             onReport={onReport}
+
+            filterOffensive={filterOffensive}
+
+            onToggleFilter={onToggleFilter}
 
           />
 

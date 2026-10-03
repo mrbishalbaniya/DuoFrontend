@@ -1,0 +1,220 @@
+{
+  "discover": {
+    "experience": {
+      "openFilters": "खोज फिल्टर खोल्नुहोस्",
+      "filters": "फिल्टर",
+      "expandedSearchNotice": "थप उपयुक्त व्यक्तिहरू देखाउन हामीले तपाईंको खोज दायरा विस्तार गर्‍यौं।",
+      "allCaughtUpTitle": "तपाईंले सबै हेरिसक्नुभयो",
+      "allCaughtUpBody": "अहिलेको लागि उपलब्ध सबैलाई तपाईंले हेरिसक्नुभयो। नयाँ व्यक्तिहरू थपिँदा फेरि हेर्नुहोस्।",
+      "adjustFilters": "फिल्टर मिलाउनुहोस्",
+      "refresh": "रिफ्रेस"
+    },
+    "matchesPage": {
+      "title": "खोज",
+      "openMenu": "मेनु खोल्नुहोस्",
+      "refresh": "रिफ्रेस",
+      "tabVisitedYou": "तपाईंलाई हेर्नेहरू",
+      "tabLikedByYou": "पठाइएका लाइक",
+      "tabLikesYou": "तपाईंलाई मन पराउनेहरू",
+      "timeRecently": "भर्खरै",
+      "timeJustNow": "अहिले नै",
+      "timeMinutesAgo": "{minutes} मिनेट अघि",
+      "timeHoursAgo": "{hours} घण्टा अघि",
+      "timeDaysAgo": "{days} दिन अघि",
+      "labelMatched": "म्याच भयो · {when}",
+      "labelVisited": "तपाईंको प्रोफाइल हेर्नुभयो · {when}",
+      "labelSuperlikeSent": "सुपर लाइक पठाइयो · {when}",
+      "labelLikeSent": "लाइक पठाइयो · {when}",
+      "labelSuperlikeReceived": "सुपर लाइक प्राप्त भयो · {when}",
+      "labelLikeReceived": "लाइक प्राप्त भयो · {when}",
+      "memberFallback": "Duo सदस्य",
+      "distanceKm": "{km} कि.मी.",
+      "distanceNearby": "नजिकै",
+      "likeOnMatch": "म्याचमा लाइक गर्नुहोस्",
+      "unlike": "लाइक हटाउनुहोस्",
+      "removing": "हटाउँदै…",
+      "likeBack": "फर्किएर लाइक गर्नुहोस्",
+      "likingBack": "लाइक गर्दै…",
+      "emptyVisitedTitle": "अहिलेसम्म कुनै प्रोफाइल भ्रमण छैन",
+      "emptyVisitedBody": "कसैले तपाईंको प्रोफाइल हेर्दा, यहाँ देखा पर्नेछ।",
+      "emptyVisitedCta": "आफ्नो प्रोफाइल अपडेट गर्नुहोस्",
+      "emptyLikedByYouTitle": "अहिलेसम्म कुनै लाइक छैन",
+      "emptyLikedByYouBody": "तपाईंले मन पराएका प्रोफाइलहरू, उनीहरूले पनि तपाईंलाई मन नपराउँदासम्म यहाँ देखिनेछन्।",
+      "emptyLikedByYouCta": "प्रोफाइलहरू खोज्नुहोस्",
+      "emptyLikesYouTitle": "अहिलेसम्म कुनै लाइक छैन",
+      "emptyLikesYouBody": "कसैले तपाईंलाई मन पराउँदा, फर्किएर म्याच गर्न सक्ने गरी यहाँ देखा पर्नेछ।",
+      "emptyLikesYouCta": "प्रोफाइल अपडेट गर्नुहोस्",
+      "loadErrorTitle": "लोड गर्न सकिएन",
+      "loadErrorBody": "तपाईंको खोज सूची लोड गर्न सकिएन।",
+      "tryAgain": "फेरि प्रयास गर्नुहोस्",
+      "noticePassPurchased": "पास खरिद भयो। Duo प्रिमियम अब सक्रिय छ।",
+      "noticePurchaseFailed": "पास खरिद गर्न सकिएन। कृपया फेरि प्रयास गर्नुहोस्।",
+      "noticeTopUpFailed": "eSewa टप-अप सुरु गर्न सकिएन। कृपया फेरि प्रयास गर्नुहोस्।",
+      "noticeUnlikeMissingId": "लाइक हटाउन सकिएन — प्रोफाइलमा प्रयोगकर्ता आईडी छैन।",
+      "noticeLikeRemoved": "लाइक हटाइयो।",
+      "noticeUnlikeFailed": "लाइक हटाउन असफल भयो। कृपया फेरि प्रयास गर्नुहोस्।",
+      "noticeLikeBackMissingId": "फर्किएर लाइक गर्न सकिएन — प्रोफाइलमा प्रयोगकर्ता आईडी छैन।",
+      "noticeLikedBack": "तपाईंले उनीहरूलाई फर्किएर लाइक गर्नुभयो!",
+      "noticeLikeBackFailed": "फर्किएर लाइक गर्न असफल भयो। कृपया फेरि प्रयास गर्नुहोस्।",
+      "noticeWalletToppedUp": "वालेट सफलतापूर्वक टप-अप भयो।",
+      "noticeTopUpIncomplete": "टप-अप पूरा भएन। तपाईं eSewa मार्फत फेरि प्रयास गर्न सक्नुहुन्छ।",
+      "noticePaymentSuccess": "भुक्तानी सफल भयो। Duo प्रिमियम अब सक्रिय छ।",
+      "noticePaymentIncomplete": "भुक्तानी पूरा भएन। तपाईं eSewa मार्फत फेरि प्रयास गर्न सक्नुहुन्छ।"
+    },
+    "profileUi": {
+      "viewDetails": "प्रोफाइल विवरण हेर्नुहोस्",
+      "locationFallback": "—",
+      "closeProfile": "प्रोफाइल बन्द गर्नुहोस्",
+      "close": "बन्द गर्नुहोस्",
+      "education": "शिक्षा",
+      "occupation": "पेशा",
+      "religion": "धर्म",
+      "work": "काम",
+      "verifiedProfile": "प्रमाणित प्रोफाइल",
+      "about": "बारेमा",
+      "lifestyle": "जीवनशैली",
+      "morePhotos": "थप फोटोहरू",
+      "photoAlt": "{name} को फोटो {number}"
+    },
+    "matchesSkeleton": {
+      "loading": "खोज लोड हुँदै"
+    },
+    "pageSkeleton": {
+      "loading": "खोज प्रोफाइलहरू लोड हुँदै"
+    }
+  },
+  "dashboard": {
+    "actionBar": {
+      "skip": "प्रोफाइल छोड्नुहोस्",
+      "info": "प्रोफाइल विवरण हेर्नुहोस्",
+      "like": "प्रोफाइल लाइक गर्नुहोस्"
+    },
+    "menuSheet": {
+      "close": "बन्द गर्नुहोस्",
+      "closeMenu": "मेनु बन्द गर्नुहोस्",
+      "title": "मेनु",
+      "logOut": "लगआउट",
+      "signIn": "साइन इन",
+      "itemHomeLabel": "गृहपृष्ठ",
+      "itemHomeDescription": "ल्यान्डिङ पृष्ठ",
+      "itemMatchLabel": "म्याच",
+      "itemMatchDescription": "प्रोफाइलहरू स्वाइप र लाइक गर्नुहोस्",
+      "itemDiscoverLabel": "खोज",
+      "itemDiscoverDescription": "प्रोफाइल भ्रमणकर्ता र लाइकहरू",
+      "itemMessagesLabel": "म्यासेजहरू",
+      "itemMessagesDescription": "म्याचहरूसँग कुराकानी गर्नुहोस्",
+      "itemMapLabel": "नक्सा",
+      "itemMapDescription": "नजिकैका व्यक्तिहरू फेला पार्नुहोस्",
+      "itemProfileLabel": "मेरो प्रोफाइल",
+      "itemProfileDescription": "प्रोफाइल हेर्नुहोस् र सम्पादन गर्नुहोस्",
+      "itemFiltersLabel": "खोज फिल्टर",
+      "itemFiltersDescription": "उमेर, दूरी, प्राथमिकताहरू"
+    },
+    "topBar": {
+      "openMenu": "मेनु खोल्नुहोस्",
+      "openFilters": "खोज फिल्टर खोल्नुहोस्"
+    },
+    "filtersSheet": {
+      "minAge": "न्यूनतम उमेर",
+      "maxAge": "अधिकतम उमेर",
+      "closeFilters": "फिल्टर बन्द गर्नुहोस्",
+      "cancel": "रद्द गर्नुहोस्",
+      "title": "फिल्टर",
+      "saving": "सुरक्षित गर्दै…",
+      "apply": "लागू गर्नुहोस्",
+      "detectingLocation": "स्थान पत्ता लगाउँदै…",
+      "useCurrentLocation": "हालको स्थान प्रयोग गर्नुहोस्",
+      "autoFillLocation": "GPS बाट सहर स्वतः भर्नुहोस्",
+      "nearLocation": "{location} नजिक",
+      "locationDetectError": "तपाईंको स्थान पत्ता लगाउन सकिएन।",
+      "location": "स्थान",
+      "age": "उमेर",
+      "ageRange": "{min} – {max}",
+      "distance": "दूरी",
+      "distanceKm": "{km} कि.मी.",
+      "showMe": "मलाई देखाउनुहोस्",
+      "genderWomen": "महिला",
+      "genderMen": "पुरुष",
+      "genderEveryone": "सबैलाई",
+      "relationshipGoals": "सम्बन्धको लक्ष्य",
+      "goalSerious": "गम्भीर",
+      "goalCasual": "सामान्य",
+      "goalDating": "डेटिङ",
+      "goalEveryone": "सबै",
+      "verifiedOnly": "प्रमाणित प्रोफाइल मात्र",
+      "verifiedOnlyDescription": "प्रमाणित परिचयपत्र भएका व्यक्तिहरू मात्र देखाउनुहोस्",
+      "resetDefaults": "सिफारिस गरिएको पूर्वनिर्धारणमा रिसेट गर्नुहोस्",
+      "saveError": "फिल्टर सुरक्षित गर्न सकिएन। कृपया फेरि प्रयास गर्नुहोस्।"
+    }
+  },
+  "match": {
+    "celebration": {
+      "title": "यो एउटा म्याच हो!",
+      "subtitle": "तपाईं र {name} ले एकअर्कामा चासो देखाउनुभयो।",
+      "someoneSpecial": "कोही विशेष व्यक्ति",
+      "youAlt": "तपाईं",
+      "compatiblePercent": "{score}% मिल्दो",
+      "startChatting": "कुराकानी सुरु गर्नुहोस्",
+      "keepSwiping": "स्वाइप गरिरहनुहोस्"
+    }
+  },
+  "onboarding": {
+    "page": {
+      "preparing": "तपाईंको स्वागत तयार गर्दै…"
+    },
+    "experience": {
+      "skip": "छोड्नुहोस्",
+      "slideLabel": "स्लाइड {number}",
+      "stepsLabel": "अनबोर्डिङ चरणहरू",
+      "startMatching": "म्याचिङ सुरु गर्नुहोस्",
+      "continue": "जारी राख्नुहोस्",
+      "readyNotice": "तपाईंको प्रोफाइल तयार छ — तपाईंलाई सुहाउने व्यक्तिहरू खोज्नुहोस्।"
+    }
+  },
+  "insights": {
+    "page": {
+      "emptyTitle": "अहिलेसम्म कुनै म्याच जानकारी छैन",
+      "emptyBody": "म्याच फेला पार्न र मिल्दोपनको जानकारी हेर्न स्वाइप गर्न सुरु गर्नुहोस्!",
+      "findMatches": "म्याचहरू फेला पार्नुहोस्",
+      "compatibilityOverview": "मिल्दोपनको सिंहावलोकन",
+      "matchInsights": "म्याच जानकारी",
+      "compatibilitySummary": "तपाईंका साझा मूल्य-मान्यता र जीवनशैली छनोटले दीर्घकालीन सम्भावना भएको एक अत्यन्त मिलेको साझेदारीको संकेत गर्छ।",
+      "analysis": "विश्लेषण",
+      "compatibilityPillars": "मिल्दोपनका आधारहरू",
+      "pillarCoreValues": "मूल मूल्य-मान्यता",
+      "pillarLifestyleHabit": "जीवनशैली र बानी",
+      "pillarCareerAmbition": "करियर महत्वाकांक्षा",
+      "pillarHobbiesLeisure": "सोख र फुर्सद",
+      "sparkFactors": "आकर्षणका कारकहरू",
+      "sharedInterests": "साझा रुचिहरू",
+      "deepDiveCompatibility": "गहिरो मिल्दोपन विश्लेषण",
+      "visionForFuture": "भविष्यको दृष्टिकोण",
+      "visionFallback": "दुवैले सांस्कृतिक जरासँग बलियो सम्बन्ध राख्दै सहरी जीवनशैलीप्रति चाहना व्यक्त गर्छन्।",
+      "communicationStyle": "संवाद शैली",
+      "communicationFallback": "एउटा सन्तुलित जोडी जसले प्रायः अत्यन्त प्रभावकारी संवाद निम्त्याउँछ।",
+      "nextStepTitle": "अर्को कदम चाल्न तयार हुनुहुन्छ?",
+      "nextStepBody": "{name} लाई व्यक्तिगत सन्देश पठाउनुहोस्।",
+      "startChatting": "कुराकानी सुरु गर्नुहोस्"
+    },
+    "skeleton": {
+      "loading": "जानकारी लोड हुँदै"
+    }
+  },
+  "subscription": {
+    "banner": {
+      "badge": "Duo प्रिमियम",
+      "title": "तपाईंलाई कसले मन पराउँछ हेर्नुहोस्",
+      "body": "{count, plural, =0 {कसैले तपाईंलाई मन पराउँदा धमिलो प्रोफाइल अनलक गर्न अपग्रेड गर्नुहोस्।} one {# व्यक्तिले तपाईंलाई मन पराएको छ। धमिलो प्रोफाइल अनलक गरी तुरुन्त म्याच गर्नुहोस्।} other {# व्यक्तिहरूले तपाईंलाई मन पराएका छन्। धमिलो प्रोफाइल अनलक गरी तुरुन्त म्याच गर्नुहोस्।}}",
+      "revealFeature": "तपाईंलाई मन पराउनेहरूमा नाम र फोटो देखाउनुहोस्",
+      "dayAccess": "{days} दिनको पहुँच",
+      "priceCoinsFallback": "४९९ कोइन",
+      "perMonth": "/ महिना",
+      "redirecting": "रिडिरेक्ट गर्दै…",
+      "buyWithCoins": "कोइनले किन्नुहोस्",
+      "spendCoinsHint": "तपाईंको वालेटबाट Duo कोइन खर्च गर्नुहोस्"
+    },
+    "sheet": {
+      "closeOffer": "प्रिमियम अफर बन्द गर्नुहोस्"
+    }
+  }
+}

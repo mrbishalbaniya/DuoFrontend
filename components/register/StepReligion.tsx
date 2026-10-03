@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { ChipSelect } from "@/components/register/ChipSelect";
-import { SelectField } from "@/components/register/SelectField";
+import { SelectField } from "@/components/ui/select-field";
 import { FieldError, StepCard, StepNavigation } from "@/components/register/StepNavigation";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

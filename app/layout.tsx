@@ -3,6 +3,8 @@ import type { Viewport } from "next";
 import Script from "next/script";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import localFont from "next/font/local";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 import { ClientProviders } from "@/components/providers/ClientProviders";
 import { jsonLdWebApplication, rootMetadata } from "@/lib/seo/metadata";
 import "./globals.css";
@@ -44,6 +46,14 @@ const themeInitScript = `
     document.documentElement.classList.add(resolved);
     document.documentElement.dataset.theme = resolved;
     document.documentElement.style.colorScheme = resolved;
+    var palette = localStorage.getItem("duo_palette");
+    var palettes = ["rose", "ocean", "lagoon", "aurum", "amethyst", "emerald", "sunset", "midnight", "noir", "crimson", "sakura", "mocha", "neon", "royal", "valentine", "blush", "passion", "cupid", "honeymoon", "twilight"];
+    document.documentElement.dataset.palette = palettes.indexOf(palette) >= 0 ? palette : "rose";
+    var darkStyles = ["default", "amoled", "dim", "graphite", "nord", "velvet"];
+    var lightStyles = ["default", "cream", "frost", "sand", "mist", "paper"];
+    var surface = localStorage.getItem(resolved === "dark" ? "duo_dark_style" : "duo_light_style");
+    var allowed = resolved === "dark" ? darkStyles : lightStyles;
+    document.documentElement.dataset.surface = allowed.indexOf(surface) >= 0 ? surface : "default";
   } catch (e) {}
 })();
 `;
@@ -56,10 +66,13 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
     <html
-      lang="en"
+      lang={locale}
       suppressHydrationWarning
       className={`${inter.variable} ${plusJakarta.variable} ${materialSymbols.variable}`}
     >
@@ -71,7 +84,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdWebApplication()) }}
         />
-        <ClientProviders>{children}</ClientProviders>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <ClientProviders>{children}</ClientProviders>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

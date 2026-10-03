@@ -2,30 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { CSSProperties } from "react";
 import { useUnreadMessagesBadge } from "@/hooks/useUnreadMessagesBadge";
+import { useTheme } from "@/contexts/ThemeContext";
+import { navIcons } from "@/lib/iconSets";
 
 type NavItem = {
   href: string;
   icon: string;
   label: string;
 };
-
-const navLeft: NavItem[] = [
-  { href: "/discover", icon: "group", label: "Discover" },
-  { href: "/chat", icon: "chat_bubble", label: "Chat" },
-];
-
-const navCenter: NavItem = {
-  href: "/match",
-  icon: "favorite",
-  label: "Match",
-};
-
-const navRight: NavItem[] = [
-  { href: "/map", icon: "map", label: "Map" },
-  { href: "/profile", icon: "person", label: "Profile" },
-];
 
 function isNavActive(pathname: string, href: string) {
   if (href === "/match") {
@@ -80,6 +67,7 @@ function NavLink({
     <Link
       href={item.href}
       scroll={false}
+      data-tour={`nav-${item.href.replace("/", "") || "home"}`}
       aria-label={
         showUnread ? `${item.label}, ${unreadLabel} unread` : item.label
       }
@@ -113,14 +101,15 @@ function NavLink({
   );
 }
 
-function CenterNavLink({ pathname }: { pathname: string }) {
-  const isActive = isNavActive(pathname, navCenter.href);
+function CenterNavLink({ pathname, item }: { pathname: string; item: NavItem }) {
+  const isActive = isNavActive(pathname, item.href);
 
   return (
     <Link
-      href={navCenter.href}
+      href={item.href}
       scroll={false}
-      aria-label={navCenter.label}
+      data-tour={`nav-${item.href.replace("/", "") || "home"}`}
+      aria-label={item.label}
       aria-current={isActive ? "page" : undefined}
       className={`relative -mt-7 flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-full border-2 transition-all duration-300 active:scale-95 ${
         isActive
@@ -132,7 +121,7 @@ function CenterNavLink({ pathname }: { pathname: string }) {
         className="material-symbols-outlined text-[28px]"
         style={isActive ? filledIconStyle : undefined}
       >
-        {navCenter.icon}
+        {item.icon}
       </span>
     </Link>
   );
@@ -141,6 +130,18 @@ function CenterNavLink({ pathname }: { pathname: string }) {
 export default function BottomNav() {
   const pathname = usePathname();
   const { badgeLabel } = useUnreadMessagesBadge();
+  const t = useTranslations("nav");
+  const icons = navIcons(useTheme().iconSet);
+
+  const navLeft: NavItem[] = [
+    { href: "/discover", icon: icons.discover, label: t("discover") },
+    { href: "/chat", icon: icons.chat, label: t("chat") },
+  ];
+  const navCenter: NavItem = { href: "/match", icon: icons.match, label: t("match") };
+  const navRight: NavItem[] = [
+    { href: "/map", icon: icons.map, label: t("map") },
+    { href: "/profile", icon: icons.profile, label: t("profile") },
+  ];
 
   return (
     <nav
@@ -159,7 +160,7 @@ export default function BottomNav() {
           ))}
         </div>
 
-        <CenterNavLink pathname={pathname} />
+        <CenterNavLink pathname={pathname} item={navCenter} />
 
         <div className="flex min-w-0 flex-1 items-end justify-around">
           {navRight.map((item) => (

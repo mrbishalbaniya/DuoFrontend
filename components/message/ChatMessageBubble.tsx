@@ -3,6 +3,9 @@
 
 
 import { memo } from "react";
+import { SystemEventMessage } from "./SystemEventMessage";
+import { LocationMessageCard } from "./LocationMessageCard";
+import { parseLocationMessage } from "@/lib/chatLocation";
 
 import { resolveChatMediaUrl, resolveMediaUrl } from "@/lib/mediaUrl";
 
@@ -15,6 +18,8 @@ import {
   formatClockTime,
 
   isCompactBubble,
+
+  isEmojiOnlyMessage,
 
   isSentImageOnly,
 
@@ -88,6 +93,8 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
 
   onRetry,
 
+  onCallBack,
+
 }: {
 
   msg: ChatMessage;
@@ -104,23 +111,28 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
 
   menuOpen: boolean;
 
-  onToggleMenu: () => void;
+  onToggleMenu: (msg: ChatMessage) => void;
 
-  onCopy: () => void;
+  onCopy: (msg: ChatMessage) => void;
 
-  onReply: () => void;
+  onReply: (msg: ChatMessage) => void;
 
-  onReact: (emoji: string) => void;
+  onReact: (msg: ChatMessage, emoji: string) => void;
 
-  onDeleteForMe: () => void;
+  onDeleteForMe: (msg: ChatMessage) => void;
 
-  onDeleteForEveryone: () => void;
+  onDeleteForEveryone: (msg: ChatMessage) => void;
 
   onImageClick?: (src: string) => void;
 
-  onRetry?: () => void;
+  onRetry?: (msg: ChatMessage) => void;
+  onCallBack?: (video: boolean) => void;
 
 }) {
+
+  if (msg.message_type === "system") {
+    return <SystemEventMessage msg={msg} onCallBack={onCallBack} />;
+  }
 
   const myReaction =
 
@@ -139,6 +151,9 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
   const showTheirReactionOnMyMsg = msg.is_mine && theirReaction;
 
   const bodyText = getMessageBodyText(msg);
+  const sharedLocation = isVoiceMessage(msg) || msg.image_url ? null : parseLocationMessage(msg.content);
+  const emojiOnly = !sharedLocation && isEmojiOnlyMessage(msg);
+  const bareContent = Boolean(sharedLocation) || emojiOnly;
 
   const legacyReply = getLegacyReplyPreview(msg);
 
@@ -232,11 +247,11 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
 
             className={`relative min-w-0 max-w-full overflow-hidden transition-all ${
 
-              isCompactBubble(msg) ? "w-fit" : ""
+              isCompactBubble(msg) || bareContent ? "w-fit" : ""
 
             } ${
 
-              isSentImageOnly(msg)
+              isSentImageOnly(msg) || bareContent
 
                 ? "bg-transparent p-0 shadow-none"
 
@@ -390,7 +405,33 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
 
             )}
 
-            {bodyText && !isVoiceMessage(msg) && (
+            {sharedLocation ? (
+              <div className="flex flex-col gap-1">
+                <LocationMessageCard location={sharedLocation} mine={Boolean(msg.is_mine)} />
+                <span className="bubble-bare-meta flex items-center justify-end gap-0.5 px-1 text-[10px] leading-none text-on-surface-variant">
+                  {formatClockTime(msg.timestamp ?? msg.created_at)}
+                  {msg.is_mine && <MessageStatusIndicator msg={msg} />}
+                </span>
+              </div>
+            ) : null}
+
+            {emojiOnly ? (
+              <div className={`flex flex-col gap-0.5 ${msg.is_mine ? "items-end" : "items-start"}`}>
+                <span
+                  className={`leading-none ${
+                    [...(msg.content || "").replace(/\s/g, "")].length <= 3 ? "text-5xl" : "text-4xl"
+                  }`}
+                >
+                  {msg.content}
+                </span>
+                <span className="bubble-bare-meta flex items-center gap-0.5 px-0.5 text-[10px] leading-none text-on-surface-variant">
+                  {formatClockTime(msg.timestamp ?? msg.created_at)}
+                  {msg.is_mine && <MessageStatusIndicator msg={msg} />}
+                </span>
+              </div>
+            ) : null}
+
+            {bodyText && !bareContent && !isVoiceMessage(msg) && (
 
               isTextOnlyMessage(msg) ? (
 
@@ -484,7 +525,7 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
 
                 type="button"
 
-                onClick={onRetry}
+                onClick={() => onRetry?.(msg)}
 
                 className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-red-200"
 

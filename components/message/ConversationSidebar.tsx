@@ -189,38 +189,30 @@ export function ConversationSidebar({
                         <span className="truncate font-semibold text-sm text-on-surface">
                           {convo.other_user_nickname?.trim() || profile?.full_name}
                         </span>
-                        <span className="inline-flex shrink-0 items-center gap-px">
+                        <span className="inline-flex shrink-0 items-center gap-0.5">
                           {profile?.is_verified ? (
                             <span
-                              className="inline-flex h-[10px] w-[10px] items-center justify-center"
+                              className="material-symbols-outlined shrink-0 text-[14px] leading-none text-sky-500"
+                              style={{ fontVariationSettings: "'FILL' 1" }}
                               title="Verified"
                             >
-                              <span
-                                className="material-symbols-outlined origin-center scale-[0.48] text-[16px] leading-none text-sky-500"
-                                style={{ fontVariationSettings: "'FILL' 1" }}
-                              >
-                                verified
-                              </span>
+                              verified
                             </span>
                           ) : null}
                           {convo.is_muted ? (
                             <span
-                              className="inline-flex h-[10px] w-[10px] items-center justify-center"
+                              className="material-symbols-outlined shrink-0 text-[13px] leading-none text-on-surface-variant/75"
                               title="Muted"
                             >
-                              <span className="material-symbols-outlined origin-center scale-[0.48] text-[16px] leading-none text-on-surface-variant/75">
-                                notifications_off
-                              </span>
+                              notifications_off
                             </span>
                           ) : null}
                           {convo.is_pinned ? (
                             <span
-                              className="inline-flex h-[10px] w-[10px] items-center justify-center"
+                              className="material-symbols-outlined shrink-0 text-[13px] leading-none text-on-surface-variant/60"
                               title="Pinned"
                             >
-                              <span className="material-symbols-outlined origin-center scale-[0.48] text-[16px] leading-none text-on-surface-variant/60">
-                                push_pin
-                              </span>
+                              push_pin
                             </span>
                           ) : null}
                         </span>

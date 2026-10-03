@@ -1,0 +1,273 @@
+{
+  "settingsExtra": {
+    "errors": {
+      "somethingWentWrong": "Something went wrong",
+      "unexpectedError": "An unexpected error occurred. Please try again.",
+      "tryAgain": "Try again",
+      "signIn": "Sign in",
+      "error404": "Page not found",
+      "notFoundTitle": "This page wandered off",
+      "notFoundDescription": "The page you're looking for doesn't exist or may have been moved. Let's get you back on track.",
+      "backHome": "Back home",
+      "findMatches": "Find matches",
+      "discover": "Discover",
+      "messages": "Messages",
+      "joinDuo": "Join Duo",
+      "footerTagline": "Duo — find meaningful connections."
+    },
+    "legal": {
+      "terms": {
+        "title": "Terms of Service",
+        "updatedLabel": "Last updated: January 2026",
+        "intro": "By using Duo, you agree to the following terms. Please read them carefully.",
+        "sections": {
+          "eligibility": {
+            "heading": "Eligibility",
+            "body": [
+              "You must be at least 18 years old to use Duo.",
+              "By creating an account, you represent that all information you provide is accurate and truthful."
+            ]
+          },
+          "yourAccount": {
+            "heading": "Your Account",
+            "body": [
+              "You are responsible for maintaining the confidentiality of your account credentials.",
+              "You agree to notify us immediately of any unauthorized use of your account."
+            ]
+          },
+          "communityStandards": {
+            "heading": "Community Standards",
+            "body": [
+              "Treat other members with respect. Harassment, hate speech, and abusive behavior are not tolerated.",
+              "We reserve the right to remove content or suspend accounts that violate these standards."
+            ]
+          },
+          "coinsPremiumPayments": {
+            "heading": "Coins & Premium Payments",
+            "body": [
+              "Duo Coins and premium subscriptions are purchased through our supported payment methods, including eSewa.",
+              "All purchases are final except where required by law."
+            ]
+          },
+          "safety": {
+            "heading": "Safety",
+            "body": [
+              "Never share personal financial information with other members.",
+              "Report suspicious behavior immediately through the app."
+            ]
+          },
+          "accountTermination": {
+            "heading": "Account Termination",
+            "body": [
+              "We may suspend or terminate accounts that violate these Terms.",
+              "You may delete your account at any time from Settings."
+            ]
+          },
+          "disclaimersLiability": {
+            "heading": "Disclaimers & Liability",
+            "body": [
+              "Duo is provided \"as is\" without warranties of any kind.",
+              "We are not liable for interactions between users that occur outside the platform."
+            ]
+          },
+          "changesToTerms": {
+            "heading": "Changes to These Terms",
+            "body": [
+              "We may update these Terms from time to time. Continued use of Duo constitutes acceptance of the revised Terms."
+            ]
+          },
+          "contactUs": {
+            "heading": "Contact Us",
+            "body": [
+              "If you have questions about these Terms, contact us at support@duo.app."
+            ]
+          }
+        }
+      },
+      "privacy": {
+        "title": "Privacy Policy",
+        "updatedLabel": "Last updated: January 2026",
+        "intro": "This Privacy Policy explains how Duo collects, uses, and protects your information.",
+        "sections": {
+          "informationWeCollect": {
+            "heading": "Information We Collect",
+            "body": [
+              "We collect information you provide directly, such as your profile details, photos, and messages.",
+              "We also collect usage data and device information to improve our service."
+            ]
+          },
+          "howWeUseInformation": {
+            "heading": "How We Use Information",
+            "body": [
+              "We use your information to provide matchmaking, personalize your experience, and ensure safety.",
+              "We may use aggregated data for analytics and product improvement."
+            ]
+          },
+          "sharingInformation": {
+            "heading": "Sharing Information",
+            "body": [
+              "We do not sell your personal data.",
+              "We may share information with service providers who help us operate Duo, and as required by law."
+            ]
+          },
+          "yourChoicesRights": {
+            "heading": "Your Choices & Rights",
+            "body": [
+              "You can access, update, or delete your account information from Settings.",
+              "You may contact us to request a copy of your data."
+            ]
+          },
+          "dataRetentionSecurity": {
+            "heading": "Data Retention & Security",
+            "body": [
+              "We retain your data as long as your account is active or as needed to comply with legal obligations.",
+              "We use industry-standard measures to protect your data."
+            ]
+          },
+          "changesToPolicy": {
+            "heading": "Changes to This Policy",
+            "body": [
+              "We may update this Privacy Policy periodically. We will notify you of significant changes."
+            ]
+          },
+          "contactUs": {
+            "heading": "Contact Us",
+            "body": [
+              "If you have questions about this policy, contact us at privacy@duo.app."
+            ]
+          }
+        }
+      }
+    },
+    "walletExtra": {
+      "detail": {
+        "loadError": "Failed to load transaction details",
+        "title": "Transaction Details",
+        "notFound": "Transaction not found",
+        "totalCoin": "Total Coins",
+        "coinsValue": "{count} coins",
+        "totalAmount": "Total Amount",
+        "nprValue": "Rs. {amount}",
+        "status": "Status",
+        "transactionType": "Transaction Type",
+        "activityType": "Activity",
+        "paymentMethod": "Payment Method",
+        "created": "Created",
+        "updated": "Updated",
+        "transactionIdLabel": "Transaction ID",
+        "transactionIdValue": "#{id}"
+      },
+      "status": {
+        "complete": "Completed",
+        "pending": "Pending",
+        "failed": "Failed"
+      },
+      "types": {
+        "topUp": "Top Up",
+        "purchase": "Purchase",
+        "adjustment": "Adjustment",
+        "giftRedeem": "Gift Redeemed"
+      },
+      "activity": {
+        "topUp": "Coins added",
+        "purchase": "Coins spent",
+        "adjustment": "Balance adjusted",
+        "giftRedeem": "Gift redeemed"
+      },
+      "paymentMethods": {
+        "esewa": "eSewa",
+        "stripe": "Card (Stripe)",
+        "wallet": "Wallet",
+        "gift": "Gift",
+        "unknown": "Unknown"
+      }
+    },
+    "supportRequest": {
+      "genericError": "Something went wrong. Please try again.",
+      "successTitle": "Request received",
+      "successDescription": "Thanks for reaching out. Our team will get back to you as soon as possible.",
+      "backToHelp": "Back to Help",
+      "emailLabel": "Your Email",
+      "emailPlaceholder": "you@example.com",
+      "sending": "Sending...",
+      "reportBug": {
+        "title": "Report a Bug",
+        "intro": "Found something broken? Let us know and we'll look into it.",
+        "subjectLabel": "Subject",
+        "subjectPlaceholder": "Briefly describe the issue",
+        "messageLabel": "Details",
+        "messagePlaceholder": "Tell us what happened, what you expected, and steps to reproduce",
+        "submitLabel": "Submit Report"
+      },
+      "contact": {
+        "title": "Contact Support",
+        "intro": "Have a question or need help? Send us a message and our team will get back to you.",
+        "subjectLabel": "Subject",
+        "subjectPlaceholder": "What can we help with?",
+        "messageLabel": "Message",
+        "messagePlaceholder": "Describe your question or issue",
+        "submitLabel": "Send Message"
+      }
+    },
+    "authExtra": {
+      "couldNotSendCode": "Could not send reset code. Please try again.",
+      "couldNotResendCode": "Could not resend code. Please try again.",
+      "enterSixDigitCode": "Please enter the 6-digit code",
+      "passwordMinLength": "Password must be at least 8 characters",
+      "passwordsDoNotMatch": "Passwords do not match",
+      "couldNotResetPassword": "Could not reset password. Please try again.",
+      "resetYourPassword": "Reset your password",
+      "forgotPasswordTitle": "Forgot Password",
+      "setNewPasswordTitle": "Set New Password",
+      "forgotPasswordDescription": "Enter your email and we'll send you a code to reset your password.",
+      "resetPasswordDescription": "We sent a 6-digit code to {email}. Enter it below along with your new password.",
+      "emailLabel": "Email",
+      "emailPlaceholder": "Enter your email",
+      "sendingCode": "Sending...",
+      "sendResetCode": "Send Reset Code",
+      "resetCodeLabel": "Reset Code",
+      "newPasswordLabel": "New Password",
+      "createStrongPasswordPlaceholder": "Create a strong password",
+      "strengthLabel": "Strength:",
+      "confirmPasswordLabel": "Confirm Password",
+      "reEnterPasswordPlaceholder": "Re-enter your password",
+      "resending": "Resending...",
+      "resendCode": "Resend Code",
+      "updatingPassword": "Updating...",
+      "updatePassword": "Update Password",
+      "useDifferentEmail": "Use a different email",
+      "useDifferentCode": "Use a different code",
+      "resendCodeIn": "Resend code in {seconds}s",
+      "backToLogin": "Back to Login"
+    },
+    "faq": {
+      "pageTitle": "Frequently Asked Questions",
+      "items": [
+        { "q": "How do I create a match?", "a": "Swipe right on profiles you're interested in. If they swipe right too, it's a match!" },
+        { "q": "How do I edit my profile?", "a": "Go to Settings > Edit Profile to update your photos, bio, and preferences." },
+        { "q": "How does the wallet and coins system work?", "a": "Coins can be purchased with real money via eSewa and used to unlock premium features." },
+        { "q": "How do I report or block someone?", "a": "Open their profile and tap the menu icon, then choose Report or Block." },
+        { "q": "How do I delete my account?", "a": "Go to Settings > Account and select Delete Account. This action is permanent." },
+        { "q": "How do I verify my profile?", "a": "Go to Settings > Verification and follow the steps to take a verification selfie." },
+        { "q": "Is my payment information secure?", "a": "Yes, all payments are processed securely through eSewa. We never store your payment credentials." }
+      ]
+    },
+    "help": {
+      "pageTitle": "Help Center",
+      "getHelpSection": "Get Help",
+      "faqTitle": "FAQ",
+      "faqDescription": "Find answers to common questions",
+      "contactTitle": "Contact Support",
+      "contactDescription": "Get in touch with our support team",
+      "reportBugTitle": "Report a Bug",
+      "reportBugDescription": "Let us know about something that isn't working",
+      "guidesSection": "Guides",
+      "guides": [
+        { "icon": "favorite", "title": "Getting Started with Matching", "description": "Tips for creating a great profile and finding matches" },
+        { "icon": "chat", "title": "Messaging Safely", "description": "Best practices for chatting with your matches" },
+        { "icon": "shield", "title": "Staying Safe on Duo", "description": "Learn how to protect your privacy and report concerns" },
+        { "icon": "payments", "title": "Coins & Payments", "description": "How to buy and use Duo Coins" }
+      ]
+    }
+  }
+}

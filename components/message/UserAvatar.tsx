@@ -35,6 +35,10 @@ export const UserAvatar = memo(function UserAvatar({
           fill
           sizes={`${px}px`}
           loading="lazy"
+          // Avatars come from many hosts (backend media, CDNs, seed data) that
+          // aren't all listed in next.config images, and they're tiny anyway,
+          // so load them directly instead of through /_next/image.
+          unoptimized
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center">

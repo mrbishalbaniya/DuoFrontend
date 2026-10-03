@@ -1,0 +1,533 @@
+/* Discovery filter sheet — clean iOS style.
+   Phones: bottom sheet with grabber. ≥768px: centered card. */
+
+.dfs-root {
+  --dfs-bg: #111113;
+  --dfs-card: #1c1c1f;
+  --dfs-line: rgba(255, 255, 255, 0.07);
+  --dfs-text: #f5f5f7;
+  --dfs-muted: rgba(235, 235, 245, 0.55);
+  --dfs-fill: rgba(118, 118, 128, 0.22);
+  --dfs-pill: #3a3a3e;
+  --dfs-accent: var(--color-primary);
+  --dfs-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  /* Same widths as the swipe card (MATCH_CARD_WIDTH in DiscoverExperience.tsx). */
+  --dfs-width: 28rem;
+
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  pointer-events: none;
+}
+
+@media (min-width: 768px) {
+  .dfs-root {
+    --dfs-width: 32rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .dfs-root {
+    --dfs-width: 36rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .dfs-root {
+    --dfs-width: 30rem;
+  }
+}
+
+html.light .dfs-root {
+  --dfs-bg: #f2f2f7;
+  --dfs-card: #ffffff;
+  --dfs-line: rgba(60, 60, 67, 0.12);
+  --dfs-text: #1c1c1e;
+  --dfs-muted: rgba(60, 60, 67, 0.55);
+  --dfs-fill: rgba(118, 118, 128, 0.12);
+  --dfs-pill: #ffffff;
+}
+
+.dfs-root[data-open="true"] {
+  pointer-events: auto;
+}
+
+.dfs-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  cursor: default;
+}
+
+.dfs-root[data-open="true"] .dfs-backdrop {
+  opacity: 1;
+}
+
+/* Sheet */
+.dfs-sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--dfs-width);
+  max-height: 90dvh;
+  overflow: hidden;
+  border-radius: 20px 20px 0 0;
+  background: var(--dfs-bg);
+  color: var(--dfs-text);
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.3);
+  transform: translateY(100%);
+  transition: transform 0.45s var(--dfs-ease);
+  outline: none;
+}
+
+.dfs-root[data-open="true"] .dfs-sheet {
+  transform: translateY(0);
+}
+
+.dfs-grabber {
+  display: flex;
+  justify-content: center;
+  padding-top: 8px;
+}
+
+.dfs-grabber span {
+  width: 36px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--dfs-muted);
+  opacity: 0.45;
+}
+
+@media (min-width: 768px) {
+  .dfs-root {
+    align-items: center;
+    padding: 24px;
+  }
+
+  .dfs-sheet {
+    width: min(var(--dfs-width), calc(100vw - 48px));
+    /* Line up with the swipe card (set by lib/useSheetAnchor.ts). */
+    translate: var(--dfs-shift, 0px) 0;
+    max-height: min(720px, 90vh);
+    border-radius: 20px;
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.45);
+    transform: translateY(16px) scale(0.98);
+    opacity: 0;
+    transition: transform 0.4s var(--dfs-ease), opacity 0.25s ease;
+  }
+
+  .dfs-root[data-open="true"] .dfs-sheet {
+    transform: none;
+    opacity: 1;
+  }
+
+  .dfs-grabber {
+    display: none;
+  }
+}
+
+/* Navigation bar */
+.dfs-navbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  height: 52px;
+  padding: 0 18px;
+}
+
+.dfs-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.dfs-navbtn {
+  justify-self: start;
+  border: 0;
+  background: none;
+  padding: 8px 0;
+  font-size: 16px;
+  color: var(--dfs-muted);
+  cursor: pointer;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.dfs-navbtn:hover {
+  color: var(--dfs-text);
+}
+
+.dfs-navbtn--strong {
+  justify-self: end;
+  font-weight: 600;
+  color: var(--dfs-accent);
+}
+
+.dfs-navbtn--strong:hover {
+  color: var(--dfs-accent);
+  opacity: 0.8;
+}
+
+.dfs-navbtn:active {
+  opacity: 0.5;
+}
+
+.dfs-navbtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Content */
+.dfs-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  padding: 4px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+}
+
+.dfs-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.dfs-group {
+  overflow: hidden;
+  margin-bottom: 14px;
+  border-radius: 14px;
+  background: var(--dfs-card);
+}
+
+.dfs-caption {
+  margin: 20px 4px 8px;
+  font-size: 13px;
+  color: var(--dfs-muted);
+}
+
+.dfs-note {
+  margin: -6px 4px 14px;
+  font-size: 13px;
+  color: var(--dfs-muted);
+}
+
+.dfs-note--error {
+  color: var(--color-error);
+}
+
+/* Rows */
+.dfs-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 50px;
+  padding: 12px 16px;
+  border: 0;
+  background: none;
+  color: var(--dfs-text);
+  font: inherit;
+  text-align: left;
+}
+
+.dfs-row + .dfs-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 0;
+  height: 1px;
+  background: var(--dfs-line);
+}
+
+.dfs-row--button {
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.dfs-row--button:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+html.light .dfs-row--button:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.dfs-row--button:disabled {
+  cursor: default;
+}
+
+.dfs-row--stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 14px 16px 16px;
+}
+
+.dfs-row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.dfs-row-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.dfs-row--stack > .dfs-row-title {
+  flex: none;
+}
+
+.dfs-row-value {
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  color: var(--dfs-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dfs-row-head .dfs-row-value {
+  max-width: none;
+}
+
+.dfs-row-head > .dfs-row-value {
+  color: var(--dfs-text);
+  font-weight: 600;
+}
+
+/* Location button */
+.dfs-locate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--dfs-accent) 14%, transparent);
+  color: var(--dfs-accent);
+  transition: background 0.25s ease, color 0.25s ease, transform 0.25s var(--dfs-ease);
+}
+
+.dfs-locate .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.dfs-locate[data-done="true"] {
+  background: #30d158;
+  color: #fff;
+}
+
+.dfs-row--button:active .dfs-locate {
+  transform: scale(0.9);
+}
+
+/* Segmented control */
+.dfs-seg {
+  position: relative;
+  display: grid;
+  padding: 2px;
+  border-radius: 10px;
+  background: var(--dfs-fill);
+}
+
+.dfs-seg-pill {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  border-radius: 8px;
+  background: var(--dfs-pill);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
+  transition: transform 0.35s var(--dfs-ease);
+}
+
+.dfs-seg-btn {
+  position: relative;
+  z-index: 1;
+  border: 0;
+  background: none;
+  padding: 8px 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--dfs-muted);
+  cursor: pointer;
+  transition: color 0.25s ease;
+}
+
+.dfs-seg-btn[aria-checked="true"] {
+  color: var(--dfs-text);
+  font-weight: 600;
+}
+
+/* Switch */
+.dfs-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 51px;
+  height: 31px;
+  border-radius: 999px;
+  background: var(--dfs-fill);
+  transition: background 0.25s ease;
+}
+
+.dfs-switch span {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15), 0 1px 1px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s var(--dfs-ease);
+}
+
+.dfs-switch[data-on="true"] {
+  background: #30d158;
+}
+
+.dfs-switch[data-on="true"] span {
+  transform: translateX(20px);
+}
+
+/* Sliders */
+.dfs-range {
+  position: relative;
+  height: 28px;
+}
+
+.dfs-range-track,
+.dfs-range-fill {
+  position: absolute;
+  top: 50%;
+  height: 4px;
+  border-radius: 999px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.dfs-range-track {
+  left: 0;
+  right: 0;
+  background: var(--dfs-fill);
+}
+
+.dfs-range-fill {
+  background: var(--dfs-accent);
+}
+
+.dfs-range-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  pointer-events: none;
+  outline: none;
+}
+
+.dfs-range-input::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.dfs-range-input::-moz-range-track {
+  background: transparent;
+}
+
+.dfs-range-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 26px;
+  height: 26px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.22), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+  cursor: grab;
+  pointer-events: auto;
+  transition: transform 0.2s var(--dfs-ease), box-shadow 0.2s ease;
+}
+
+.dfs-range-input::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.22);
+  cursor: grab;
+  pointer-events: auto;
+}
+
+.dfs-range-input:active::-webkit-slider-thumb {
+  transform: scale(1.12);
+  cursor: grabbing;
+}
+
+.dfs-range-input:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--dfs-accent) 35%, transparent);
+}
+
+/* Reset */
+.dfs-reset {
+  display: block;
+  margin: 18px auto 4px;
+  border: 0;
+  background: none;
+  padding: 8px 12px;
+  font-size: 15px;
+  color: var(--dfs-accent);
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.dfs-reset:disabled {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Spinner */
+.dfs-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  vertical-align: middle;
+  animation: dfs-spin 0.7s linear infinite;
+}
+
+@keyframes dfs-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dfs-sheet,
+  .dfs-backdrop,
+  .dfs-seg-pill,
+  .dfs-switch span {
+    transition: none;
+  }
+}

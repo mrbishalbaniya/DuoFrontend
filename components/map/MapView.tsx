@@ -18,9 +18,7 @@ import MapLayersBridge from "./layers/MapLayersBridge";
 import MapLayersSettingsPanel from "./layers/MapLayersSettingsPanel";
 import MapDebugHud from "./layers/MapDebugHud";
 import WeatherBridge from "./weather/WeatherBridge";
-import WeatherClickBridge from "./weather/WeatherClickBridge";
-import GlobeAvatarBridge from "./globeAvatars/GlobeAvatarBridge";
-import ActivityHeatmapBridge from "./activityHeatmap/ActivityHeatmapBridge";
+import UserWeatherWidget from "./weather/UserWeatherWidget";
 import { isDuoLayerVisible } from "@/lib/mapLayers/layerEngine";
 import { useMapLayersStore } from "@/lib/mapLayers/store";
 import type { MapProfile } from "./types";
@@ -379,9 +377,6 @@ export default function MapView({
   const showUserLocation = useMapLayersStore((s) =>
     isDuoLayerVisible(s.enabled, "duo-user-location", true)
   );
-  const showActivityHeatmap = useMapLayersStore((s) =>
-    isDuoLayerVisible(s.enabled, "duo-activity-heatmap", true)
-  );
 
   const mappableProfiles = useMemo(() => {
     void profilesOrderKey;
@@ -426,15 +421,7 @@ export default function MapView({
         <SpaceStarfieldBridge />
         <SpaceAtmosphereBridge />
         <WeatherBridge />
-        <WeatherClickBridge />
-        <GlobeAvatarBridge
-          profiles={mappableProfiles}
-          focusProfileId={focusProfileId}
-          onProfileFocus={onProfileFocus}
-        />
-        {showActivityHeatmap ? (
-          <ActivityHeatmapBridge userCoordinates={userCoordinates} />
-        ) : null}
+        <UserWeatherWidget coordinates={userCoordinates} />
         <MapDebugHud />
         <MapControlBridge userCoordinates={userCoordinates} />
         {showUserLocation && userCoordinates && isValidCoord(userCoordinates) ? (

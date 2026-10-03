@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useLayoutEffect, useRef, useState } from "react";
 import type { ChatMessage } from "@/types";
 import { QUICK_REACTIONS } from "./chatConstants";
 
@@ -16,20 +16,34 @@ export const MessageActionMenu = memo(function MessageActionMenu({
 }: {
   msg: ChatMessage;
   open: boolean;
-  onToggle: () => void;
-  onCopy: () => void;
-  onReply: () => void;
-  onReact: (emoji: string) => void;
-  onDeleteForMe: () => void;
-  onDeleteForEveryone: () => void;
+  onToggle: (msg: ChatMessage) => void;
+  onCopy: (msg: ChatMessage) => void;
+  onReply: (msg: ChatMessage) => void;
+  onReact: (msg: ChatMessage, emoji: string) => void;
+  onDeleteForMe: (msg: ChatMessage) => void;
+  onDeleteForEveryone: (msg: ChatMessage) => void;
 }) {
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [openUp, setOpenUp] = useState(false);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setOpenUp(false);
+      return;
+    }
+    const menu = menuRef.current;
+    if (!menu) return;
+    const rect = menu.getBoundingClientRect();
+    if (rect.bottom > window.innerHeight - 8) setOpenUp(true);
+  }, [open]);
+
   return (
     <div className="relative shrink-0 self-center">
       <button
         type="button"
         onClick={(e) => {
           e.stopPropagation();
-          onToggle();
+          onToggle(msg);
         }}
         aria-label="Message options"
         aria-expanded={open}
@@ -44,14 +58,15 @@ export const MessageActionMenu = memo(function MessageActionMenu({
 
       {open && (
         <div
-          className={`absolute top-full z-[60] mt-1 min-w-[180px] rounded-2xl border border-outline-variant bg-background p-2 shadow-2xl ${
-            msg.is_mine ? "left-0" : "right-0"
-          }`}
+          ref={menuRef}
+          className={`absolute z-[60] w-[220px] max-w-[calc(100vw-2rem)] whitespace-nowrap rounded-2xl border border-outline-variant bg-background p-2 shadow-2xl ${
+            openUp ? "bottom-full mb-1" : "top-full mt-1"
+          } ${msg.is_mine ? "right-0" : "left-0"}`}
           onClick={(e) => e.stopPropagation()}
         >
           <button
             type="button"
-            onClick={onCopy}
+            onClick={() => onCopy(msg)}
             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-secondary transition-colors"
           >
             <span className="material-symbols-outlined text-[18px]">content_copy</span>
@@ -59,7 +74,7 @@ export const MessageActionMenu = memo(function MessageActionMenu({
           </button>
           <button
             type="button"
-            onClick={onReply}
+            onClick={() => onReply(msg)}
             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-secondary transition-colors"
           >
             <span className="material-symbols-outlined text-[18px]">reply</span>
@@ -75,7 +90,7 @@ export const MessageActionMenu = memo(function MessageActionMenu({
                 <button
                   key={emoji}
                   type="button"
-                  onClick={() => onReact(emoji)}
+                  onClick={() => onReact(msg, emoji)}
                   className="flex h-8 w-8 items-center justify-center rounded-lg text-lg hover:bg-secondary transition-transform hover:scale-110"
                 >
                   {emoji}
@@ -87,7 +102,7 @@ export const MessageActionMenu = memo(function MessageActionMenu({
           <div className="border-t border-outline-variant/40 pt-1">
             <button
               type="button"
-              onClick={onDeleteForMe}
+              onClick={() => onDeleteForMe(msg)}
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-secondary transition-colors"
             >
               <span className="material-symbols-outlined text-[18px]">visibility_off</span>
@@ -96,7 +111,7 @@ export const MessageActionMenu = memo(function MessageActionMenu({
             {msg.is_mine && (
               <button
                 type="button"
-                onClick={onDeleteForEveryone}
+                onClick={() => onDeleteForEveryone(msg)}
                 className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-error hover:bg-error/10 transition-colors"
               >
                 <span className="material-symbols-outlined text-[18px]">delete_forever</span>

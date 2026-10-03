@@ -1,24 +1,43 @@
 "use client";
 
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { WritingSuggestions } from "./WritingSuggestions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PhotoAnalysisResult } from "@/components/photos/PhotoAnalysisResult";
-import api from "@/lib/api";
-import { getPhotoUploadError } from "@/lib/photos/validatePhotoUpload";
+import { SelectField } from "@/components/ui/select-field";
 import {
-  CASTE_OPTIONS,
+  EmptyPhotoSlot,
+  PendingPhotoCard,
+  UploadedPhotoCard,
+} from "@/components/photos/PhotoSlotCards";
+import api from "@/lib/api";
+import { screenImageForNsfw } from "@/lib/photos/nsfwScreen";
+import { getPhotoUploadError } from "@/lib/photos/validatePhotoUpload";
+import { calculateAgeFromDob, maxBirthDateForMinAge, minBirthDate } from "@/lib/age";
+import {
   EDUCATION_LEVEL_OPTIONS,
   FIELD_OF_STUDY_OPTIONS,
-  GOTRA_OPTIONS,
-  HOROSCOPE_OPTIONS,
   INCOME_OPTIONS,
-  MARRIAGE_PREF_OPTIONS,
+  LANGUAGE_GROUPS,
+  OCCUPATION_PREF_OPTIONS,
+  RASHI_OPTIONS,
   RELIGION_OPTIONS,
+  WORK_PREFERENCE_OPTIONS,
 } from "@/lib/register/constants";
 import type { ProfileEditFormData, ProfileEditPhoto } from "@/lib/profile/profileForm";
+import {
+  casteLabelFor,
+  casteOptionsFor,
+  gotraOptionsFor,
+  reconcileBackground,
+  subCasteFor,
+} from "@/lib/profile/religionBackground";
 import { cn } from "@/lib/utils";
+import { InterestPicker } from "@/components/profile/InterestPicker";
+import { DatePicker } from "@/components/ui/date-picker";
+import { HeightSlider } from "@/components/profile/HeightSlider";
+import { LifestyleFields } from "@/components/profile/LifestyleFields";
 
 interface ProfileEditFormProps {
   formData: ProfileEditFormData;
@@ -26,21 +45,38 @@ interface ProfileEditFormProps {
   onSave: () => void;
   onCancel: () => void;
   saving: boolean;
-  saveError: string | null;
   detectingLocation: boolean;
   locationError: string | null;
   onDetectLocation: () => void;
+  /** Edit only this section (per-section edit on the profile page). */
+  onlySection?: ProfileEditSection;
 }
 
-const PREF_GENDER_OPTIONS = [
-  { value: "women", label: "Female" },
-  { value: "men", label: "Male" },
-  { value: "everyone", label: "Everyone" },
+export const PROFILE_EDIT_SECTIONS = [
+  "Photos",
+  "Personal",
+  "Religion & Background",
+  "Education & Career",
+  "Lifestyle & Interests",
+  "About",
+] as const;
+export type ProfileEditSection = (typeof PROFILE_EDIT_SECTIONS)[number];
+
+const GENDER_SELECT_OPTIONS = [
+  { value: "M", label: "Male" },
+  { value: "F", label: "Female" },
+  { value: "O", label: "Other" },
 ] as const;
 
-function FormSection({ title, children }: { title: string; children: ReactNode }) {
+const RELATIONSHIP_GOAL_SELECT_OPTIONS = [
+  { value: "dating", label: "Dating" },
+  { value: "serious", label: "Serious" },
+  { value: "casual", label: "Casual" },
+] as const;
+
+function FormSection({ title, children, id }: { title: string; children: ReactNode; id?: string }) {
   return (
-    <section className="space-y-4 rounded-2xl border border-outline-variant/20 bg-secondary/20 p-5">
+    <section id={id} className="scroll-mt-24 space-y-4 rounded-2xl border border-outline-variant/20 bg-secondary/20 p-5">
       <h3 className="text-lg font-bold font-[var(--font-headline)] text-on-surface">{title}</h3>
       {children}
     </section>
@@ -67,7 +103,73 @@ function Field({
 const inputClassName =
   "w-full rounded-xl border border-outline-variant/30 bg-secondary/50 px-4 py-3 outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/25";
 
-const selectClassName = inputClassName;
+const MIN_PROFILE_PHOTOS = 1;
+const MAX_PROFILE_PHOTOS = 3;
+
+interface PendingPhotoUpload {
+  id: string;
+  file: File;
+  previewUrl: string;
+  isPrimary: boolean;
+  status: "uploading" | "error";
+  errorMessage?: string;
+  /** Rejected by the client-side content screen, not the backend — the
+   * preview must never be shown for these, even blurred-then-revealed. */
+  nsfwBlocked?: boolean;
+}
+
+const OTHER_OCCUPATION = "__other";
+const OCCUPATION_LABELS: string[] = OCCUPATION_PREF_OPTIONS.map((option) => option.label);
+
+/** Occupation dropdown using the same groups as partner preferences, with
+ * "Other" for anything not listed (occupation stays free text on the backend). */
+function OccupationField({
+  value,
+  onChange,
+  inputClassName,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  inputClassName: string;
+}) {
+  const listed = OCCUPATION_LABELS.find((label) => label.toLowerCase() === value.trim().toLowerCase());
+  const [otherMode, setOtherMode] = useState(() => Boolean(value.trim()) && !listed);
+  const selectValue = otherMode ? OTHER_OCCUPATION : listed ?? "";
+
+  return (
+    <div className="space-y-3">
+      <SelectField
+        label="Occupation"
+        options={[
+          { value: "", label: "Select occupation" },
+          ...OCCUPATION_LABELS.map((label) => ({ value: label, label })),
+          { value: OTHER_OCCUPATION, label: "Other (type your own)" },
+        ]}
+        value={selectValue}
+        hidePlaceholderOption
+        onChange={(event) => {
+          const next = event.target.value;
+          if (next === OTHER_OCCUPATION) {
+            setOtherMode(true);
+            if (listed) onChange("");
+            return;
+          }
+          setOtherMode(false);
+          onChange(next);
+        }}
+      />
+      {otherMode ? (
+        <Input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="Your occupation"
+          maxLength={300}
+          className={inputClassName}
+        />
+      ) : null}
+    </div>
+  );
+}
 
 export function ProfileEditForm({
   formData,
@@ -75,14 +177,14 @@ export function ProfileEditForm({
   onSave,
   onCancel,
   saving,
-  saveError,
   detectingLocation,
   locationError,
   onDetectLocation,
+  onlySection,
 }: ProfileEditFormProps) {
-  const [dragActive, setDragActive] = useState(false);
-  const [photoError, setPhotoError] = useState<string | null>(null);
-  const [analyzingPhotos, setAnalyzingPhotos] = useState(false);
+  const show = (section: ProfileEditSection) => !onlySection || onlySection === section;
+  const [flippedIds, setFlippedIds] = useState<Set<string>>(new Set());
+  const [pendingUploads, setPendingUploads] = useState<PendingPhotoUpload[]>([]);
 
   const patch = useCallback(
     (patchData: Partial<ProfileEditFormData>) => {
@@ -91,191 +193,326 @@ export function ProfileEditForm({
     [formData, onChange]
   );
 
+  // Concurrent uploads can each finish around the same moment; if every
+  // completion read `formData.photos` from its own render-time closure and
+  // called patch(), a later completion would overwrite an earlier one's
+  // addition (lost update). This ref always holds the latest list
+  // synchronously, so each completion appends onto what the previous one
+  // just wrote, not a stale snapshot.
+  const photosRef = useRef(formData.photos);
+  useEffect(() => {
+    photosRef.current = formData.photos;
+  }, [formData.photos]);
+
+  const pendingUploadsRef = useRef(pendingUploads);
+  pendingUploadsRef.current = pendingUploads;
+  useEffect(
+    () => () => {
+      pendingUploadsRef.current.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+    },
+    []
+  );
+
+  const removePending = useCallback((id: string) => {
+    setPendingUploads((prev) => {
+      const target = prev.find((p) => p.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((p) => p.id !== id);
+    });
+  }, []);
+
+  const runUpload = useCallback(async (pending: PendingPhotoUpload) => {
+    setPendingUploads((prev) =>
+      prev.map((p) =>
+        p.id === pending.id
+          ? { ...p, status: "uploading", errorMessage: undefined, nsfwBlocked: false }
+          : p
+      )
+    );
+
+    try {
+      // Best-effort client-side screen, run before the file ever leaves the
+      // browser. The backend's own check only verifies face/quality, not
+      // content — see lib/photos/nsfwScreen.ts for why this is a stopgap,
+      // not a real security boundary.
+      const nsfw = await screenImageForNsfw(pending.file);
+      if (nsfw.blocked) {
+        setPendingUploads((prev) =>
+          prev.map((p) =>
+            p.id === pending.id
+              ? { ...p, status: "error", errorMessage: nsfw.reason, nsfwBlocked: true }
+              : p
+          )
+        );
+        return;
+      }
+
+      const result = await api.uploadAndAnalyzePhoto(pending.file, { isPrimary: pending.isPrimary });
+      const uploadError = getPhotoUploadError(result, pending.file.name);
+      if (uploadError) throw new Error(uploadError);
+      if (!result.image_url) {
+        throw new Error(`${pending.file.name}: upload succeeded but no image URL was returned.`);
+      }
+      // Detect and reject outright — no "under review" limbo state. A photo
+      // either clears the checks (client-side NSFW screen above, plus the
+      // backend's face/quality/content analysis) and is usable immediately,
+      // or it's rejected with a clear reason. We don't gate on the
+      // backend's separate async moderation record, since that would leave
+      // every photo stuck waiting on a queue/worker that may not even be
+      // running.
+      const isRejected =
+        result.photo?.status === "REJECTED" || result.analysis?.status === "REJECTED";
+
+      const photo: ProfileEditPhoto = {
+        id: `${Date.now()}-${pending.file.name}`,
+        url: result.image_url,
+        fileName: pending.file.name,
+        isProfile: pending.isPrimary,
+        analysis: result.analysis,
+        photoId: result.photo?.id,
+        moderationStatus: result.photo?.status,
+        status: isRejected ? "rejected" : "approved",
+        error: isRejected
+          ? result.analysis?.rejection_reasons?.[0] ??
+            "This photo was rejected by our checks. Remove it and upload another."
+          : undefined,
+      };
+      const nextPhotos = [...photosRef.current, photo];
+      photosRef.current = nextPhotos;
+      patch({ photos: nextPhotos });
+
+      URL.revokeObjectURL(pending.previewUrl);
+      setPendingUploads((prev) => prev.filter((p) => p.id !== pending.id));
+      // Flip the new card to show its analysis, same as registration.
+      setTimeout(() => setFlippedIds((prev) => new Set(prev).add(photo.id)), 100);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : `${pending.file.name}: verification failed.`;
+      setPendingUploads((prev) =>
+        prev.map((p) => (p.id === pending.id ? { ...p, status: "error", errorMessage: message } : p))
+      );
+    }
+  }, [patch]);
+
   const addPhotoFiles = useCallback(
-    async (files: FileList | File[]) => {
+    (files: FileList | File[]) => {
       const list = Array.from(files).filter((file) => file.type.startsWith("image/"));
       if (!list.length) return;
 
-      const remaining = 9 - formData.photos.length;
-      const selected = list.slice(0, remaining);
+      const remaining = MAX_PROFILE_PHOTOS - formData.photos.length - pendingUploads.length;
+      const selected = list.slice(0, Math.max(0, remaining));
       if (!selected.length) return;
 
-      setPhotoError(null);
-      setAnalyzingPhotos(true);
+      const isFirstBatch = formData.photos.length === 0 && pendingUploads.length === 0;
+      const newPending: PendingPhotoUpload[] = selected.map((file, index) => ({
+        id: `${Date.now()}-${file.name}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+        isPrimary: isFirstBatch && index === 0,
+        status: "uploading",
+      }));
 
-      try {
-        const uploaded: ProfileEditPhoto[] = [];
-        const isFirstPhoto = formData.photos.length === 0;
+      setPendingUploads((prev) => [...prev, ...newPending]);
 
-        for (let index = 0; index < selected.length; index += 1) {
-          const file = selected[index];
-          const isPrimary = isFirstPhoto && index === 0;
-
-          const result = await api.uploadAndAnalyzePhoto(file, { isPrimary });
-
-          const uploadError = getPhotoUploadError(result, file.name);
-          if (uploadError) {
-            throw new Error(uploadError);
-          }
-          if (!result.image_url) {
-            throw new Error("Upload succeeded but no image URL was returned.");
-          }
-
-          uploaded.push({
-            id: `${Date.now()}-${file.name}-${index}`,
-            url: result.image_url,
-            fileName: file.name,
-            isProfile: isPrimary,
-            analysis: result.analysis,
-          });
-        }
-
-        patch({ photos: [...formData.photos, ...uploaded] });
-      } catch (error) {
-        setPhotoError(error instanceof Error ? error.message : "Photo verification failed.");
-      } finally {
-        setAnalyzingPhotos(false);
-      }
+      // Upload concurrently (a few at a time) instead of one-by-one — with N
+      // photos selected, this is close to N times faster than sequential
+      // awaits, since each upload+analysis is an independent server round trip.
+      const CONCURRENCY = 3;
+      let cursor = 0;
+      const runNext = async (): Promise<void> => {
+        const index = cursor;
+        cursor += 1;
+        if (index >= newPending.length) return;
+        await runUpload(newPending[index]);
+        return runNext();
+      };
+      void Promise.all(
+        Array.from({ length: Math.min(CONCURRENCY, newPending.length) }, () => runNext())
+      );
     },
-    [formData.photos, patch]
+    [formData.photos.length, pendingUploads.length, runUpload]
   );
 
+  const anyUploading = pendingUploads.some((p) => p.status === "uploading");
+
+  // Rejected photos stay on their card so the user sees why, but they don't
+  // count toward the minimum and must be removed before saving.
+  const approvedPhotoCount = formData.photos.filter((photo) => photo.status !== "rejected").length;
+  const hasRejectedPhoto = formData.photos.some((photo) => photo.status === "rejected");
+
   const removePhoto = (id: string) => {
+    const removed = formData.photos.find((photo) => photo.id === id);
     const next = formData.photos.filter((photo) => photo.id !== id);
     if (next.length && !next.some((photo) => photo.isProfile)) {
       next[0].isProfile = true;
     }
     patch({ photos: next });
+    if (removed?.photoId) {
+      void api.deletePhoto(removed.photoId).catch(() => {});
+    }
   };
 
   const setProfilePhoto = (id: string) => {
+    const target = formData.photos.find((photo) => photo.id === id);
+    if (!target) return;
     patch({
       photos: formData.photos.map((photo) => ({ ...photo, isProfile: photo.id === id })),
     });
+    if (target.photoId) {
+      void api.setPhotoPrimary(target.photoId).catch(() => {});
+    }
   };
+
+  const movePhoto = (id: string, direction: -1 | 1) => {
+    const index = formData.photos.findIndex((photo) => photo.id === id);
+    if (index < 0) return;
+    const swapWith = index + direction;
+    if (swapWith < 0 || swapWith >= formData.photos.length) return;
+
+    const next = [...formData.photos];
+    [next[index], next[swapWith]] = [next[swapWith], next[index]];
+    patch({ photos: next });
+
+    const photoIds = next
+      .map((photo) => photo.photoId)
+      .filter((photoId): photoId is number => photoId != null);
+    if (photoIds.length === next.length) {
+      void api.reorderPhotos(photoIds).catch(() => {});
+    }
+  };
+
+  // Religion drives caste, caste drives sub-caste/clan and gotra. Changing
+  // one level clears answers below it that no longer apply.
+  const patchBackground = (change: { religion?: string; caste?: string }) => {
+    const religion = change.religion ?? formData.religion;
+    const next = reconcileBackground({
+      religion,
+      caste: change.caste ?? formData.caste,
+      subCaste: formData.subCaste,
+      gotra: formData.gotra,
+    });
+    patch({ religion, ...next });
+  };
+  // Keep a previously saved value visible even if it's outside today's list.
+  const withSaved = (list: string[], saved: string) =>
+    saved && !list.includes(saved) ? [saved, ...list] : list;
+  const casteOptions = (() => {
+    const list = casteOptionsFor(formData.religion);
+    return list.length ? withSaved(list, formData.caste) : list;
+  })();
+  const subCaste = subCasteFor(formData.caste);
+  const subCasteOptions = subCaste ? withSaved(subCaste.options, formData.subCaste) : [];
+  const gotraList = gotraOptionsFor(formData.religion, formData.caste);
+  const gotraOptions = gotraList ? withSaved(gotraList, formData.gotra) : null;
 
   return (
     <div className="space-y-6 rounded-2xl border border-primary/10 bg-background p-6 shadow-[0_4px_24px] shadow-primary/6 sm:rounded-[2rem] sm:p-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-2xl font-bold font-[var(--font-headline)] text-on-surface">Edit Profile</h2>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-full px-4 py-2 text-sm font-semibold text-on-surface-variant hover:bg-secondary"
-        >
-          Cancel
-        </button>
-      </div>
-
-      {saveError ? (
-        <div className="rounded-xl bg-error-container p-4 text-sm font-medium text-on-error-container">
-          {saveError}
+      {/* Full-profile header; a single-section edit uses the section title and footer buttons instead. */}
+      {!onlySection ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-2xl font-bold font-[var(--font-headline)] text-on-surface">Edit Profile</h2>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-full px-4 py-2 text-sm font-semibold text-on-surface-variant hover:bg-secondary"
+          >
+            Cancel
+          </button>
         </div>
       ) : null}
 
+      {show("Photos") ? (
       <FormSection title="Photos">
-        <div
-          className={cn(
-            "rounded-[1.5rem] border border-dashed p-6 text-center transition-colors",
-            dragActive ? "border-primary bg-primary/10" : "border-outline-variant/30 bg-surface-container/50"
-          )}
-          onDragEnter={(event) => {
-            event.preventDefault();
-            setDragActive(true);
-          }}
-          onDragLeave={() => setDragActive(false)}
-          onDragOver={(event) => event.preventDefault()}
-          onDrop={(event) => {
-            event.preventDefault();
-            setDragActive(false);
-            void addPhotoFiles(event.dataTransfer.files);
-          }}
-        >
-          <p className="text-sm text-on-surface-variant">
-            {analyzingPhotos
-              ? "Analyzing photo quality and safety…"
-              : "Drag photos here or browse (max 9). Each photo is verified automatically."}
-          </p>
-          <label className="mt-3 inline-flex cursor-pointer">
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              disabled={analyzingPhotos}
-              onChange={(event) => {
-                if (event.target.files) void addPhotoFiles(event.target.files);
-              }}
-            />
-            <span
-              className={cn(
-                "rounded-full gradient-brand px-5 py-2 text-sm font-semibold text-white",
-                analyzingPhotos && "pointer-events-none opacity-60"
-              )}
-            >
-              {analyzingPhotos ? "Analyzing…" : "Browse files"}
-            </span>
-          </label>
-        </div>
-
-        {photoError ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {photoError}
-          </div>
-        ) : null}
-
-        {formData.photos.some((photo) => photo.analysis) ? (
-          <PhotoAnalysisResult
-            analysis={
-              [...formData.photos].reverse().find((photo) => photo.analysis)?.analysis!
+        <p className="text-sm text-on-surface-variant">
+          Upload {MIN_PROFILE_PHOTOS}–{MAX_PROFILE_PHOTOS} photos. Each photo is checked instantly with AI for
+          face, quality, and safety.
+        </p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {Array.from({ length: MAX_PROFILE_PHOTOS }, (_, slotIndex) => {
+            const photo = formData.photos[slotIndex];
+            if (photo) {
+              return (
+                <UploadedPhotoCard
+                  key={photo.id}
+                  src={photo.url}
+                  fileName={photo.fileName}
+                  slotIndex={slotIndex}
+                  // Photos loaded from the saved profile were approved earlier.
+                  status={photo.status ?? "approved"}
+                  error={photo.error}
+                  isProfile={photo.isProfile}
+                  analysis={photo.analysis}
+                  flipped={flippedIds.has(photo.id)}
+                  onFlippedChange={(flip) =>
+                    setFlippedIds((prev) => {
+                      const next = new Set(prev);
+                      if (flip) next.add(photo.id);
+                      else next.delete(photo.id);
+                      return next;
+                    })
+                  }
+                  onRemove={() => removePhoto(photo.id)}
+                  onSetProfile={() => setProfilePhoto(photo.id)}
+                  extraControls={
+                    formData.photos.length > 1 && photo.status !== "rejected" ? (
+                      <div className="absolute right-2 top-11 z-10 flex flex-col gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        <button
+                          type="button"
+                          aria-label="Move photo earlier"
+                          disabled={slotIndex === 0}
+                          onClick={() => movePhoto(photo.id, -1)}
+                          className="flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white disabled:opacity-30"
+                        >
+                          <span className="material-symbols-outlined text-base">arrow_back</span>
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Move photo later"
+                          disabled={slotIndex === formData.photos.length - 1}
+                          onClick={() => movePhoto(photo.id, 1)}
+                          className="flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white disabled:opacity-30"
+                        >
+                          <span className="material-symbols-outlined text-base">arrow_forward</span>
+                        </button>
+                      </div>
+                    ) : null
+                  }
+                />
+              );
             }
-          />
-        ) : null}
-
-        {formData.photos.length ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {formData.photos.map((photo) => (
-              <div
-                key={photo.id}
-                className={cn(
-                  "group relative overflow-hidden rounded-2xl border",
-                  photo.isProfile ? "border-primary ring-2 ring-primary/30" : "border-outline-variant/20"
-                )}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photo.url} alt={photo.fileName} className="aspect-[3/4] w-full object-cover" />
-                <div className="absolute inset-x-0 bottom-0 flex gap-2 bg-gradient-to-t from-black/80 to-transparent p-2">
-                  {!photo.isProfile ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      className="h-8 flex-1 rounded-full text-xs"
-                      onClick={() => setProfilePhoto(photo.id)}
-                    >
-                      Set profile
-                    </Button>
-                  ) : (
-                    <span className="flex h-8 flex-1 items-center justify-center rounded-full bg-primary/90 text-xs font-semibold text-white">
-                      Profile photo
-                    </span>
-                  )}
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="destructive"
-                    className="h-8 rounded-full px-3 text-xs"
-                    onClick={() => removePhoto(photo.id)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : null}
+            const pending = pendingUploads[slotIndex - formData.photos.length];
+            if (pending) {
+              return (
+                <PendingPhotoCard
+                  key={pending.id}
+                  previewUrl={pending.previewUrl}
+                  fileName={pending.file.name}
+                  uploading={pending.status === "uploading"}
+                  errorMessage={pending.errorMessage}
+                  nsfwBlocked={pending.nsfwBlocked}
+                  canRetry={!pending.nsfwBlocked}
+                  onRetry={() => void runUpload(pending)}
+                  onRemove={() => removePending(pending.id)}
+                />
+              );
+            }
+            return (
+              <EmptyPhotoSlot
+                key={`slot-${slotIndex}`}
+                slotIndex={slotIndex}
+                onFile={(file) => addPhotoFiles([file])}
+              />
+            );
+          })}
+        </div>
+        <p className="text-xs text-on-surface-variant">
+          {approvedPhotoCount} of {MIN_PROFILE_PHOTOS} required verified photos
+          {anyUploading ? " · verification in progress…" : ""}
+          {hasRejectedPhoto ? " · remove rejected photos to save" : ""}
+        </p>
       </FormSection>
+      ) : null}
 
+      {show("Personal") ? (
       <FormSection title="Personal">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Field label="Full name">
@@ -285,254 +522,116 @@ export function ProfileEditForm({
               className={inputClassName}
             />
           </Field>
-          <Field label="Age">
-            <Input
-              type="number"
-              min={18}
-              max={100}
-              value={formData.age}
-              onChange={(event) => patch({ age: event.target.value })}
-              className={inputClassName}
+          <Field label="Date of birth">
+            <DatePicker
+              min={minBirthDate()}
+              max={maxBirthDateForMinAge(18)}
+              value={formData.dateOfBirth}
+              onChange={(dob) =>
+                patch({
+                  dateOfBirth: dob,
+                  age: dob ? String(calculateAgeFromDob(dob)) : formData.age,
+                })
+              }
+              placeholder="Select your date of birth"
             />
+            {formData.age ? (
+              <p className="ml-1 text-xs text-on-surface-variant">Age: {formData.age}</p>
+            ) : null}
           </Field>
-          <Field label="Gender">
-            <select
-              value={formData.gender}
-              onChange={(event) => patch({ gender: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select gender</option>
-              <option value="M">Male</option>
-              <option value="F">Female</option>
-              <option value="O">Other</option>
-            </select>
-          </Field>
-          <Field label="Religion">
-            <select
-              value={formData.religion}
-              onChange={(event) => patch({ religion: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select religion</option>
-              {RELIGION_OPTIONS.map((option) => (
-                <option key={option.value} value={option.label}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Phone country code">
-            <Input
-              value={formData.phone_country_code}
-              onChange={(event) => patch({ phone_country_code: event.target.value })}
-              className={inputClassName}
-            />
-          </Field>
-          <Field label="Phone number">
-            <Input
-              value={formData.phone_number}
-              onChange={(event) => patch({ phone_number: event.target.value })}
-              className={inputClassName}
-            />
-          </Field>
-          <Field label="Height">
-            <Input
-              value={formData.height}
-              onChange={(event) => patch({ height: event.target.value })}
-              placeholder={"5'6\""}
-              className={inputClassName}
-            />
-          </Field>
-          <Field label="Relationship goal">
-            <select
-              value={formData.relationship_goal}
-              onChange={(event) => patch({ relationship_goal: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select goal</option>
-              <option value="dating">Dating</option>
-              <option value="serious">Serious</option>
-              <option value="casual">Casual</option>
-            </select>
-          </Field>
-        </div>
-
-        <Field label="Location">
-          <div className="flex gap-2">
-            <Input
-              value={formData.location}
-              onChange={(event) => patch({ location: event.target.value })}
-              placeholder={detectingLocation ? "Detecting location…" : "City, Country"}
-              className={cn(inputClassName, "min-w-0 flex-1")}
-            />
-            <button
-              type="button"
-              onClick={onDetectLocation}
-              disabled={detectingLocation}
-              aria-label="Detect current location"
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary disabled:opacity-50"
-            >
-              <span className={`material-symbols-outlined text-[22px] ${detectingLocation ? "animate-pulse" : ""}`}>
-                my_location
-              </span>
-            </button>
-          </div>
-          {locationError ? <p className="text-xs text-error">{locationError}</p> : null}
-        </Field>
-      </FormSection>
-
-      <FormSection title="About">
-        <Field label="Bio">
-          <textarea
-            rows={4}
-            value={formData.bio}
-            onChange={(event) => patch({ bio: event.target.value })}
-            className={cn(inputClassName, "resize-none")}
+          <SelectField
+            label="Gender"
+            options={GENDER_SELECT_OPTIONS}
+            value={formData.gender}
+            placeholder="Select gender"
+            onChange={(event) => patch({ gender: event.target.value })}
           />
-        </Field>
-        <Field label="Looking for">
-          <textarea
-            rows={2}
-            value={formData.lookingForText}
-            onChange={(event) => patch({ lookingForText: event.target.value })}
-            className={cn(inputClassName, "resize-none")}
+          <SelectField
+            label="Relationship goal"
+            options={RELATIONSHIP_GOAL_SELECT_OPTIONS}
+            value={formData.relationship_goal}
+            placeholder="Select goal"
+            onChange={(event) => patch({ relationship_goal: event.target.value })}
           />
-        </Field>
-        <Field label="Future goals">
-          <textarea
-            rows={2}
-            value={formData.futureGoals}
-            onChange={(event) => patch({ futureGoals: event.target.value })}
-            className={cn(inputClassName, "resize-none")}
-          />
-        </Field>
-      </FormSection>
-
-      <FormSection title="Education & Career">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Field label="Education summary">
-            <Input
-              value={formData.education}
-              onChange={(event) => patch({ education: event.target.value })}
-              className={inputClassName}
-            />
-          </Field>
-          <Field label="Education level">
-            <select
-              value={formData.educationLevel}
-              onChange={(event) => patch({ educationLevel: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select level</option>
-              {EDUCATION_LEVEL_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Field of study">
-            <select
-              value={formData.fieldOfStudy}
-              onChange={(event) => patch({ fieldOfStudy: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select field</option>
-              {FIELD_OF_STUDY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Occupation">
-            <Input
-              value={formData.occupation}
-              onChange={(event) => patch({ occupation: event.target.value })}
-              className={inputClassName}
-            />
-          </Field>
-          <Field label="Company">
-            <Input
-              value={formData.company}
-              onChange={(event) => patch({ company: event.target.value })}
-              className={inputClassName}
-            />
-          </Field>
-          <Field label="Work preference">
-            <select
-              value={formData.work_preference}
-              onChange={(event) => patch({ work_preference: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select work preference</option>
-              <option value="Private">Private sector</option>
-              <option value="Government">Government</option>
-              <option value="Business">Business / self-employed</option>
-              <option value="NotWorking">Not working</option>
-            </select>
-          </Field>
-          <Field label="Monthly income">
-            <select
-              value={formData.monthlyIncome}
-              onChange={(event) => patch({ monthlyIncome: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select income range</option>
-              {INCOME_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+          <HeightSlider value={formData.height} onChange={(height) => patch({ height })} />
+          <Field label="Location">
+            <div className="flex gap-2">
+              <Input
+                value={formData.location}
+                onChange={(event) => patch({ location: event.target.value })}
+                placeholder={detectingLocation ? "Detecting location…" : "City, Country"}
+                className={cn(inputClassName, "min-w-0 flex-1")}
+              />
+              <button
+                type="button"
+                onClick={onDetectLocation}
+                disabled={detectingLocation}
+                aria-label="Detect current location"
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary disabled:opacity-50"
+              >
+                <span className={`material-symbols-outlined text-[22px] ${detectingLocation ? "animate-pulse" : ""}`}>
+                  my_location
+                </span>
+              </button>
+            </div>
+            {locationError ? <p className="text-xs text-error">{locationError}</p> : null}
           </Field>
         </div>
       </FormSection>
+      ) : null}
 
+      {show("Religion & Background") ? (
       <FormSection title="Religion & Background">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Field label="Caste">
-            <select
+          <SelectField
+            label="Religion"
+            options={RELIGION_OPTIONS.map((option) => ({ value: option.label, label: option.label }))}
+            value={formData.religion}
+            placeholder="Select religion"
+            onChange={(event) =>
+              patchBackground({ religion: event.target.value })
+            }
+          />
+          {casteOptions.length ? (
+            <SelectField
+              label={casteLabelFor(formData.religion)}
+              options={casteOptions}
               value={formData.caste}
-              onChange={(event) => patch({ caste: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select caste</option>
-              {CASTE_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Gotra">
-            <select
+              placeholder="Select"
+              disabled={casteOptions.length === 1 && casteOptions[0] === formData.caste}
+              onChange={(event) => patchBackground({ caste: event.target.value })}
+            />
+          ) : null}
+          {subCaste ? (
+            <SelectField
+              label={subCaste.label}
+              options={subCasteOptions}
+              value={formData.subCaste}
+              placeholder="Select"
+              onChange={(event) => patch({ subCaste: event.target.value })}
+            />
+          ) : null}
+          {gotraOptions ? (
+            <SelectField
+              label="Gotra"
+              options={gotraOptions}
               value={formData.gotra}
+              placeholder="Select gotra"
               onChange={(event) => patch({ gotra: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select gotra</option>
-              {GOTRA_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Horoscope">
-            <select
-              value={formData.horoscope}
-              onChange={(event) => patch({ horoscope: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select preference</option>
-              {HOROSCOPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
+            />
+          ) : null}
+          {!formData.religion ? (
+            <p className="self-center text-sm text-on-surface-variant">
+              Choose a religion to see matching community, clan and gotra options.
+            </p>
+          ) : null}
+          <SelectField
+            label="Horoscope (Rashi)"
+            options={RASHI_OPTIONS}
+            value={formData.horoscope}
+            placeholder="Select your rashi"
+            onChange={(event) => patch({ horoscope: event.target.value })}
+          />
           <Field label="Birth time">
             <Input
               type="time"
@@ -541,7 +640,7 @@ export function ProfileEditForm({
               className={inputClassName}
             />
           </Field>
-          <Field label="Birth place" className="md:col-span-2">
+          <Field label="Birth place">
             <Input
               value={formData.birthPlace}
               onChange={(event) => patch({ birthPlace: event.target.value })}
@@ -549,164 +648,144 @@ export function ProfileEditForm({
             />
           </Field>
         </div>
+        <InterestPicker
+          label="Languages"
+          groups={LANGUAGE_GROUPS}
+          searchPlaceholder="Search languages"
+          selected={formData.languages}
+          onChange={(languages) => patch({ languages })}
+        />
       </FormSection>
+      ) : null}
 
+      {show("Education & Career") ? (
+      <FormSection title="Education & Career">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <SelectField
+            label="Education level"
+            options={EDUCATION_LEVEL_OPTIONS}
+            value={formData.educationLevel}
+            placeholder="Select level"
+            onChange={(event) => patch({ educationLevel: event.target.value })}
+          />
+          <SelectField
+            label="Field of study"
+            options={FIELD_OF_STUDY_OPTIONS}
+            value={formData.fieldOfStudy}
+            placeholder="Select field"
+            onChange={(event) => patch({ fieldOfStudy: event.target.value })}
+          />
+          <OccupationField
+            value={formData.occupation}
+            onChange={(occupation) => patch({ occupation })}
+            inputClassName={inputClassName}
+          />
+          <Field label="Company">
+            <Input
+              value={formData.company}
+              onChange={(event) => patch({ company: event.target.value })}
+              className={inputClassName}
+            />
+          </Field>
+          <SelectField
+            label="Work preference"
+            options={WORK_PREFERENCE_OPTIONS}
+            value={formData.work_preference}
+            placeholder="Select work preference"
+            onChange={(event) => patch({ work_preference: event.target.value })}
+          />
+          <SelectField
+            label="Monthly income"
+            options={INCOME_OPTIONS}
+            value={formData.monthlyIncome}
+            placeholder="Select income range"
+            onChange={(event) => patch({ monthlyIncome: event.target.value })}
+          />
+        </div>
+      </FormSection>
+      ) : null}
+
+      {show("Lifestyle & Interests") ? (
       <FormSection title="Lifestyle & Interests">
-        <Field label="Tags (comma separated)">
+        <LifestyleFields
+          value={formData.lifestyleTagsText}
+          onChange={(lifestyleTagsText) => patch({ lifestyleTagsText })}
+          inputClassName={inputClassName}
+        />
+      </FormSection>
+      ) : null}
+
+      {show("About") ? (
+      <FormSection title="About">
+        <Field label="Bio">
           <textarea
-            rows={3}
-            value={formData.lifestyleTagsText}
-            onChange={(event) => patch({ lifestyleTagsText: event.target.value })}
-            placeholder="Trekking, Music, personality:introvert, smoking:no"
+            rows={4}
+            value={formData.bio}
+            onChange={(event) => patch({ bio: event.target.value })}
+            placeholder="A few lines about you: what you do, what you love, and what makes you laugh."
             className={cn(inputClassName, "resize-none")}
+          />
+          <WritingSuggestions field="bio" draft={formData} onPick={(bio) => patch({ bio })} />
+        </Field>
+        <Field label="Looking for">
+          <textarea
+            rows={2}
+            value={formData.lookingForText}
+            onChange={(event) => patch({ lookingForText: event.target.value })}
+            placeholder="Who you hope to meet, e.g. someone kind, family-oriented and up for weekend treks."
+            className={cn(inputClassName, "resize-none")}
+          />
+          <WritingSuggestions
+            field="looking_for"
+            draft={formData}
+            onPick={(lookingForText) => patch({ lookingForText })}
+          />
+        </Field>
+        <Field label="Future goals">
+          <textarea
+            rows={2}
+            value={formData.futureGoals}
+            onChange={(event) => patch({ futureGoals: event.target.value })}
+            placeholder="Where you see yourself in a few years: career, family, travel or anything else."
+            className={cn(inputClassName, "resize-none")}
+          />
+          <WritingSuggestions
+            field="future_goals"
+            draft={formData}
+            onPick={(futureGoals) => patch({ futureGoals })}
           />
         </Field>
       </FormSection>
+      ) : null}
 
-      <FormSection title="Partner Preferences">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Field label="Looking for">
-            <select
-              value={formData.pref_gender}
-              onChange={(event) => patch({ pref_gender: event.target.value })}
-              className={selectClassName}
-            >
-              {PREF_GENDER_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Preferred religion">
-            <select
-              value={formData.preferredReligion}
-              onChange={(event) => patch({ preferredReligion: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Any religion</option>
-              {RELIGION_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Preferred age min">
-            <Input
-              type="number"
-              min={18}
-              max={80}
-              value={formData.pref_age_min}
-              onChange={(event) => patch({ pref_age_min: Number(event.target.value) || 18 })}
-              className={inputClassName}
-            />
-          </Field>
-          <Field label="Preferred age max">
-            <Input
-              type="number"
-              min={18}
-              max={80}
-              value={formData.pref_age_max}
-              onChange={(event) => patch({ pref_age_max: Number(event.target.value) || 35 })}
-              className={inputClassName}
-            />
-          </Field>
-          <Field label="Min height">
-            <Input
-              value={formData.pref_min_height}
-              onChange={(event) => patch({ pref_min_height: event.target.value })}
-              className={inputClassName}
-            />
-          </Field>
-          <Field label="Preferred occupation">
-            <Input
-              value={formData.pref_occupation}
-              onChange={(event) => patch({ pref_occupation: event.target.value })}
-              className={inputClassName}
-            />
-          </Field>
-          <Field label="Preferred location">
-            <Input
-              value={formData.pref_location}
-              onChange={(event) => patch({ pref_location: event.target.value })}
-              className={inputClassName}
-            />
-          </Field>
-          <Field label="Max distance (km)">
-            <Input
-              type="number"
-              min={1}
-              max={500}
-              value={formData.pref_max_distance_km}
-              onChange={(event) =>
-                patch({ pref_max_distance_km: Number(event.target.value) || 50 })
-              }
-              className={inputClassName}
-            />
-          </Field>
-          <Field label="Relationship preference">
-            <select
-              value={formData.pref_relationship_goal}
-              onChange={(event) => patch({ pref_relationship_goal: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="everyone">Everyone</option>
-              <option value="serious">Serious</option>
-              <option value="casual">Casual</option>
-              <option value="dating">Dating</option>
-            </select>
-          </Field>
-          <Field label="Inter-caste">
-            <select
-              value={formData.interCaste}
-              onChange={(event) => patch({ interCaste: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select preference</option>
-              {MARRIAGE_PREF_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Inter-religion">
-            <select
-              value={formData.interReligion}
-              onChange={(event) => patch({ interReligion: event.target.value })}
-              className={selectClassName}
-            >
-              <option value="">Select preference</option>
-              {MARRIAGE_PREF_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Verified profiles only" className="md:col-span-2">
-            <label className="flex items-center gap-3 rounded-xl border border-outline-variant/30 bg-secondary/50 px-4 py-3">
-              <input
-                type="checkbox"
-                checked={formData.pref_verified_only}
-                onChange={(event) => patch({ pref_verified_only: event.target.checked })}
-                className="h-4 w-4 accent-primary"
-              />
-              <span className="text-sm text-on-surface">Only show verified profiles in discovery</span>
-            </label>
-          </Field>
-        </div>
-      </FormSection>
 
-      <button
-        type="button"
-        onClick={onSave}
-        disabled={saving}
-        className="w-full rounded-full py-4 font-bold text-white shadow-lg shadow-primary/20 gradient-brand transition-all active:scale-95 disabled:opacity-50"
-      >
-        {saving ? "Saving..." : "Save Changes"}
-      </button>
+      {approvedPhotoCount < MIN_PROFILE_PHOTOS ? (
+        <p className="text-center text-sm text-on-surface-variant">
+          {approvedPhotoCount} of {MIN_PROFILE_PHOTOS} photos — add{" "}
+          {MIN_PROFILE_PHOTOS - approvedPhotoCount} more to save.
+        </p>
+      ) : null}
+
+      <div className="flex gap-3">
+        {onlySection ? (
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={saving}
+            className="flex-1 rounded-full border border-outline-variant/30 py-4 font-bold text-on-surface transition-colors hover:bg-secondary/60 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saving || anyUploading || hasRejectedPhoto || approvedPhotoCount < MIN_PROFILE_PHOTOS}
+          className="flex-1 rounded-full py-4 font-bold text-white shadow-lg shadow-primary/20 gradient-brand transition-all active:scale-95 disabled:opacity-50"
+        >
+          {saving ? "Saving..." : onlySection ? "Save" : "Save Changes"}
+        </button>
+      </div>
     </div>
   );
 }

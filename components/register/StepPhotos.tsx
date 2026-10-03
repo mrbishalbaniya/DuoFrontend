@@ -1,123 +1,302 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Button } from "@/components/ui/button";
-import { PhotoAnalysisResult } from "@/components/photos/PhotoAnalysisResult";
 import { FieldError, StepCard, StepNavigation } from "@/components/register/StepNavigation";
-import api from "@/lib/api";
-import { getPhotoUploadError } from "@/lib/photos/validatePhotoUpload";
 import {
+  EmptyPhotoSlot,
+  PendingPhotoCard,
+  UploadedPhotoCard,
+} from "@/components/photos/PhotoSlotCards";
+import api, { RateLimitError } from "@/lib/api";
+import { DUPLICATE_PHOTO_MESSAGE, isDuplicatePhoto } from "@/lib/photos/duplicatePhoto";
+import { screenImageForNsfw } from "@/lib/photos/nsfwScreen";
+import { formatWait, getPhotoUploadError, validatePhotoFile } from "@/lib/photos/validatePhotoUpload";
+import {
+  MAX_REGISTRATION_PHOTOS,
+  MIN_REGISTRATION_PHOTOS,
   photosSchema,
   type PhotosFormValues,
 } from "@/lib/validation/registrationSchema";
 import { useRegistrationStore } from "@/store/registrationStore";
 import type { RegistrationPhoto } from "@/types/registration";
-import { cn } from "@/lib/utils";
 
 interface StepPhotosProps {
   onContinue: () => void;
   onBack: () => void;
 }
 
-function readPreview(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error("Could not read image file."));
-    reader.readAsDataURL(file);
-  });
+interface PendingPhotoUpload {
+  id: string;
+  file: File;
+  previewUrl: string;
+  isPrimary: boolean;
+  /** Reused on every retry so the server can replay a finished result. */
+  idempotencyKey: string;
+  status: "uploading" | "error" | "rate_limited";
+  errorMessage?: string;
+  nsfwBlocked?: boolean;
+  /** False when retrying the same file cannot help (e.g. wrong file type). */
+  retryable?: boolean;
+}
+
+function newIdempotencyKey(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 export function StepPhotos({ onContinue, onBack }: StepPhotosProps) {
   const { data, patchData } = useRegistrationStore();
-  const [dragActive, setDragActive] = useState(false);
-  const [photoError, setPhotoError] = useState<string | null>(null);
-  const [analyzingPhotos, setAnalyzingPhotos] = useState(false);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [pendingUploads, setPendingUploads] = useState<PendingPhotoUpload[]>([]);
+  const [flippedCards, setFlippedCards] = useState<Set<number>>(new Set());
+
+  // Rate-limit cooldown: uploads stay disabled until this timestamp (ms).
+  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!cooldownUntil) return;
+    const tick = () => {
+      const t = Date.now();
+      setNow(t);
+      if (t >= cooldownUntil) {
+        setCooldownUntil(null);
+        // The wait is over: rate-limited photos can be retried again.
+        setPendingUploads((prev) =>
+          prev.map((p) =>
+            p.status === "rate_limited"
+              ? { ...p, status: "error", errorMessage: "Ready to retry.", retryable: true }
+              : p
+          )
+        );
+      }
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [cooldownUntil]);
+  const cooldownSeconds = cooldownUntil ? Math.max(0, Math.ceil((cooldownUntil - now) / 1000)) : 0;
+  const inCooldown = cooldownSeconds > 0;
+  const cooldownRef = useRef(cooldownUntil);
+  cooldownRef.current = cooldownUntil;
 
   const form = useForm<PhotosFormValues>({
     resolver: zodResolver(photosSchema),
-    defaultValues: { photos: data.photos },
+    // Drop empty entries a gappy list may have left in saved registration data.
+    defaultValues: { photos: (data.photos ?? []).filter(Boolean) },
   });
 
   const photos = form.watch("photos");
-  const approvedCount = photos.filter((photo) => photo.status === "approved").length;
-  const profileAnalysis =
-    photos.find((photo) => photo.isProfile && photo.analysis)?.analysis ??
-    photos.find((photo) => photo.analysis)?.analysis;
 
-  const addFiles = useCallback(
-    async (files: FileList | File[]) => {
-      const list = Array.from(files).filter((file) => file.type.startsWith("image/"));
-      if (!list.length) return;
+  const photosRef = useRef(photos);
+  useEffect(() => {
+    photosRef.current = photos;
+    patchData({ photos });
+  }, [photos, patchData]);
 
-      const remaining = 9 - photos.length;
-      const selected = list.slice(0, remaining);
-      if (!selected.length) return;
+  const pendingUploadsRef = useRef(pendingUploads);
+  pendingUploadsRef.current = pendingUploads;
+  useEffect(
+    () => () => {
+      pendingUploadsRef.current.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+    },
+    []
+  );
+
+  const removePending = useCallback((id: string) => {
+    setPendingUploads((prev) => {
+      const target = prev.find((p) => p.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((p) => p.id !== id);
+    });
+  }, []);
+
+  const runUpload = useCallback(
+    async (pending: PendingPhotoUpload, slotIndex: number) => {
+      // Never send a request while rate-limited: it would fail and extend the wait.
+      if (cooldownRef.current && Date.now() < cooldownRef.current) {
+        setPendingUploads((prev) =>
+          prev.map((p) =>
+            p.id === pending.id
+              ? { ...p, status: "rate_limited", errorMessage: "Upload limit reached." }
+              : p
+          )
+        );
+        return;
+      }
+
+      setPendingUploads((prev) =>
+        prev.map((p) =>
+          p.id === pending.id
+            ? { ...p, status: "uploading", errorMessage: undefined, nsfwBlocked: false }
+            : p
+        )
+      );
+
+      try {
+        const nsfw = await screenImageForNsfw(pending.file);
+        if (nsfw.blocked) {
+          setPendingUploads((prev) =>
+            prev.map((p) =>
+              p.id === pending.id
+                ? { ...p, status: "error", errorMessage: nsfw.reason, nsfwBlocked: true }
+                : p
+            )
+          );
+          return;
+        }
+
+        const result = await api.uploadAndAnalyzePhoto(pending.file, {
+          isPrimary: pending.isPrimary,
+          idempotencyKey: pending.idempotencyKey,
+        });
+        const uploadError = getPhotoUploadError(result, pending.file.name);
+        if (uploadError) throw new Error(uploadError);
+        if (!result.image_url) {
+          throw new Error(`${pending.file.name}: upload succeeded but no image URL was returned.`);
+        }
+
+        const isRejected =
+          result.photo?.status === "REJECTED" || result.analysis?.status === "REJECTED";
+
+        const photo: RegistrationPhoto = {
+          id: `${Date.now()}-${pending.file.name}`,
+          fileName: pending.file.name,
+          previewUrl: pending.previewUrl,
+          isProfile: pending.isPrimary && !photosRef.current.some((p) => p.isProfile),
+          imageUrl: result.image_url,
+          analysis: result.analysis,
+          status: isRejected ? "rejected" : "approved",
+          error: isRejected
+            ? result.analysis?.rejection_reasons?.[0] ??
+              "This photo was rejected by our checks. Remove it and upload another."
+            : undefined,
+          moderationStatus: result.photo?.status,
+        };
+        // Append, never write at slotIndex: that left holes in the list when
+        // uploads finished out of order, which crashed anything reading .status.
+        const nextPhotos = [...photosRef.current.filter(Boolean), photo];
+        const placedIndex = nextPhotos.length - 1;
+        photosRef.current = nextPhotos;
+        form.setValue("photos", nextPhotos, { shouldValidate: true });
+
+        setPendingUploads((prev) => prev.filter((p) => p.id !== pending.id));
+
+        // Trigger flip animation after successful upload
+        setTimeout(() => {
+          setFlippedCards((prev) => new Set(prev).add(placedIndex));
+        }, 100);
+      } catch (error) {
+        if (error instanceof RateLimitError) {
+          setCooldownUntil((prev) => Math.max(prev ?? 0, error.retryAt));
+          setPendingUploads((prev) =>
+            prev.map((p) =>
+              p.id === pending.id
+                ? { ...p, status: "rate_limited", errorMessage: "Upload limit reached." }
+                : p
+            )
+          );
+          return;
+        }
+        const message =
+          error instanceof Error ? error.message : `${pending.file.name}: verification failed.`;
+        setPendingUploads((prev) =>
+          prev.map((p) =>
+            p.id === pending.id ? { ...p, status: "error", errorMessage: message, retryable: true } : p
+          )
+        );
+      }
+    },
+    [form]
+  );
+
+  const addFileToSlot = useCallback(
+    async (file: File, requestedSlot: number) => {
+      if (cooldownRef.current && Date.now() < cooldownRef.current) return;
+
+      // Photos fill slots left to right, so upload into the first free slot
+      // (no photo and no upload in progress) rather than the one clicked.
+      const takenByPending = new Set(
+        pendingUploadsRef.current.map((p) => Number(p.id.split("-")[1]))
+      );
+      const photoCount = photosRef.current.filter(Boolean).length;
+      let slotIndex = requestedSlot;
+      for (let i = 0; i < MAX_REGISTRATION_PHOTOS; i += 1) {
+        if (i >= photoCount && !takenByPending.has(i)) {
+          slotIndex = i;
+          break;
+        }
+      }
+
+      const isPrimary = slotIndex === 0;
+      const makePending = (): PendingPhotoUpload => ({
+        id: `slot-${slotIndex}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+        isPrimary,
+        idempotencyKey: newIdempotencyKey(),
+        status: "uploading",
+      });
+
+      // Reject bad files in the browser. They never reach the server.
+      const fileError = validatePhotoFile(file);
+      if (fileError) {
+        setPendingUploads((prev) => [
+          ...prev,
+          { ...makePending(), status: "error", errorMessage: fileError, retryable: false },
+        ]);
+        return;
+      }
+
+      // Reject exact or near-identical copies of photos already added.
+      const candidate = makePending();
+      const existingSrcs = [
+        ...photosRef.current.filter(Boolean).map((p) => p!.previewUrl),
+        ...pendingUploadsRef.current
+          .filter((p) => p.status !== "error" && !p.nsfwBlocked)
+          .map((p) => p.previewUrl),
+      ];
+      if (await isDuplicatePhoto(candidate.previewUrl, existingSrcs)) {
+        setPendingUploads((prev) => [
+          ...prev,
+          { ...candidate, status: "error", errorMessage: DUPLICATE_PHOTO_MESSAGE, retryable: false },
+        ]);
+        return;
+      }
+      URL.revokeObjectURL(candidate.previewUrl);
 
       const sessionRes = await fetch("/api/backend/auth/me/", {
         credentials: "include",
         cache: "no-store",
       });
       if (!sessionRes.ok) {
-        setPhotoError("Sign in and complete account setup (steps 1–2) before uploading photos.");
+        setSessionError("Sign in and complete account setup (steps 1–2) before uploading photos.");
         return;
       }
+      setSessionError(null);
 
-      setPhotoError(null);
-      setAnalyzingPhotos(true);
-
-      try {
-        const uploaded: RegistrationPhoto[] = [...photos];
-        const isFirstPhoto = photos.length === 0;
-
-        for (let index = 0; index < selected.length; index += 1) {
-          const file = selected[index];
-          const isPrimary = isFirstPhoto && index === 0 && !uploaded.some((photo) => photo.isProfile);
-          const previewUrl = await readPreview(file);
-
-          const result = await api.uploadAndAnalyzePhoto(file, { isPrimary });
-          const uploadError = getPhotoUploadError(result, file.name);
-          if (uploadError) {
-            throw new Error(uploadError);
-          }
-          if (!result.image_url) {
-            throw new Error(`${file.name}: upload succeeded but no image URL was returned.`);
-          }
-
-          uploaded.push({
-            id: `${Date.now()}-${file.name}-${index}`,
-            fileName: file.name,
-            previewUrl,
-            isProfile: isPrimary,
-            imageUrl: result.image_url,
-            analysis: result.analysis,
-            status: "approved",
-          });
-        }
-
-        if (uploaded.length && !uploaded.some((photo) => photo.isProfile)) {
-          uploaded[0].isProfile = true;
-        }
-
-        form.setValue("photos", uploaded, { shouldValidate: true });
-      } catch (error) {
-        setPhotoError(error instanceof Error ? error.message : "Photo verification failed.");
-      } finally {
-        setAnalyzingPhotos(false);
-      }
+      const pending = makePending();
+      setPendingUploads((prev) => [...prev, pending]);
+      await runUpload(pending, slotIndex);
     },
-    [form, photos]
+    [runUpload]
   );
 
-  const removePhoto = (id: string) => {
+  const anyUploading = pendingUploads.some((p) => p.status === "uploading");
+  const approvedCount = photos.filter((photo) => photo?.status === "approved").length;
+
+  const removePhoto = (id: string, slotIndex: number) => {
     const next = photos.filter((photo) => photo.id !== id);
     if (next.length && !next.some((photo) => photo.isProfile)) {
       next[0].isProfile = true;
     }
     form.setValue("photos", next, { shouldValidate: true });
-    setPhotoError(null);
+    setFlippedCards((prev) => {
+      const newSet = new Set(prev);
+      newSet.delete(slotIndex);
+      return newSet;
+    });
   };
 
   const setProfilePhoto = (id: string) => {
@@ -133,135 +312,122 @@ export function StepPhotos({ onContinue, onBack }: StepPhotosProps) {
     onContinue();
   });
 
+  const getPhotoAtIndex = (index: number) => {
+    return photos[index] || null;
+  };
+
+  const getPendingForSlot = (slotIndex: number) => {
+    return pendingUploads.find(p => p.id.startsWith(`slot-${slotIndex}-`)) || null;
+  };
+
+  const renderPhotoCard = (slotIndex: number) => {
+    const photo = getPhotoAtIndex(slotIndex);
+    const pending = getPendingForSlot(slotIndex);
+    const isFlipped = flippedCards.has(slotIndex);
+
+    if (!photo && !pending) {
+      return (
+        <EmptyPhotoSlot
+          key={`slot-${slotIndex}`}
+          slotIndex={slotIndex}
+          disabled={inCooldown}
+          buttonLabel={inCooldown ? `Wait ${formatWait(cooldownSeconds)}` : "Upload"}
+          onFile={(file) => void addFileToSlot(file, slotIndex)}
+        />
+      );
+    }
+
+    if (pending) {
+      return (
+        <PendingPhotoCard
+          key={pending.id}
+          previewUrl={pending.previewUrl}
+          fileName={pending.file.name}
+          uploading={pending.status === "uploading"}
+          errorMessage={pending.errorMessage}
+          nsfwBlocked={pending.nsfwBlocked}
+          rateLimited={pending.status === "rate_limited"}
+          canRetry={!pending.nsfwBlocked && pending.retryable !== false}
+          retryDisabled={inCooldown}
+          retryLabel={inCooldown ? `Retry in ${formatWait(cooldownSeconds)}` : "Try again"}
+          onRetry={() => void runUpload(pending, slotIndex)}
+          onRemove={() => removePending(pending.id)}
+        />
+      );
+    }
+
+    if (photo) {
+      return (
+        <UploadedPhotoCard
+          key={photo.id}
+          src={photo.previewUrl}
+          fileName={photo.fileName}
+          slotIndex={slotIndex}
+          status={photo.status}
+          error={photo.error}
+          isProfile={photo.isProfile}
+          analysis={photo.analysis}
+          flipped={isFlipped}
+          onFlippedChange={(flip) =>
+            setFlippedCards((prev) => {
+              const next = new Set(prev);
+              if (flip) next.add(slotIndex);
+              else next.delete(slotIndex);
+              return next;
+            })
+          }
+          onRemove={() => removePhoto(photo.id, slotIndex)}
+          onSetProfile={() => setProfilePhoto(photo.id)}
+        />
+      );
+    }
+
+    return null;
+  };
+
   return (
     <StepCard
       title="Photos"
-      subtitle="Upload at least 2 photos. Each photo is checked instantly with AI for face, quality, and safety."
+      subtitle={`Upload ${MIN_REGISTRATION_PHOTOS} photos. Each photo is checked instantly with AI for face, quality, and safety.`}
     >
       <form onSubmit={submit} className="space-y-5">
-        <div
-          className={cn(
-            "rounded-[1.5rem] border border-dashed p-8 text-center transition-colors",
-            dragActive
-              ? "border-primary bg-primary/10"
-              : "border-outline-variant/30 bg-surface-container/50"
-          )}
-          onDragEnter={(event) => {
-            event.preventDefault();
-            setDragActive(true);
-          }}
-          onDragLeave={() => setDragActive(false)}
-          onDragOver={(event) => event.preventDefault()}
-          onDrop={(event) => {
-            event.preventDefault();
-            setDragActive(false);
-            void addFiles(event.dataTransfer.files);
-          }}
-        >
-          <span className="material-symbols-outlined text-4xl text-primary">add_a_photo</span>
-          <p className="mt-3 font-semibold text-on-surface">Drag & drop photos here</p>
-          <p className="mt-1 text-sm text-on-surface-variant">
-            {analyzingPhotos
-              ? "Running AI verification (face, blur, AI-generated detection)…"
-              : "Minimum 2 verified photos, maximum 9"}
-          </p>
-          <label className="mt-4 inline-flex cursor-pointer">
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              disabled={analyzingPhotos}
-              onChange={(event) => {
-                if (event.target.files) void addFiles(event.target.files);
-                event.target.value = "";
-              }}
-            />
-            <span
-              className={cn(
-                "rounded-full gradient-brand px-5 py-2 text-sm font-semibold text-white",
-                analyzingPhotos && "pointer-events-none opacity-60"
-              )}
-            >
-              {analyzingPhotos ? "Analyzing…" : "Browse files"}
-            </span>
-          </label>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {[0, 1, 2].map((index) => renderPhotoCard(index))}
         </div>
 
-        {photoError ? (
-          <div className="rounded-xl border border-red-200/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-            {photoError}
+        {inCooldown ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex items-start gap-3 rounded-xl border border-amber-300/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
+          >
+            <span className="material-symbols-outlined text-xl text-amber-300">hourglass_top</span>
+            <div>
+              <p className="font-semibold">Upload limit reached</p>
+              <p className="mt-0.5 text-amber-100/80">
+                You can upload again in {formatWait(cooldownSeconds)}. Photos you already verified are saved.
+              </p>
+            </div>
           </div>
         ) : null}
 
-        {photos.length ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {photos.map((photo) => (
-              <div
-                key={photo.id}
-                className={cn(
-                  "group relative overflow-hidden rounded-2xl border",
-                  photo.isProfile ? "border-primary ring-2 ring-primary/30" : "border-outline-variant/20",
-                  photo.status === "rejected" && "border-red-400/60"
-                )}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photo.previewUrl} alt={photo.fileName} className="aspect-[3/4] w-full object-cover" />
-                {photo.status === "approved" ? (
-                  <span className="absolute left-2 top-2 rounded-full bg-emerald-600/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                    Verified
-                  </span>
-                ) : null}
-                <div className="absolute inset-x-0 bottom-0 flex gap-2 bg-gradient-to-t from-black/80 to-transparent p-2">
-                  {!photo.isProfile ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      className="h-8 flex-1 rounded-full text-xs"
-                      disabled={analyzingPhotos}
-                      onClick={() => setProfilePhoto(photo.id)}
-                    >
-                      Set profile
-                    </Button>
-                  ) : (
-                    <span className="flex h-8 flex-1 items-center justify-center rounded-full bg-primary/90 text-xs font-semibold text-white">
-                      Profile photo
-                    </span>
-                  )}
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="destructive"
-                    className="h-8 rounded-full px-3 text-xs"
-                    disabled={analyzingPhotos}
-                    onClick={() => removePhoto(photo.id)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              </div>
-            ))}
+        {sessionError ? (
+          <div className="rounded-xl border border-red-200/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {sessionError}
           </div>
-        ) : (
-          <div className="rounded-2xl border border-outline-variant/20 bg-surface-container/40 p-6 text-center text-sm text-on-surface-variant">
-            No photos uploaded yet.
-          </div>
-        )}
-
-        {profileAnalysis ? <PhotoAnalysisResult analysis={profileAnalysis} /> : null}
+        ) : null}
 
         <p className="text-xs text-on-surface-variant">
-          {approvedCount} of 2 minimum verified photo{approvedCount === 1 ? "" : "s"}
-          {analyzingPhotos ? " · verification in progress…" : ""}
+          {approvedCount} of {MIN_REGISTRATION_PHOTOS} required verified photos
+          {anyUploading ? " · verification in progress…" : ""}
         </p>
 
         <FieldError message={form.formState.errors.photos?.message} />
         <StepNavigation
           onBack={onBack}
           onNext={() => submit()}
-          loading={analyzingPhotos}
-          nextLabel={analyzingPhotos ? "Analyzing…" : "Continue"}
+          loading={anyUploading}
+          nextLabel={anyUploading ? "Analyzing…" : "Continue"}
         />
       </form>
     </StepCard>

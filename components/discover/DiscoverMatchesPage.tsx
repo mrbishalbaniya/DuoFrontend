@@ -9,17 +9,19 @@ import { DashboardMenuSheet } from "@/components/dashboard/DashboardMenuSheet";
 import { PremiumUpgradeSheet } from "@/components/subscription/PremiumUpgradeSheet";
 import { DiscoverMatchesSkeleton } from "@/components/skeletons/DiscoverMatchesSkeleton";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
 import api from "@/lib/api";
 import { submitEsewaPayment } from "@/lib/esewa";
 import { resolveProfilePhotoUrl } from "@/lib/mediaUrl";
-import type { LikedProfile, Profile, SubscriptionPlan, SwipeAction, VisitedProfile, WalletSummary } from "@/types";
+import type { LikedProfile, Match, Profile, SubscriptionPlan, SwipeAction, VisitedProfile, WalletSummary } from "@/types";
 
-type DiscoverTab = "visited-you" | "liked-by-you" | "likes-you";
+type DiscoverTab = "visited-you" | "liked-by-you" | "likes-you" | "matched";
 
 const TAB_CONFIG: { id: DiscoverTab; label: string }[] = [
-  { id: "visited-you", label: "Visited you" },
   { id: "liked-by-you", label: "Likes sent" },
   { id: "likes-you", label: "Liked you" },
+  { id: "visited-you", label: "Visited you" },
+  { id: "matched", label: "Matched" },
 ];
 
 function profilePhotoUrl(profile: Profile): string {
@@ -82,12 +84,14 @@ function DiscoverProfileCard({
   actions,
   locked = false,
   onLockedClick,
+  badge,
 }: {
   profile: Profile;
   timeLabel: string;
   actions?: React.ReactNode;
   locked?: boolean;
   onLockedClick?: () => void;
+  badge?: string;
 }) {
   const name = profile.full_name || "Duo member";
   const ageText = profile.age != null ? `, ${profile.age}` : "";
@@ -112,6 +116,14 @@ function DiscoverProfileCard({
         )}
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-transparent" />
+        {badge ? (
+          <span className="absolute left-2.5 top-2.5 flex items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-[11px] font-bold text-white shadow-lg">
+            <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+              favorite
+            </span>
+            {badge}
+          </span>
+        ) : null}
         <div className="absolute inset-x-0 bottom-0 p-3 md:p-4">
           {locked ? (
             <>
@@ -255,6 +267,26 @@ function LikedByYouCard({
 }) {
   const profile = item.profile;
   if (!profile) return null;
+  const matched = item.status === "matched";
+
+  if (matched) {
+    return (
+      <DiscoverProfileCard
+        profile={profile}
+        badge="Matched"
+        timeLabel={interactionTimeLabel(item.action, "matched", item.liked_at)}
+        actions={
+          <CardButton
+            href={item.conversation_id ? `/chat?conversation=${item.conversation_id}` : "/chat"}
+            icon="chat_bubble"
+            label="Chat"
+            primary
+            full
+          />
+        }
+      />
+    );
+  }
 
   return (
     <DiscoverProfileCard
@@ -289,6 +321,25 @@ function LikesYouCard({
   if (!profile) return null;
   const locked = item.locked ?? false;
 
+  if (item.status === "matched" && !locked) {
+    return (
+      <DiscoverProfileCard
+        profile={profile}
+        badge="Matched"
+        timeLabel={interactionTimeLabel(item.action, "matched", item.liked_at)}
+        actions={
+          <CardButton
+            href={item.conversation_id ? `/chat?conversation=${item.conversation_id}` : "/chat"}
+            icon="chat_bubble"
+            label="Chat"
+            primary
+            full
+          />
+        }
+      />
+    );
+  }
+
   return (
     <DiscoverProfileCard
       profile={profile}
@@ -312,6 +363,29 @@ function LikesYouCard({
   );
 }
 
+function MatchedCard({ match }: { match: Match }) {
+  const profile = match.other_user_profile;
+  if (!profile) return null;
+  const score = match.compatibility_score;
+
+  return (
+    <DiscoverProfileCard
+      profile={profile}
+      badge={score ? `${score}% match` : "Matched"}
+      timeLabel={interactionTimeLabel(undefined, "matched", match.matched_at)}
+      actions={
+        <CardButton
+          href={match.conversation_id ? `/chat?conversation=${match.conversation_id}` : "/chat"}
+          icon="chat_bubble"
+          label="Chat"
+          primary
+          full
+        />
+      }
+    />
+  );
+}
+
 function EmptyState({ tab }: { tab: DiscoverTab }) {
   const content = {
     "visited-you": {
@@ -323,7 +397,13 @@ function EmptyState({ tab }: { tab: DiscoverTab }) {
     "liked-by-you": {
       icon: "thumb_up",
       title: "No Likes Yet",
-      description: "Profiles you like will appear here until they like you back.",
+      description: "Profiles you like will appear here until they like you back. Matches move to the Matched tab.",
+      cta: { href: "/match", label: "Discover Profiles" },
+    },
+    matched: {
+      icon: "handshake",
+      title: "No matches yet",
+      description: "When you and someone like each other, you'll both appear here.",
       cta: { href: "/match", label: "Discover Profiles" },
     },
     "likes-you": {
@@ -356,15 +436,18 @@ function ProfileCardGrid({ children }: { children: React.ReactNode }) {
 
 export function DiscoverMatchesPage() {
   const { user, loading: authLoading, fetchUser } = useAuth();
+  const { showToast, showErrorToast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<DiscoverTab>("visited-you");
+  const [activeTab, setActiveTab] = useState<DiscoverTab>("liked-by-you");
   const [profileVisitors, setProfileVisitors] = useState<VisitedProfile[]>([]);
   const [likedByYou, setLikedByYou] = useState<LikedProfile[]>([]);
   const [likesYou, setLikesYou] = useState<LikedProfile[]>([]);
+  const [matches, setMatches] = useState<Match[]>([]);
   const [premiumVariant, setPremiumVariant] = useState<"likes" | "visitors">("likes");
-  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
+  const [likesPlans, setLikesPlans] = useState<SubscriptionPlan[]>([]);
+  const [visitorsPlans, setVisitorsPlans] = useState<SubscriptionPlan[]>([]);
   const [wallet, setWallet] = useState<WalletSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -374,24 +457,28 @@ export function DiscoverMatchesPage() {
   const [likingBackId, setLikingBackId] = useState<string | null>(null);
   const [unlikingId, setUnlikingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   const loadData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setError(null);
 
     try {
-      const [visitorsData, likedData, likesData, plansData, walletData] = await Promise.all([
-        api.getProfileVisitors(),
-        api.getLikedByYou(),
-        api.getLikesYou(),
-        api.getSubscriptionPlans().catch(() => []),
-        api.getWallet().catch(() => null),
-      ]);
+      const [visitorsData, likedData, likesData, likesPlansData, visitorsPlansData, walletData, matchesData] =
+        await Promise.all([
+          api.getProfileVisitors(),
+          api.getLikedByYou(),
+          api.getLikesYou(),
+          api.getSubscriptionPlans("who_liked_you").catch(() => []),
+          api.getSubscriptionPlans("visited_you").catch(() => []),
+          api.getWallet().catch(() => null),
+          api.getMatches().catch(() => [] as Match[]),
+        ]);
       setProfileVisitors(visitorsData.results);
       setLikedByYou(likedData);
       setLikesYou(likesData.results);
-      setSubscriptionPlans(plansData);
+      setMatches(matchesData);
+      setLikesPlans(likesPlansData);
+      setVisitorsPlans(visitorsPlansData);
       setWallet(walletData);
       setError(null);
     } catch {
@@ -399,6 +486,7 @@ export function DiscoverMatchesPage() {
       setProfileVisitors([]);
       setLikedByYou([]);
       setLikesYou([]);
+      setMatches([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -407,7 +495,6 @@ export function DiscoverMatchesPage() {
 
   const handlePurchase = useCallback(async (planId: string) => {
     setPurchasing(true);
-    setNotice(null);
     try {
       const result = await api.purchaseWithWallet(planId);
       setWallet((prev) =>
@@ -415,67 +502,70 @@ export function DiscoverMatchesPage() {
           ? { ...prev, balance: result.balance }
           : { balance: result.balance, coins: result.balance, currency: "COIN", top_up_presets: [500, 1000, 2000, 5000], transactions: [] }
       );
-      setNotice("Pass purchased. Duo Premium is now active.");
+      const unlocked = result.plan?.feature_label;
+      showToast(
+        unlocked
+          ? `Pass purchased. ${unlocked} is now unlocked.`
+          : "Pass purchased. Duo Premium is now active.",
+        { variant: "success" }
+      );
       setPremiumSheetOpen(false);
       void fetchUser();
       void loadData(true);
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Could not purchase pass. Please try again.");
+      showErrorToast(err instanceof Error ? err.message : "Could not purchase pass. Please try again.");
     } finally {
       setPurchasing(false);
     }
-  }, [fetchUser, loadData]);
+  }, [fetchUser, loadData, showErrorToast, showToast]);
 
   const handleTopUp = useCallback(async (amount: number) => {
     setToppingUp(true);
-    setNotice(null);
     try {
       const payment = await api.initiateWalletTopUp(amount);
       submitEsewaPayment(payment.payment_url, payment.form);
     } catch (err) {
-      setNotice(
+      showErrorToast(
         err instanceof Error ? err.message : "Could not start eSewa top-up. Please try again."
       );
       setToppingUp(false);
     }
-  }, []);
+  }, [showErrorToast]);
 
   const handleUnlike = useCallback(
     async (item: LikedProfile) => {
       const toUserId = item.profile.user_id ?? item.profile.id;
       if (!toUserId) {
-        setNotice("Could not unlike — profile is missing a user id.");
+        showErrorToast("Could not unlike — profile is missing a user id.");
         return;
       }
 
       const key = likedProfileKey(item);
       setUnlikingId(key);
-      setNotice(null);
 
       try {
         await api.unlikeProfile(toUserId);
         setLikedByYou((prev) => prev.filter((entry) => likedProfileKey(entry) !== key));
-        setNotice("Like removed.");
+        showToast("Like removed.");
       } catch (err) {
-        setNotice(err instanceof Error ? err.message : "Unlike failed. Please try again.");
+        showErrorToast(err instanceof Error ? err.message : "Unlike failed. Please try again.");
       } finally {
         setUnlikingId(null);
       }
     },
-    []
+    [showErrorToast, showToast]
   );
 
   const handleLikeBack = useCallback(
     async (item: LikedProfile) => {
       const toUserId = item.profile.user_id ?? item.profile.id;
       if (!toUserId) {
-        setNotice("Could not like back — profile is missing a user id.");
+        showErrorToast("Could not like back — profile is missing a user id.");
         return;
       }
 
       const key = likedProfileKey(item);
       setLikingBackId(key);
-      setNotice(null);
 
       try {
         const res = await api.swipe(toUserId, "LIKE");
@@ -487,15 +577,15 @@ export function DiscoverMatchesPage() {
           return;
         }
 
-        setNotice("You liked them back!");
+        showToast("You liked them back!", { variant: "success" });
         void loadData(true);
       } catch (err) {
-        setNotice(err instanceof Error ? err.message : "Like back failed. Please try again.");
+        showErrorToast(err instanceof Error ? err.message : "Like back failed. Please try again.");
       } finally {
         setLikingBackId(null);
       }
     },
-    [loadData, router]
+    [loadData, router, showErrorToast, showToast]
   );
 
   useEffect(() => {
@@ -517,30 +607,32 @@ export function DiscoverMatchesPage() {
       setActiveTab("likes-you");
     } else if (tab === "visited-you") {
       setActiveTab("visited-you");
+    } else if (tab === "matched") {
+      setActiveTab("matched");
     }
 
     if (walletResult === "success") {
-      setNotice("Wallet topped up successfully.");
+      showToast("Wallet topped up successfully.", { variant: "success" });
       setActiveTab("likes-you");
       void fetchUser();
       void loadData(true);
       router.replace("/discover");
     } else if (walletResult === "failed") {
-      setNotice("Top-up was not completed. You can try again with eSewa.");
+      showErrorToast("Top-up was not completed. You can try again with eSewa.");
       setActiveTab("likes-you");
       router.replace("/discover");
     } else if (subscriptionResult === "success") {
-      setNotice("Payment successful. Duo Premium is now active.");
+      showToast("Payment successful. Duo Premium is now active.", { variant: "success" });
       setActiveTab("likes-you");
       void fetchUser();
       void loadData(true);
       router.replace("/discover");
     } else if (subscriptionResult === "failed") {
-      setNotice("Payment was not completed. You can try again with eSewa.");
+      showErrorToast("Payment was not completed. You can try again with eSewa.");
       setActiveTab("likes-you");
       router.replace("/discover");
     }
-  }, [searchParams, fetchUser, loadData, router]);
+  }, [searchParams, fetchUser, loadData, router, showErrorToast, showToast]);
 
   if (authLoading || loading) {
     return <DiscoverMatchesSkeleton />;
@@ -550,10 +642,13 @@ export function DiscoverMatchesPage() {
     "visited-you": profileVisitors.length,
     "liked-by-you": likedByYou.length,
     "likes-you": likesYou.length,
+    matched: matches.length,
   };
 
   const premiumCount =
-    premiumVariant === "visitors" ? profileVisitors.length : likesYou.length;
+    premiumVariant === "visitors"
+      ? profileVisitors.length
+      : likesYou.length;
 
   const openPremiumSheet = (variant: "likes" | "visitors") => {
     setPremiumVariant(variant);
@@ -601,6 +696,11 @@ export function DiscoverMatchesPage() {
       ));
     }
 
+    if (activeTab === "matched") {
+      if (matches.length === 0) return <EmptyState tab="matched" />;
+      return matches.map((match) => <MatchedCard key={`match-${match.id}`} match={match} />);
+    }
+
     if (likesYou.length === 0) return <EmptyState tab="likes-you" />;
     return likesYou.map((item) => (
       <LikesYouCard
@@ -617,7 +717,12 @@ export function DiscoverMatchesPage() {
     <>
       <div className="flex h-[100dvh] overflow-hidden bg-background">
         <ChatSidebarNav />
-        <main className="ios-page mobile-bottom-nav-offset flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto md:pb-10">
+        {/* data-lenis-prevent: this <main> scrolls itself; without it the global
+            Lenis smooth-scroll swallows wheel events and nothing moves. */}
+        <main
+          data-lenis-prevent
+          className="ios-page mobile-bottom-nav-offset flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain md:pb-10"
+        >
         <header className="ios-sticky-header top-0 md:top-0">
           <div className="mx-auto w-full max-w-lg px-4 md:max-w-7xl md:px-6 lg:px-8">
             <div className="md:hidden">
@@ -690,11 +795,6 @@ export function DiscoverMatchesPage() {
         </header>
 
         <div className="mx-auto w-full max-w-lg flex-1 px-4 pt-2 pb-4 md:max-w-7xl md:px-6 md:pt-4 lg:px-8">
-          {notice ? (
-            <div className="mb-4 rounded-xl border border-white/10 bg-surface-variant/50 px-4 py-3 text-sm text-on-surface">
-              {notice}
-            </div>
-          ) : null}
           <ProfileCardGrid>{renderContent()}</ProfileCardGrid>
         </div>
       </main>
@@ -707,7 +807,7 @@ export function DiscoverMatchesPage() {
       <PremiumUpgradeSheet
         open={premiumSheetOpen}
         onClose={() => setPremiumSheetOpen(false)}
-        plans={subscriptionPlans}
+        plans={premiumVariant === "visitors" ? visitorsPlans : likesPlans}
         count={premiumCount}
         variant={premiumVariant}
         walletBalance={wallet?.balance ?? user?.profile.wallet_balance ?? 0}

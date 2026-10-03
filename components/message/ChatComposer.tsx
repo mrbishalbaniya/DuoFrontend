@@ -9,7 +9,8 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { VoiceInput, VoiceRecordingBar } from "@/components/ui/voice-input";
 import type { ChatMessage } from "@/types";
-import { EMOJI_LIST } from "./chatConstants";
+import { ChatEmojiPicker } from "./ChatEmojiPicker";
+import { CameraCaptureOverlay } from "./CameraCaptureOverlay";
 import { getReplyPreview } from "./chatMessageUtils";
 import { ChatComposerInput } from "./ChatComposerInput";
 
@@ -20,6 +21,7 @@ export function ChatComposer({
   showEmojiPicker,
   onAddEmoji,
   onToggleEmojiPicker,
+  onCloseEmojiPicker,
   handleSend,
   fileInputRef,
   onFileUpload,
@@ -52,6 +54,8 @@ export function ChatComposer({
   cameraStarting,
   cameraVideoRef,
   onCapturePhoto,
+  onShareLocation,
+  sharingLocation,
 }: {
   replyingTo: ChatMessage | null;
   otherProfileName?: string;
@@ -59,6 +63,7 @@ export function ChatComposer({
   showEmojiPicker: boolean;
   onAddEmoji: (emoji: string) => void;
   onToggleEmojiPicker: () => void;
+  onCloseEmojiPicker: () => void;
   handleSend: (e?: FormEvent | React.KeyboardEvent | null) => void;
   fileInputRef: RefObject<HTMLInputElement | null>;
   onFileUpload: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -95,11 +100,13 @@ export function ChatComposer({
   cameraStarting: boolean;
   cameraVideoRef: RefObject<HTMLVideoElement | null>;
   onCapturePhoto: () => void;
+  onShareLocation: () => void;
+  sharingLocation: boolean;
 }) {
   return (
     <footer className="shrink-0 border-t border-outline-variant/30 bg-background p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4 relative">
       {replyingTo && (
-        <div className="mx-auto mb-2 flex max-w-4xl items-start gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2">
+        <div className="mb-2 flex w-full items-start gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2">
           <span className="material-symbols-outlined mt-0.5 shrink-0 text-[18px] text-primary">reply</span>
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-semibold text-primary">
@@ -123,22 +130,7 @@ export function ChatComposer({
         </div>
       )}
 
-      {showEmojiPicker && (
-        <div className="absolute bottom-full left-4 mb-2 p-3 bg-white rounded-2xl shadow-2xl border border-outline-variant grid grid-cols-4 gap-2 z-50">
-          {EMOJI_LIST.map((emoji) => (
-            <button
-              key={emoji}
-              type="button"
-              onClick={() => onAddEmoji(emoji)}
-              className="w-10 h-10 flex items-center justify-center text-xl hover:bg-secondary rounded-lg transition-colors"
-            >
-              {emoji}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <form onSubmit={handleSend} className="flex items-center gap-2 max-w-4xl mx-auto">
+      <form onSubmit={handleSend} className="flex w-full items-center gap-2">
         <input
           type="file"
           ref={fileInputRef}
@@ -221,6 +213,19 @@ export function ChatComposer({
                         {uploading ? "hourglass_top" : "image"}
                       </span>
                     </button>
+                    <button
+                      type="button"
+                      onPointerDown={keepComposerFocus}
+                      onClick={onShareLocation}
+                      disabled={uploading || sending || sharingLocation}
+                      aria-label="Share your location"
+                      title="Share location"
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-primary transition-colors hover:bg-secondary touch-manipulation disabled:opacity-50"
+                    >
+                      <span className={`material-symbols-outlined ${sharingLocation ? "animate-pulse" : ""}`}>
+                        location_on
+                      </span>
+                    </button>
                     <VoiceInput
                       listening={isRecording}
                       onListeningChange={onVoiceListeningChange}
@@ -256,6 +261,19 @@ export function ChatComposer({
                   {uploading ? "hourglass_top" : "image"}
                 </span>
               </button>
+                    <button
+                      type="button"
+                      onPointerDown={keepComposerFocus}
+                      onClick={onShareLocation}
+                      disabled={uploading || sending || sharingLocation}
+                      aria-label="Share your location"
+                      title="Share location"
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-primary transition-colors hover:bg-secondary touch-manipulation disabled:opacity-50"
+                    >
+                      <span className={`material-symbols-outlined ${sharingLocation ? "animate-pulse" : ""}`}>
+                        location_on
+                      </span>
+                    </button>
               <VoiceInput
                 listening={isRecording}
                 onListeningChange={onVoiceListeningChange}
@@ -268,11 +286,7 @@ export function ChatComposer({
         </div>
 
         <div
-          className={`flex min-w-0 flex-grow items-center rounded-full border bg-secondary px-3 py-2 ${
-            isVoiceComposeActive
-              ? "border-primary/20 ring-2 ring-primary/15"
-              : "border-outline-variant/40 focus-within:ring-2 focus-within:ring-primary"
-          }`}
+          className="flex min-w-0 flex-grow items-center rounded-full bg-secondary px-3 py-2"
         >
           {isVoiceComposeActive ? (
             <VoiceRecordingBar
@@ -294,13 +308,26 @@ export function ChatComposer({
                 onSubmit={(e) => void handleSend(e)}
                 onTyping={onTyping}
               />
-              <button
-                type="button"
-                onClick={onToggleEmojiPicker}
-                className="shrink-0 text-primary hover:opacity-70"
-              >
-                <span className="material-symbols-outlined text-[20px]">sentiment_satisfied</span>
-              </button>
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  data-emoji-toggle
+                  onPointerDown={keepComposerFocus}
+                  onClick={onToggleEmojiPicker}
+                  aria-label={showEmojiPicker ? "Close emoji picker" : "Open emoji picker"}
+                  aria-expanded={showEmojiPicker}
+                  className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+                    showEmojiPicker ? "bg-primary/15 text-primary" : "text-primary hover:bg-primary/10"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[20px]">
+                    {showEmojiPicker ? "keyboard" : "sentiment_satisfied"}
+                  </span>
+                </button>
+                {showEmojiPicker && (
+                  <ChatEmojiPicker onPick={onAddEmoji} onClose={onCloseEmojiPicker} />
+                )}
+              </div>
             </>
           )}
         </div>
@@ -338,53 +365,18 @@ export function ChatComposer({
       </form>
 
       {showCameraCapture && (
-        <div className="fixed inset-0 z-[100] bg-black flex flex-col">
-          <div className="flex items-center justify-between px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] text-white">
-            <button
-              type="button"
-              onClick={onCloseCamera}
-              className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10"
-              aria-label="Close camera"
-            >
-              <span className="material-symbols-outlined">close</span>
-            </button>
-            <span className="text-sm font-medium">Take Photo</span>
-            <button
-              type="button"
-              onClick={onSwitchCameraFacing}
-              disabled={cameraStarting}
-              className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 disabled:opacity-50"
-              aria-label="Switch camera"
-            >
-              <span className="material-symbols-outlined">flip_camera_ios</span>
-            </button>
-          </div>
-
-          <div className="relative flex-1 min-h-0 bg-black">
-            <video
-              ref={cameraVideoRef}
-              autoPlay
-              playsInline
-              muted
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-            {cameraStarting && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-white text-sm">
-                Starting camera…
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center justify-center gap-8 px-4 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-            <button
-              type="button"
-              onClick={onCapturePhoto}
-              disabled={cameraStarting || uploading}
-              aria-label="Capture photo"
-              className="w-16 h-16 rounded-full border-4 border-white bg-white/20 active:scale-95 disabled:opacity-50"
-            />
-          </div>
-        </div>
+        <CameraCaptureOverlay
+          videoRef={cameraVideoRef}
+          starting={cameraStarting}
+          busy={uploading}
+          onClose={onCloseCamera}
+          onCapture={onCapturePhoto}
+          onSwitchCamera={onSwitchCameraFacing}
+          onOpenGallery={() => {
+            onCloseCamera();
+            fileInputRef.current?.click();
+          }}
+        />
       )}
     </footer>
   );

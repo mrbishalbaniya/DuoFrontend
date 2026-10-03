@@ -155,7 +155,7 @@ export default function MatchBrowseMobileSheet({
           </div>
         </div>
 
-        <div className="map-browse-sheet__scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-1 hide-scrollbar sm:px-4">
+        <div data-lenis-prevent className="map-browse-sheet__scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-1 hide-scrollbar sm:px-4">
           {children}
         </div>
       </motion.div>

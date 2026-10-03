@@ -1,0 +1,24 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getBackendApiUrl } from "@/lib/backendUrl";
+import { setAuthCookies } from "@/lib/server/apiProxy";
+
+export async function POST(request: NextRequest) {
+  const body = (await request.json()) as { email: string; otp: string };
+
+  const backendRes = await fetch(`${getBackendApiUrl()}/auth/login/otp/verify/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  const data = await backendRes.json().catch(() => ({}));
+  if (!backendRes.ok) {
+    return NextResponse.json(data, { status: backendRes.status });
+  }
+
+  const response = NextResponse.json(data);
+  if (data.requires_2fa !== true) {
+    await setAuthCookies(response, data.access, data.refresh);
+  }
+  return response;
+}

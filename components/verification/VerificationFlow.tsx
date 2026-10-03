@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { CrossDeviceVerification } from "@/components/verification/CrossDeviceVerification";
 import { FaceVerificationOverlay } from "@/components/verification/FaceVerificationOverlay";
+import { cn } from "@/lib/utils";
+import Loader from "@/components/ui/loader";
 import {
   autoCaptureStatusMessage,
   getAutoCaptureHoldMs,
@@ -36,28 +38,30 @@ interface VerificationFlowProps {
 const LIVENESS_LABELS: Record<LivenessStep, { title: string; hint: string; icon: string }> = {
   smile: {
     title: "Smile",
-    hint: "Hold still with a neutral face, then smile clearly — we capture automatically.",
+    hint: "Start neutral, then give a big smile.",
     icon: "sentiment_satisfied",
   },
   blink: {
     title: "Blink",
-    hint: "Hold still with eyes open, then close your eyes briefly — we capture automatically.",
+    hint: "Look at the camera, then close your eyes briefly.",
     icon: "visibility",
   },
   head_left: {
     title: "Turn Left",
-    hint: "Hold still, then turn your head left — we capture automatically.",
+    hint: "Look straight, then turn your head to the left.",
     icon: "arrow_back",
   },
   head_right: {
     title: "Turn Right",
-    hint: "Hold still, then turn your head right — we capture automatically.",
+    hint: "Look straight, then turn your head to the right.",
     icon: "arrow_forward",
   },
 };
 
 const AUTO_CAPTURE_COOLDOWN_MS = 900;
 const AUTO_CAPTURE_RETRY_COOLDOWN_MS = 350;
+/** How long "not ready" must persist before it interrupts an in-progress hold. */
+const HOLD_GRACE_MS = 350;
 
 function captureFrame(video: HTMLVideoElement): Promise<File | null> {
   const canvas = document.createElement("canvas");
@@ -111,6 +115,7 @@ export function VerificationFlow({
   const overlayStateRef = useRef<FaceOverlayState | null>(null);
   const actionBaselineRef = useRef<ActionBaseline | null>(null);
   const holdStartRef = useRef<number | null>(null);
+  const notReadySinceRef = useRef<number | null>(null);
   const lastCaptureRef = useRef(0);
   const captureLivenessRef = useRef<() => Promise<void>>(async () => {});
   const captureSelfieRef = useRef<() => Promise<void>>(async () => {});
@@ -124,6 +129,7 @@ export function VerificationFlow({
     setAutoStatus(null);
     actionBaselineRef.current = null;
     holdStartRef.current = null;
+    notReadySinceRef.current = null;
   }, [livenessIndex, currentLivenessStep]);
 
   const stopCamera = useCallback(() => {
@@ -292,6 +298,7 @@ export function VerificationFlow({
 
       if (response.passed) {
         holdStartRef.current = null;
+        notReadySinceRef.current = null;
         lastCaptureRef.current = Date.now();
         const nextIndex = livenessIndex + 1;
         if (nextIndex >= session.liveness_steps.length) {
@@ -365,9 +372,17 @@ export function VerificationFlow({
       setAutoStatus(autoCaptureStatusMessage(input));
 
       if (!isAutoCaptureReady(input)) {
-        holdStartRef.current = null;
+        // Tolerate brief flicker (a blink, a momentary lighting/webcam noise
+        // frame) instead of nuking the whole hold timer on a single bad
+        // frame — only reset once "not ready" has persisted for a bit.
+        if (notReadySinceRef.current === null) {
+          notReadySinceRef.current = now;
+        } else if (now - notReadySinceRef.current >= HOLD_GRACE_MS) {
+          holdStartRef.current = null;
+        }
         return;
       }
+      notReadySinceRef.current = null;
 
       const requiredMs = getAutoCaptureHoldMs(input);
       if (holdStartRef.current === null) {
@@ -399,126 +414,119 @@ export function VerificationFlow({
     [tryAutoCapture]
   );
 
-  const progress =
-    flowStep === "cross_device"
-      ? 15
-      : session && flowStep === "liveness"
-      ? Math.round((completedSteps.length / session.liveness_steps.length) * 100)
+  // Four clear stages instead of a percentage bar plus a separate step counter.
+  const stages = ["Start", "Face check", "Selfie", "Result"] as const;
+  const stageIndex =
+    flowStep === "liveness" || flowStep === "cross_device"
+      ? 1
       : flowStep === "selfie"
-        ? 85
-        : flowStep === "processing"
-          ? 95
-          : flowStep === "result"
-            ? 100
-            : 0;
+        ? 2
+        : flowStep === "processing" || flowStep === "result"
+          ? 3
+          : 0;
 
   const scrollableStep =
     flowStep === "instructions" || flowStep === "cross_device" || flowStep === "result";
 
+  const noticeClass = "shrink-0 rounded-xl px-4 py-2.5 text-sm";
+
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-lg flex-col overflow-hidden px-4 py-3 sm:px-5 sm:py-4">
-      <div className="mb-2 shrink-0 sm:mb-3">
-        <div className="mb-1.5 flex items-center justify-between text-sm text-on-surface-variant">
-          <span>Profile verification</span>
-          <span>{progress}%</span>
-        </div>
-        <div className="h-2 overflow-hidden rounded-full bg-secondary">
-          <div
-            className="h-full rounded-full gradient-brand transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      </div>
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-lg flex-col overflow-hidden px-4 py-3 sm:px-5 sm:py-4 lg:max-w-3xl">
+      <ol className="mb-3 grid shrink-0 grid-cols-4 gap-2" aria-label="Verification progress">
+        {stages.map((label, index) => {
+          const done = index < stageIndex || (index === 3 && flowStep === "result");
+          const active = index === stageIndex && !done;
+          return (
+            <li key={label} className="space-y-1.5">
+              <div
+                className={cn(
+                  "h-1.5 rounded-full transition-colors duration-500",
+                  done ? "gradient-brand" : active ? "bg-primary/50" : "bg-secondary"
+                )}
+              />
+              <p
+                className={cn(
+                  "text-center text-[11px] font-medium",
+                  active || done ? "text-on-surface" : "text-on-surface-variant/70"
+                )}
+                aria-current={active ? "step" : undefined}
+              >
+                {label}
+              </p>
+            </li>
+          );
+        })}
+      </ol>
 
       <div
         className={
           scrollableStep
             ? "min-h-0 flex-1 overflow-y-auto overscroll-y-contain hide-scrollbar"
-            : "flex min-h-0 flex-1 flex-col overflow-hidden"
+            : "flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain hide-scrollbar"
         }
         data-lenis-prevent
       >
       {flowStep === "instructions" && (
         <div className="flex flex-col pb-2">
-          {submitting && (
-            <div className="mb-4 flex flex-col items-center justify-center py-8 text-center">
-              <div className="mb-3 h-10 w-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
-              <p className="text-sm text-on-surface-variant">Starting verification…</p>
+          {submitting ? (
+            <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
+              <Loader pageName="Verification" />
+              <p className="mt-3 text-sm text-on-surface-variant">Getting things ready…</p>
             </div>
-          )}
-          {!submitting && (
-          <>
-          <div className="mb-3 rounded-2xl border border-primary/10 bg-secondary/50 p-4 sm:p-5">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full gradient-brand text-white">
-              <span className="material-symbols-outlined text-2xl">verified_user</span>
-            </div>
-            <h1 className="font-[var(--font-headline)] text-xl font-bold text-on-surface sm:text-2xl">
-              Verify your profile
-            </h1>
-            <p className="mt-1.5 text-sm text-on-surface-variant">
-              Confirm you are the person in your profile photos. You will complete a short liveness
-              check and take a selfie.
-            </p>
-            <ul className="mt-4 space-y-2">
-              {[
-                "Use good lighting and face the front camera",
-                "Complete smile, blink, and head-turn steps",
-                "Take a clear front-facing selfie at the end",
-                "Only one person should be visible",
-              ].map((item) => (
-                <li key={item} className="flex items-start gap-2 text-sm text-on-surface">
-                  <span className="material-symbols-outlined mt-0.5 text-accent">check_circle</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
+          ) : (
+            <>
+              <div className="flex flex-col items-center pt-4 text-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl gradient-brand text-white shadow-lg shadow-primary/25">
+                  <span className="material-symbols-outlined text-3xl">verified_user</span>
+                </div>
+                <h2 className="mt-4 font-[var(--font-headline)] text-2xl font-bold text-on-surface">
+                  Get your verified badge
+                </h2>
+                <p className="mt-1.5 max-w-sm text-sm text-on-surface-variant">
+                  A quick face check shows people you&apos;re the person in your photos.
+                </p>
+              </div>
 
-          {error && (
-            <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </p>
-          )}
+              <ul className="mt-6 divide-y divide-outline-variant/15 overflow-hidden rounded-2xl border border-primary/10 bg-secondary/30">
+                {[
+                  { icon: "light_mode", text: "Find good light and face the camera" },
+                  { icon: "gesture", text: "Follow 3 quick moves, like a smile or a head turn" },
+                  { icon: "person", text: "Keep only your face in the frame" },
+                ].map((item) => (
+                  <li key={item.text} className="flex items-center gap-3 px-4 py-3 text-sm text-on-surface">
+                    <span className="material-symbols-outlined text-xl text-primary">{item.icon}</span>
+                    {item.text}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 px-1 text-xs text-on-surface-variant">
+                Takes under a minute. Photos are captured automatically.
+              </p>
 
-          <button
-            type="button"
-            onClick={() => void handleStart()}
-            disabled={submitting}
-            className="mt-3 w-full shrink-0 rounded-xl py-3.5 font-bold text-white shadow-lg shadow-primary/20 gradient-brand disabled:opacity-60"
-          >
-            {submitting ? "Starting…" : "Start on this device"}
-          </button>
+              {error && (
+                <p className={cn(noticeClass, "mt-4 border border-red-500/30 bg-red-500/10 text-red-300")}>
+                  {error}
+                </p>
+              )}
 
-          <div className="relative my-4 shrink-0">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-primary/10" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase tracking-wide">
-              <span className="bg-surface px-3 text-on-surface-variant">or</span>
-            </div>
-          </div>
-
-          <div className="shrink-0 rounded-2xl border border-primary/10 bg-background p-4">
-            <div className="mb-3 flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary">devices</span>
-              <h2 className="font-[var(--font-headline)] text-lg font-bold text-on-surface">
-                Verify on another device
-              </h2>
-            </div>
-            <p className="mb-4 text-sm text-on-surface-variant">
-              No camera on this computer? Scan a QR code, copy a link, or email it to yourself.
-              The link opens verification directly — no login on your phone.
-            </p>
-            <button
-              type="button"
-              onClick={() => void handleStartOtherDevice()}
-              disabled={submitting}
-              className="w-full rounded-xl border border-primary/20 py-3.5 text-sm font-bold text-primary transition-colors hover:bg-primary/5 disabled:opacity-60"
-            >
-              {submitting ? "Preparing link…" : "Get QR code, link & email"}
-            </button>
-          </div>
-          </>
+              <button
+                type="button"
+                onClick={() => void handleStart()}
+                disabled={submitting}
+                className="mt-6 w-full shrink-0 rounded-full py-3.5 font-bold text-white shadow-lg shadow-primary/20 gradient-brand disabled:opacity-60"
+              >
+                Start verification
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleStartOtherDevice()}
+                disabled={submitting}
+                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-full py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/5 disabled:opacity-60"
+              >
+                <span className="material-symbols-outlined text-lg">smartphone</span>
+                No camera here? Use your phone
+              </button>
+            </>
           )}
         </div>
       )}
@@ -538,8 +546,8 @@ export function VerificationFlow({
 
       {deviceLoading && (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
-          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
-          <p className="text-sm text-on-surface-variant">Loading verification session…</p>
+          <Loader pageName="Verification" />
+          <p className="mt-3 text-sm text-on-surface-variant">Loading your session…</p>
         </div>
       )}
 
@@ -548,30 +556,48 @@ export function VerificationFlow({
           <div className="shrink-0 text-center">
             {flowStep === "liveness" && livenessInfo ? (
               <>
-                <span className="material-symbols-outlined mb-1 text-3xl text-primary sm:text-4xl">
-                  {livenessInfo.icon}
-                </span>
+                {session ? (
+                  <div className="mb-2 flex justify-center gap-1.5">
+                    {session.liveness_steps.map((step, index) => {
+                      const done = completedSteps.includes(step);
+                      const current = index === livenessIndex;
+                      return (
+                        <span
+                          key={step}
+                          title={LIVENESS_LABELS[step].title}
+                          className={cn(
+                            "flex h-7 w-7 items-center justify-center rounded-full border text-xs transition-colors",
+                            done
+                              ? "border-transparent gradient-brand text-white"
+                              : current
+                                ? "border-primary text-primary"
+                                : "border-outline-variant/40 text-on-surface-variant/60"
+                          )}
+                        >
+                          <span className="material-symbols-outlined text-base">
+                            {done ? "check" : LIVENESS_LABELS[step].icon}
+                          </span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                ) : null}
                 <h2 className="font-[var(--font-headline)] text-lg font-bold text-on-surface sm:text-xl">
                   {livenessInfo.title}
                 </h2>
-                <p className="mt-0.5 text-sm text-on-surface-variant">{livenessInfo.hint}</p>
-                <p className="mt-1 text-xs text-on-surface-variant">
-                  Step {livenessIndex + 1} of {session?.liveness_steps.length ?? 4}
-                </p>
+                <p className="text-sm text-on-surface-variant">{livenessInfo.hint}</p>
               </>
             ) : (
               <>
                 <h2 className="font-[var(--font-headline)] text-lg font-bold text-on-surface sm:text-xl">
-                  Take your selfie
+                  Final selfie
                 </h2>
-                <p className="mt-0.5 text-sm text-on-surface-variant">
-                  Look straight at the camera — we capture automatically.
-                </p>
+                <p className="text-sm text-on-surface-variant">Look straight at the camera and hold still.</p>
               </>
             )}
           </div>
 
-          <div className="relative min-h-[200px] flex-1 overflow-hidden rounded-2xl border border-primary/15 bg-black sm:min-h-[240px]">
+          <div className="relative mx-auto aspect-[3/4] h-[58vh] w-auto max-w-full overflow-hidden rounded-3xl border border-primary/15 bg-black shadow-xl shadow-black/30 sm:h-[68vh] lg:h-[74vh]">
             <video
               ref={videoRef}
               playsInline
@@ -589,37 +615,30 @@ export function VerificationFlow({
                   : 0
               }
               onStateChange={handleOverlayState}
-              statusMessage={autoStatus}
+              // Step feedback shows on the video (not as a second note under the card).
+              statusMessage={
+                stepFeedback && !stepFeedback.passed
+                  ? stepFeedback.detail ||
+                    (stepFeedback.baseline_captured ? "Got it. Now do the move." : "Try again with better light.")
+                  : autoStatus
+              }
             />
             {!cameraReady && !cameraError && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-sm text-white">
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/60 text-sm text-white">
+                <span className="h-7 w-7 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                 Starting camera…
               </div>
             )}
             {cameraError && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-4 text-center text-sm text-white">
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/80 p-6 text-center text-sm text-white">
+                <span className="material-symbols-outlined text-3xl text-red-300">videocam_off</span>
                 {cameraError}
               </div>
             )}
           </div>
 
-          {stepFeedback && !stepFeedback.passed && (
-            <p
-              className={`shrink-0 rounded-xl px-4 py-2.5 text-sm ${
-                stepFeedback.baseline_captured
-                  ? "border border-primary/20 bg-primary/5 text-on-surface"
-                  : "border border-amber-200 bg-amber-50 text-amber-800"
-              }`}
-            >
-              {stepFeedback.detail ||
-                (stepFeedback.baseline_captured
-                  ? "Neutral pose saved. Perform the action and capture again."
-                  : "Try again — adjust your pose and lighting.")}
-            </p>
-          )}
-
           {error && (
-            <p className="shrink-0 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
+            <p className={cn(noticeClass, "text-center border border-red-500/30 bg-red-500/10 text-red-300")}>
               {error}
             </p>
           )}
@@ -630,105 +649,95 @@ export function VerificationFlow({
               void (flowStep === "selfie" ? handleCaptureSelfie() : handleCaptureLiveness())
             }
             disabled={submitting || !cameraReady}
-            className="w-full shrink-0 rounded-xl border border-primary/25 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/5 disabled:opacity-50 sm:py-3.5"
+            className="mx-auto inline-flex shrink-0 items-center gap-1.5 rounded-full px-5 py-2 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-secondary hover:text-primary disabled:opacity-50"
           >
-            {submitting
-              ? "Processing…"
-              : "Capture manually"}
+            <span className="material-symbols-outlined text-lg">photo_camera</span>
+            {submitting ? "Checking…" : "Not capturing? Tap to capture"}
           </button>
         </div>
       )}
 
       {flowStep === "processing" && (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
-          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
-          <h2 className="font-[var(--font-headline)] text-xl font-bold text-on-surface">
-            Verifying your identity
+          <Loader pageName="Verification" />
+          <h2 className="mt-4 font-[var(--font-headline)] text-xl font-bold text-on-surface">
+            Checking your selfie
           </h2>
-          <p className="mt-2 max-w-xs text-sm text-on-surface-variant">
-            Comparing your selfie with profile photos and running security checks…
-          </p>
+          <p className="mt-1.5 max-w-xs text-sm text-on-surface-variant">This only takes a few seconds.</p>
         </div>
       )}
 
       {flowStep === "result" && result && (
         <div className="flex flex-col pb-2">
-          <div
-            className={`mb-6 rounded-2xl border p-6 text-center ${
+          {(() => {
+            const tone =
               result.status === "VERIFIED"
-                ? "border-accent/30 bg-accent/10"
+                ? { rgb: "16, 185, 129", icon: "verified", text: "#10b981" }
                 : result.status === "UNDER_REVIEW"
-                  ? "border-amber-200 bg-amber-50"
-                  : "border-red-200 bg-red-50"
-            }`}
-          >
-            <span
-              className={`material-symbols-outlined mb-3 text-5xl ${
-                result.status === "VERIFIED"
-                  ? "text-accent"
-                  : result.status === "UNDER_REVIEW"
-                    ? "text-amber-600"
-                    : "text-red-600"
-              }`}
-              style={result.verified_badge ? { fontVariationSettings: "'FILL' 1" } : undefined}
-            >
-              {result.status === "VERIFIED"
-                ? "verified"
+                  ? { rgb: "245, 158, 11", icon: "hourglass_top", text: "#f59e0b" }
+                  : { rgb: "239, 68, 68", icon: "close", text: "#ef4444" };
+            const title =
+              result.status === "VERIFIED"
+                ? "You're verified"
                 : result.status === "UNDER_REVIEW"
-                  ? "hourglass_top"
-                  : "cancel"}
-            </span>
-            <h2 className="font-[var(--font-headline)] text-2xl font-bold text-on-surface">
-              {result.status === "VERIFIED"
-                ? "Verified Profile"
-                : result.status === "UNDER_REVIEW"
-                  ? "Under Review"
-                  : "Verification Failed"}
-            </h2>
-            <p className="mt-2 text-sm text-on-surface-variant">
-              {mode === "device" && result.status === "VERIFIED"
-                ? "You can close this tab and return to your other device."
+                  ? "Under review"
+                  : "Couldn't verify you";
+            const message =
+              mode === "device" && result.status === "VERIFIED"
+                ? "All done. You can close this tab and go back to your other device."
                 : result.status === "VERIFIED"
-                  ? "Your profile now shows a verified badge."
+                  ? "Your profile now shows the verified badge."
                   : result.status === "UNDER_REVIEW"
-                    ? "Our team will review your submission shortly."
-                    : "Please try again with better lighting and a clear front-facing photo."}
-            </p>
-          </div>
+                    ? "Our team will check it shortly. We'll let you know."
+                    : "Try again in good light, facing the camera.";
+            const reasons = result.rejection_reasons ?? [];
+            return (
+              <div
+                className="mt-4 rounded-3xl border p-6 text-center sm:p-8"
+                style={{
+                  backgroundColor: `rgba(${tone.rgb}, 0.08)`,
+                  borderColor: `rgba(${tone.rgb}, 0.3)`,
+                }}
+                role={result.status === "VERIFIED" ? "status" : "alert"}
+              >
+                <div
+                  className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full"
+                  style={{ backgroundColor: `rgba(${tone.rgb}, 0.16)`, color: tone.text }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: "2.25rem", fontVariationSettings: "'FILL' 1, 'wght' 600" }}>
+                    {tone.icon}
+                  </span>
+                </div>
+                <h2 className="font-[var(--font-headline)] text-2xl font-bold text-on-surface">{title}</h2>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-on-surface-variant">{message}</p>
 
-          <div className="mb-6 space-y-3 rounded-2xl border border-primary/10 bg-background p-5 text-sm">
-            <div className="flex justify-between">
-              <span className="text-on-surface-variant">Face match</span>
-              <span className="font-semibold text-on-surface">
-                {(result.similarity_score * 100).toFixed(0)}%
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-on-surface-variant">Liveness</span>
-              <span className="font-semibold text-on-surface">
-                {(result.liveness_score * 100).toFixed(0)}%
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-on-surface-variant">Fraud risk</span>
-              <span className="font-semibold text-on-surface">
-                {(result.fraud_probability * 100).toFixed(0)}%
-              </span>
-            </div>
-          </div>
+                {result.status !== "VERIFIED" && reasons.length > 0 ? (
+                  <ul
+                    className="mx-auto mt-5 max-w-md space-y-2 rounded-xl p-3 text-left text-sm text-on-surface"
+                    style={{ backgroundColor: `rgba(${tone.rgb}, 0.10)` }}
+                  >
+                    {reasons.map((reason) => (
+                      <li key={reason} className="flex items-start gap-2">
+                        <span className="material-symbols-outlined mt-0.5 text-base" style={{ color: tone.text }}>
+                          error
+                        </span>
+                        <span>{reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            );
+          })()}
 
-          {result.rejection_reasons && result.rejection_reasons.length > 0 && (
-            <ul className="mb-6 space-y-2 text-sm text-on-surface-variant">
-              {result.rejection_reasons.map((reason) => (
-                <li key={reason} className="flex gap-2">
-                  <span className="material-symbols-outlined text-base text-red-500">info</span>
-                  {reason}
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <div className="mt-4 flex shrink-0 flex-col gap-3 sm:mt-6">
+          <div className="mt-6 flex shrink-0 flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => router.push(mode === "device" ? "/verify" : "/profile")}
+              className="w-full rounded-full py-3.5 font-bold text-white gradient-brand"
+            >
+              {mode === "device" ? "Done" : "Back to profile"}
+            </button>
             {result.status !== "VERIFIED" && (
               <button
                 type="button"
@@ -738,18 +747,11 @@ export function VerificationFlow({
                   setResult(null);
                   setError(null);
                 }}
-                className="w-full rounded-xl border border-primary/20 py-3.5 font-bold text-primary"
+                className="w-full rounded-full py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/5"
               >
-                Try Again
+                Try again
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => router.push(mode === "device" ? "/verify" : "/profile")}
-              className="w-full rounded-xl py-3.5 font-bold text-white gradient-brand"
-            >
-              {mode === "device" ? "Done" : "Back to Profile"}
-            </button>
           </div>
         </div>
       )}

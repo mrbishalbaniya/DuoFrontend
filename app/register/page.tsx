@@ -3,20 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { RegistrationStepper } from "@/components/register/RegistrationStepper";
-import { StepAbout } from "@/components/register/StepAbout";
 import { StepAccount } from "@/components/register/StepAccount";
 import { StepBasicInfo } from "@/components/register/StepBasicInfo";
-import { StepEducation } from "@/components/register/StepEducation";
-import { StepInterests } from "@/components/register/StepInterests";
-import { StepLocation } from "@/components/register/StepLocation";
-import { StepLifestyle } from "@/components/register/StepLifestyle";
 import { StepPhotos } from "@/components/register/StepPhotos";
-import { StepPreferences } from "@/components/register/StepPreferences";
-import { StepReligion } from "@/components/register/StepReligion";
 import { StepReview } from "@/components/register/StepReview";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
 import api from "@/lib/api";
 import { SHOW_PRODUCT_ONBOARDING_KEY } from "@/lib/onboarding/content";
 import { syncOnboardedCookie } from "@/lib/onboardingGate";
@@ -24,6 +18,8 @@ import { getRegistrationEmail, mapRegistrationToProfile } from "@/lib/register/m
 import { uploadRegistrationPhotos } from "@/lib/register/uploadRegistrationPhotos";
 import { useRegistrationStore } from "@/store/registrationStore";
 import type { RegistrationStep } from "@/types/registration";
+
+// Registration flow: Account → Basic Info & Location → Photos → Review
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -40,15 +36,43 @@ export default function RegisterPage() {
     setError,
     accountCreated,
     setAccountCreated,
+    setAccountSubStep,
+    patchData,
     reset,
   } = useRegistrationStore();
 
+  // Email sign-ups must verify their address before any later step opens.
+  const emailVerified =
+    data.signedUpWithGoogle ||
+    accountCreated ||
+    (data.otpVerified && data.verifiedEmail === data.email.trim().toLowerCase());
+
+  useEffect(() => {
+    if (step > 1 && !emailVerified) {
+      setAccountSubStep("form");
+      goToStep(1);
+    }
+  }, [emailVerified, goToStep, setAccountSubStep, step]);
+  const { showErrorToast } = useToast();
+
+  // Holds the in-flight sign-up so a double tap can't create two accounts.
+  const createAccountPromise = useRef<Promise<void> | null>(null);
+
   const createAccount = useCallback(async () => {
     if (accountCreated || data.signedUpWithGoogle) return;
+    if (createAccountPromise.current) return createAccountPromise.current;
     const email = getRegistrationEmail(data);
     const fullName = `${data.firstName} ${data.lastName}`.trim() || "Duo Member";
-    await register(email, data.password, fullName);
-    setAccountCreated(true);
+    const pending = (async () => {
+      await register(email, data.password, fullName);
+      setAccountCreated(true);
+    })();
+    createAccountPromise.current = pending;
+    try {
+      await pending;
+    } finally {
+      createAccountPromise.current = null;
+    }
   }, [accountCreated, data, register, setAccountCreated]);
 
   const handleContinue = useCallback(async () => {
@@ -65,13 +89,29 @@ export default function RegisterPage() {
             : "Could not create your account. Check your email and password, or try again.";
         setError(message);
         setSubmitting(false);
+        if (/verify your email/i.test(message)) {
+          // Verification expired server-side; send them back to get a new code.
+          patchData({ otpVerified: false, verifiedEmail: "" });
+          setAccountSubStep("form");
+          goToStep(1);
+        }
         return;
       }
       setSubmitting(false);
     }
 
     nextStep();
-  }, [accountCreated, createAccount, nextStep, setError, setSubmitting, step]);
+  }, [
+    accountCreated,
+    createAccount,
+    goToStep,
+    nextStep,
+    patchData,
+    setAccountSubStep,
+    setError,
+    setSubmitting,
+    step,
+  ]);
 
   const handleSubmit = useCallback(async () => {
     setError(null);
@@ -109,6 +149,10 @@ export default function RegisterPage() {
     setSubmitting,
   ]);
 
+  useEffect(() => {
+    if (error) showErrorToast(error);
+  }, [error, showErrorToast]);
+
   const renderStep = () => {
     switch (step) {
       case 1:
@@ -116,22 +160,8 @@ export default function RegisterPage() {
       case 2:
         return <StepBasicInfo onContinue={handleContinue} onBack={prevStep} />;
       case 3:
-        return <StepLocation onContinue={handleContinue} onBack={prevStep} />;
-      case 4:
-        return <StepEducation onContinue={handleContinue} onBack={prevStep} />;
-      case 5:
-        return <StepReligion onContinue={handleContinue} onBack={prevStep} />;
-      case 6:
-        return <StepLifestyle onContinue={handleContinue} onBack={prevStep} />;
-      case 7:
-        return <StepInterests onContinue={handleContinue} onBack={prevStep} />;
-      case 8:
-        return <StepPreferences onContinue={handleContinue} onBack={prevStep} />;
-      case 9:
-        return <StepAbout onContinue={handleContinue} onBack={prevStep} />;
-      case 10:
         return <StepPhotos onContinue={handleContinue} onBack={prevStep} />;
-      case 11:
+      case 4:
         return (
           <StepReview
             onSubmit={handleSubmit}
@@ -161,12 +191,6 @@ export default function RegisterPage() {
 
       <main className="relative mx-auto max-w-3xl px-4 pb-32 pt-24">
         <RegistrationStepper currentStep={step} />
-
-        {error ? (
-          <div className="mb-6 rounded-xl bg-error-container p-4 text-sm font-medium text-on-error-container">
-            {error}
-          </div>
-        ) : null}
 
         <AnimatePresence mode="wait">
           <motion.div

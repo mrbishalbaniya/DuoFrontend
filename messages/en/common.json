@@ -1,0 +1,389 @@
+{
+  "nav": {
+    "home": "Home",
+    "discover": "Discover",
+    "chat": "Chat",
+    "match": "Match",
+    "map": "Map",
+    "profile": "Profile"
+  },
+  "login": {
+    "welcomeBack": "Welcome back",
+    "subtitle": "Please enter your details to continue",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@example.com",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "Your password",
+    "forgotPassword": "Forgot password?",
+    "loginButton": "Login",
+    "loggingIn": "Signing in...",
+    "or": "or",
+    "newToDuo": "New to Duo?",
+    "createAccount": "Create an account",
+    "privacyPolicy": "Privacy Policy",
+    "termsOfService": "Terms of Service",
+    "helpCenter": "Help Center",
+    "twoFactorTitle": "Two-factor verification",
+    "twoFactorSubtitleTotp": "Enter the 6-digit code from your authenticator app.",
+    "twoFactorSubtitleEmail": "Enter the 6-digit code we emailed you.",
+    "verificationCode": "Verification code",
+    "backupCodeHint": "You can also enter one of your backup recovery codes.",
+    "verifyButton": "Verify and sign in",
+    "verifying": "Verifying...",
+    "backToLogin": "Back to login",
+    "resendCode": "Resend code",
+    "sendingCode": "Sending...",
+    "tagline": "Find your digital heirloom",
+    "passwordResetSuccess": "Your password has been updated. Sign in with your new password.",
+    "accountDeleted": "Your account has been deactivated. Sorry to see you go.",
+    "signInWithOtp": "Sign in with email code",
+    "useYourPassword": "Use your password instead",
+    "otpLoginTitle": "Sign in with a code",
+    "otpLoginSubtitle": "Enter your email and we'll send you a one-time login code.",
+    "otpLoginSentSubtitle": "Enter the 6-digit code we sent to {email}.",
+    "sendLoginCode": "Send login code",
+    "newCodeSent": "A new code was sent to your email.",
+    "emailRequired": "Email is required.",
+    "couldNotSendLoginCode": "Could not send login code. Please try again.",
+    "invalidLoginCode": "Invalid or expired code.",
+    "couldNotResendCode": "Could not resend the code. Please try again.",
+    "useDifferentEmail": "Use a different email",
+    "resendCodeIn": "Resend code in {seconds}s"
+  },
+  "settings": {
+    "title": "Settings",
+    "sections": {
+      "wallet": "Wallet",
+      "verification": "Verification",
+      "account": "Account",
+      "appearance": "Appearance",
+      "notifications": "Notifications",
+      "privacy": "Privacy",
+      "security": "Security",
+      "language": "Language",
+      "help": "Help",
+      "about": "About",
+      "dangerZone": "Danger zone",
+      "matchPreferences": "Match Preferences"
+    },
+    "items": {
+      "walletTitle": "Duo Wallet",
+      "walletDescription": "Buy coins with eSewa and spend on Premium",
+      "verifyProfileTitle": "Verify your profile",
+      "verifyProfileDescription": "Take a selfie to earn a verified badge",
+      "accountInfoTitle": "Account information",
+      "accountInfoDescription": "Email, username, phone & verification",
+      "verifiedProfileTitle": "Verified Profile",
+      "verifiedProfileDescription": "Your identity is verified.",
+      "themeLabel": "Theme",
+      "themeDark": "Dark",
+      "themeLight": "Light",
+      "themeSystem": "System",
+      "notificationPrefsTitle": "Notification preferences",
+      "notificationPrefsDescription": "Manage push notifications and categories",
+      "locationPrivacyTitle": "Location privacy",
+      "locationPrivacyDescription": "Control who sees you on the map",
+      "discoveryPrefsTitle": "Discovery preferences",
+      "discoveryPrefsDescription": "Age range, distance, and match filters",
+      "chatPrivacyTitle": "Chat privacy",
+      "chatPrivacyDescription": "Screenshot alerts and secure chat per conversation",
+      "blockedUsersTitle": "Blocked users",
+      "blockedUsersDescription": "Manage people you have blocked",
+      "securityCenterTitle": "Security Center",
+      "securityCenterDescription": "2FA, devices, login history & alerts",
+      "contactSupportDescription": "Get help from the Duo team",
+      "versionLabel": "{version} · Duo Web",
+      "appLanguageTitle": "App language",
+      "regionTitle": "Region",
+      "helpCenterTitle": "Help center",
+      "helpCenterDescription": "Guides and troubleshooting",
+      "contactSupportTitle": "Contact support",
+      "faqTitle": "FAQ",
+      "faqDescription": "Answers to common questions",
+      "reportBugTitle": "Report a bug",
+      "reportBugDescription": "Tell us what went wrong",
+      "privacyPolicyTitle": "Privacy policy",
+      "termsTitle": "Terms of service",
+      "versionTitle": "Version",
+      "deleteAccountTitle": "Delete account",
+      "deleteAccountDescription": "Permanently remove your account and data",
+      "logOutTitle": "Log out",
+      "matchPrefsTitle": "Partner preferences",
+      "matchPrefsDescription": "Religion, caste, rashi, age, height and more",
+      "emailPrefsTitle": "Email notifications",
+      "emailPrefsDescription": "Choose which emails Duo sends you"
+    },
+    "logOutDialog": {
+      "title": "Log out of Duo?",
+      "description": "You'll be signed out on this device. Your matches and chats stay saved, and you can sign back in anytime.",
+      "confirm": "Yes, log out",
+      "cancel": "No, stay logged in"
+    }
+  },
+  "languageRegion": {
+    "title": "Language & region",
+    "appLanguage": "App language",
+    "helperText": "Changing your app language updates the interface immediately.",
+    "region": "Region",
+    "regionHint": "Used for regional content and formatting — this doesn't affect who you match with.",
+    "saved": "Saved.",
+    "loadError": "Could not load your language settings.",
+    "saveError": "Could not save your changes."
+  },
+  "wallet": {
+    "title": "Wallet",
+    "subtitle": "Buy coins with eSewa or card and spend them on Duo Premium from Discover.",
+    "yourCoins": "Your coins",
+    "premiumActiveUntil": "Premium active until {date}",
+    "buyCoins": "Buy coins",
+    "redeemGiftCard": "Redeem a gift card",
+    "redeemButton": "Redeem",
+    "redeeming": "Redeeming…",
+    "redeemPlaceholder": "XXXX-XXXX-XXXX-XXXX",
+    "redeemConfirmTitle": "Redeem this gift card?",
+    "redeemConfirmDescription": "You're about to redeem <b>{code}</b>. Each code can only be used once.",
+    "cancel": "Cancel",
+    "confirmRedeem": "Yes, redeem",
+    "recentActivity": "Recent activity",
+    "viewAll": "View all",
+    "noTransactions": "No transactions yet",
+    "coinsAddedSuccess": "Coins added successfully.",
+    "purchaseFailed": "Coin purchase was not completed.",
+    "couldNotLoad": "Could not load wallet.",
+    "coinPackPurchase": "Coin pack purchase",
+    "giftCardRedeemed": "Gift card redeemed",
+    "purchase": "Purchase",
+    "back": "Back",
+    "startPaymentError": "Could not start eSewa payment.",
+    "redeemSuccess": "+{amount} coins added to your wallet!",
+    "redeemError": "Could not redeem this code.",
+    "payWith": "Pay with",
+    "payWithEsewa": "eSewa",
+    "payWithCard": "Card",
+    "paymentCanceled": "Payment was canceled.",
+    "startStripeError": "Could not start card payment.",
+    "payWithEsewaHint": "Wallet & mobile banking in Nepal",
+    "payWithCardHint": "Visa, Mastercard & more via Stripe",
+    "choosePaymentMethod": "Choose payment method",
+    "choosePaymentSubtitle": "Coins are added to your wallet right after payment.",
+    "coinsCount": "{count} coins",
+    "payButton": "Pay {price} with {method}",
+    "redirecting": "Redirecting…",
+    "close": "Close",
+    "cardMinNote": "Available from {amount} coins",
+    "secureCheckoutNote": "You will finish payment on a secure checkout page"
+  },
+  "appearance": {
+    "title": "Appearance",
+    "modeHeading": "Mode",
+    "paletteHeading": "Color theme",
+    "paletteHint": "Pick a palette for buttons, highlights and gradients across Duo.",
+    "premiumBadge": "Premium",
+    "freeBadge": "Free",
+    "active": "Active",
+    "locked": "Unlock with Duo Premium",
+    "upgradeTitle": "Premium themes",
+    "upgradeBody": "Upgrade to Duo Premium to unlock every color theme plus the extra dark and light styles.",
+    "upgradeCta": "Upgrade",
+    "previewHeading": "Preview",
+    "previewName": "Alex, 26",
+    "previewBio": "Coffee, hikes and late-night talks.",
+    "previewLike": "Like",
+    "previewMessage": "Message",
+    "palettes": {
+      "rose": {
+        "name": "Rose",
+        "description": "Duo's signature pink"
+      },
+      "ocean": {
+        "name": "Ocean",
+        "description": "Calm, clear blue"
+      },
+      "aurum": {
+        "name": "Aurum",
+        "description": "Warm gold luxury"
+      },
+      "amethyst": {
+        "name": "Amethyst",
+        "description": "Royal violet glow"
+      },
+      "emerald": {
+        "name": "Emerald",
+        "description": "Fresh jewel green"
+      },
+      "sunset": {
+        "name": "Sunset",
+        "description": "Golden-hour orange"
+      },
+      "midnight": {
+        "name": "Midnight",
+        "description": "Deep indigo night"
+      },
+      "noir": {
+        "name": "Noir",
+        "description": "Pure monochrome"
+      },
+      "lagoon": {
+        "name": "Lagoon",
+        "description": "Tropical teal"
+      },
+      "crimson": {
+        "name": "Crimson",
+        "description": "Bold ruby red"
+      },
+      "sakura": {
+        "name": "Sakura",
+        "description": "Soft cherry blossom"
+      },
+      "mocha": {
+        "name": "Mocha",
+        "description": "Cozy coffee brown"
+      },
+      "neon": {
+        "name": "Neon",
+        "description": "Electric cyan and magenta"
+      },
+      "royal": {
+        "name": "Royal",
+        "description": "Sapphire blue with gold"
+      },
+      "valentine": {
+        "name": "Valentine",
+        "description": "Velvet red roses"
+      },
+      "blush": {
+        "name": "Blush",
+        "description": "Pink and champagne"
+      },
+      "passion": {
+        "name": "Passion",
+        "description": "Burgundy wine and gold"
+      },
+      "cupid": {
+        "name": "Cupid",
+        "description": "Pink arrows, lilac sky"
+      },
+      "honeymoon": {
+        "name": "Honeymoon",
+        "description": "Rose-gold glow"
+      },
+      "twilight": {
+        "name": "Twilight",
+        "description": "Magenta sunset dusk"
+      }
+    },
+    "darkStylesHeading": "Dark mode styles",
+    "darkStylesHint": "Choose how dark mode looks. Picking one switches to dark mode.",
+    "lightStylesHeading": "Light mode styles",
+    "lightStylesHint": "Choose how light mode looks. Picking one switches to light mode.",
+    "darkStyles": {
+      "default": {
+        "name": "Charcoal",
+        "description": "Duo's classic dark"
+      },
+      "amoled": {
+        "name": "AMOLED",
+        "description": "True black, saves battery"
+      },
+      "dim": {
+        "name": "Dim",
+        "description": "Soft blue-gray night"
+      },
+      "graphite": {
+        "name": "Graphite",
+        "description": "Neutral warm gray"
+      },
+      "nord": {
+        "name": "Nord",
+        "description": "Arctic slate blue"
+      },
+      "velvet": {
+        "name": "Velvet",
+        "description": "Deep plum darkness"
+      }
+    },
+    "lightStyles": {
+      "default": {
+        "name": "Snow",
+        "description": "Duo's classic light"
+      },
+      "cream": {
+        "name": "Cream",
+        "description": "Warm, easy on the eyes"
+      },
+      "frost": {
+        "name": "Frost",
+        "description": "Cool icy blue"
+      },
+      "sand": {
+        "name": "Sand",
+        "description": "Earthy beige"
+      },
+      "mist": {
+        "name": "Mist",
+        "description": "Hint of lavender"
+      },
+      "paper": {
+        "name": "Paper",
+        "description": "High-contrast white"
+      }
+    },
+    "iconSetsHeading": "Navbar icons",
+    "iconSetsHint": "Choose the icon style for the navigation bar on mobile and desktop.",
+    "iconSets": {
+      "classic": "Classic",
+      "romance": "Romance",
+      "cupid": "Cupid",
+      "cosmic": "Cosmic",
+      "royal": "Royal",
+      "nature": "Nature",
+      "playful": "Playful"
+    }
+  },
+  "mailPrefs": {
+    "title": "Email notifications",
+    "sendingTo": "Emails are sent to",
+    "loadError": "Could not load your email preferences.",
+    "saveError": "Could not save that change. Please try again.",
+    "master": {
+      "title": "Email notifications",
+      "description": "Turn off to stop all optional emails from Duo."
+    },
+    "masterOffHint": "Turn on email notifications to choose individual categories.",
+    "categoriesHeading": "What to email me about",
+    "categories": {
+      "matches": {
+        "title": "New matches",
+        "description": "When you and someone like each other"
+      },
+      "payments": {
+        "title": "Payments and receipts",
+        "description": "Subscription payments, coin recharges and wallet receipts"
+      },
+      "verification": {
+        "title": "Verification updates",
+        "description": "When your verified badge is added or removed"
+      },
+      "announcements": {
+        "title": "Announcements",
+        "description": "Important news and updates from the Duo team"
+      },
+      "marketing": {
+        "title": "Offers and tips",
+        "description": "Promotions, discounts and dating tips"
+      }
+    },
+    "alwaysHeading": "Always sent",
+    "alwaysOn": "Always on",
+    "always": {
+      "security": {
+        "title": "Security codes",
+        "description": "Sign-in codes, password resets and email changes"
+      },
+      "account": {
+        "title": "Account status",
+        "description": "If your account is deactivated or restored"
+      }
+    }
+  }
+}

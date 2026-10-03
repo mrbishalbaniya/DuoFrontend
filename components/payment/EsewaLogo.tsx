@@ -5,13 +5,15 @@ const ESEWA_ICON_URL =
 
 interface EsewaLogoProps {
   className?: string;
+  /** Pass "" when a visible "eSewa" label sits next to the logo. */
+  alt?: string;
 }
 
-export function EsewaLogo({ className = "h-6 w-6 shrink-0" }: EsewaLogoProps) {
+export function EsewaLogo({ className = "h-6 w-6 shrink-0", alt = "eSewa" }: EsewaLogoProps) {
   return (
     <Image
       src={ESEWA_ICON_URL}
-      alt="eSewa"
+      alt={alt}
       width={24}
       height={24}
       className={className}

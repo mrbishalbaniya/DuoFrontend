@@ -1,11 +1,16 @@
 "use client";
 
-import { Suspense, useEffect, useState, type FormEvent } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { GoogleOneTap } from "@/components/auth/google-one-tap";
 import { getGoogleOAuthRedirectUri } from "@/lib/googleAuth";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
+import api, { OtpCooldownError, TwoFactorRequiredError } from "@/lib/api";
+import { OtpInput, type OtpInputHandle, type OtpStatus } from "@/components/ui/otp-input";
 
 export default function LoginPage() {
   return (
@@ -22,7 +27,9 @@ export default function LoginPage() {
 }
 
 function LoginPageContent() {
-  const { login, loginWithGoogle } = useAuth();
+  const t = useTranslations("login");
+  const { login, loginWithGoogle, requestLoginOtp, loginWithOtp, completeTwoFactorLogin } = useAuth();
+  const { showErrorToast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get("next");
@@ -33,10 +40,34 @@ function LoginPageContent() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [twoFactor, setTwoFactor] = useState<{ token: string; methods: string[] } | null>(null);
+  const [twoFactorCode, setTwoFactorCode] = useState("");
+  const [resendingOtp, setResendingOtp] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
+  const [authMode, setAuthMode] = useState<"password" | "otp">("password");
+  const [otpEmail, setOtpEmail] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpStatus, setOtpStatus] = useState<OtpStatus>("idle");
+  const [otpErrorMessage, setOtpErrorMessage] = useState("");
+  const [otpResendMessage, setOtpResendMessage] = useState("");
+  const [otpResendCooldown, setOtpResendCooldown] = useState(0);
+  const otpFieldRef = useRef<OtpInputHandle>(null);
+
+  // Ticks the resend cooldown down once a second. Self-chaining via the
+  // `otpResendCooldown` dependency (each decrement re-schedules the next one)
+  // rather than a single setInterval, so it cleanly stops the moment it hits 0.
+  useEffect(() => {
+    if (otpResendCooldown <= 0) return;
+    const timer = setTimeout(() => setOtpResendCooldown((s) => Math.max(0, s - 1)), 1000);
+    return () => clearTimeout(timer);
+  }, [otpResendCooldown]);
   const googleRedirectUri = getGoogleOAuthRedirectUri();
   const googleAuthError = searchParams.get("error") === "google_auth";
   const googleAuthReason = searchParams.get("reason") ?? "";
   const passwordResetSuccess = searchParams.get("reset") === "success";
+  const accountDeleted = searchParams.get("deleted") === "1";
 
   useEffect(() => {
     if (passwordResetSuccess) {
@@ -71,6 +102,18 @@ function LoginPageContent() {
     );
   }, [googleAuthError, googleAuthReason]);
 
+  // Ordinary errors (wrong password, missing fields, failed OTP, etc.) go to
+  // a toast instead of a persistent inline banner. The Google OAuth
+  // misconfiguration case is deliberately excluded: it renders multi-step
+  // setup instructions with a copyable redirect URI below, which needs to
+  // stay on screen for the developer to read and act on, not vanish after a
+  // few seconds.
+  useEffect(() => {
+    if (error && !googleAuthError) {
+      showErrorToast(error);
+    }
+  }, [error, googleAuthError, showErrorToast]);
+
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
@@ -103,6 +146,11 @@ function LoginPageContent() {
       }
       router.push(safeNext ?? "/match");
     } catch (err: unknown) {
+      if (err instanceof TwoFactorRequiredError) {
+        setTwoFactor({ token: err.challengeToken, methods: err.methods });
+        setLoading(false);
+        return;
+      }
       setError(
         err instanceof Error
           ? err.message
@@ -113,33 +161,180 @@ function LoginPageContent() {
     }
   };
 
-  const handleGoogleSuccess = async (credential: string) => {
+  const handleTwoFactorSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!twoFactor) return;
     setError("");
     setLoading(true);
     try {
-      const data = await loginWithGoogle(credential);
+      const data = await completeTwoFactorLogin(twoFactor.token, twoFactorCode.trim());
       const onboarded = Boolean(data.user?.profile?.is_onboarded);
       if (!onboarded) {
-        sessionStorage.setItem("duo_register_via_google", "1");
         router.push("/register");
         return;
       }
       router.push(safeNext ?? "/match");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Google sign-in failed.");
+      setError(err instanceof Error ? err.message : "Invalid verification code.");
     } finally {
       setLoading(false);
     }
   };
 
+  const handleResendOtp = async () => {
+    if (!twoFactor) return;
+    setResendingOtp(true);
+    setResendMessage("");
+    try {
+      await api.sendTwoFactorLoginOtp(twoFactor.token);
+      setResendMessage("A new code was sent to your email.");
+    } catch {
+      setResendMessage("Could not resend the code. Please try again.");
+    } finally {
+      setResendingOtp(false);
+    }
+  };
+
+  const handleBackToPassword = () => {
+    setTwoFactor(null);
+    setTwoFactorCode("");
+    setError("");
+    setResendMessage("");
+  };
+
+  const handleSendLoginOtp = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError("");
+    const trimmed = otpEmail.trim();
+    if (!trimmed) {
+      setError(t("emailRequired"));
+      return;
+    }
+    setOtpSending(true);
+    try {
+      const result = await requestLoginOtp(trimmed);
+      setOtpSent(true);
+      setOtpStatus("idle");
+      setOtpErrorMessage("");
+      setOtpResendCooldown(result.retry_after ?? 60);
+    } catch (err) {
+      if (err instanceof OtpCooldownError) {
+        // A code was already sent recently — let them enter it instead of
+        // dead-ending on an error; the countdown communicates the wait.
+        setOtpSent(true);
+        setOtpResendCooldown(err.retryAfter);
+      } else {
+        setError(err instanceof Error ? err.message : t("couldNotSendLoginCode"));
+      }
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const handleVerifyLoginOtp = async (code: string) => {
+    if (code.length !== 6 || otpVerifying) return;
+    setError("");
+    setOtpVerifying(true);
+    try {
+      const data = await loginWithOtp(otpEmail.trim(), code);
+      setOtpStatus("success");
+      const onboarded = Boolean(data.user?.profile?.is_onboarded);
+      if (!onboarded) {
+        router.push("/register");
+        return;
+      }
+      router.push(safeNext ?? "/match");
+    } catch (err: unknown) {
+      if (err instanceof TwoFactorRequiredError) {
+        setTwoFactor({ token: err.challengeToken, methods: err.methods });
+        return;
+      }
+      setOtpStatus("error");
+      setOtpErrorMessage(err instanceof Error ? err.message : t("invalidLoginCode"));
+      otpFieldRef.current?.clear();
+    } finally {
+      setOtpVerifying(false);
+    }
+  };
+
+  const handleResendLoginOtp = async () => {
+    if (otpResendCooldown > 0 || otpSending) return;
+    setOtpResendMessage("");
+    setOtpSending(true);
+    try {
+      const result = await requestLoginOtp(otpEmail.trim());
+      setOtpResendMessage(t("newCodeSent"));
+      setOtpResendCooldown(result.retry_after ?? 60);
+    } catch (err) {
+      if (err instanceof OtpCooldownError) {
+        setOtpResendCooldown(err.retryAfter);
+      } else {
+        setOtpResendMessage(t("couldNotResendCode"));
+      }
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const handleSwitchToOtp = () => {
+    setAuthMode("otp");
+    setError("");
+  };
+
+  const handleSwitchToPassword = () => {
+    setAuthMode("password");
+    setOtpSent(false);
+    setOtpEmail("");
+    setOtpStatus("idle");
+    setOtpErrorMessage("");
+    setOtpResendMessage("");
+    setOtpResendCooldown(0);
+    setError("");
+  };
+
+  const handleGoogleSuccess = useCallback(
+    async (credential: string) => {
+      setError("");
+      setLoading(true);
+      try {
+        const data = await loginWithGoogle(credential);
+        const onboarded = Boolean(data.user?.profile?.is_onboarded);
+        if (!onboarded) {
+          sessionStorage.setItem("duo_register_via_google", "1");
+          router.push("/register");
+          return;
+        }
+        router.push(safeNext ?? "/match");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Google sign-in failed.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loginWithGoogle, router, safeNext]
+  );
+
+  const handleGoogleOneTapError = useCallback(() => {
+    setError("Google sign-in was cancelled or failed.");
+  }, []);
+
+  const googleOneTapDisabled = loading || Boolean(twoFactor) || authMode === "otp";
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6">
+      {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
+        <GoogleOneTap
+          onSuccess={handleGoogleSuccess}
+          onError={handleGoogleOneTapError}
+          disabled={googleOneTapDisabled}
+        />
+      )}
       <header className="mb-12 z-10 text-center">
         <h1 className="text-3xl font-black text-gradient-brand font-[var(--font-headline)] tracking-tight mb-2">
           Duo
         </h1>
         <p className="text-on-surface-variant text-sm font-medium">
-          Find your digital heirloom
+          {t("tagline")}
         </p>
       </header>
 
@@ -147,20 +342,38 @@ function LoginPageContent() {
         <div className="glass-card rounded-[2rem] p-8 shadow-[0_40px_60px_-15px] shadow-primary/15">
           <div className="mb-8">
             <h2 className="font-[var(--font-headline)] text-2xl font-bold text-on-surface mb-1">
-              Welcome back
+              {twoFactor
+                ? t("twoFactorTitle")
+                : authMode === "otp"
+                  ? t("otpLoginTitle")
+                  : t("welcomeBack")}
             </h2>
             <p className="text-on-surface-variant text-sm">
-              Please enter your details to continue
+              {twoFactor
+                ? twoFactor.methods.includes("totp")
+                  ? t("twoFactorSubtitleTotp")
+                  : t("twoFactorSubtitleEmail")
+                : authMode === "otp"
+                  ? otpSent
+                    ? t("otpLoginSentSubtitle", { email: otpEmail })
+                    : t("otpLoginSubtitle")
+                  : t("subtitle")}
             </p>
           </div>
 
           {passwordResetSuccess && (
             <div className="mb-6 p-4 bg-primary-container text-on-primary-container rounded-xl text-sm font-medium">
-              Your password has been updated. Sign in with your new password.
+              {t("passwordResetSuccess")}
             </div>
           )}
 
-          {error && (
+          {accountDeleted && (
+            <div className="mb-6 p-4 bg-primary-container text-on-primary-container rounded-xl text-sm font-medium">
+              {t("accountDeleted")}
+            </div>
+          )}
+
+          {error && googleAuthError && (
             <div className="mb-6 p-4 bg-error-container text-on-error-container rounded-xl text-sm font-medium space-y-3">
               <p>{error}</p>
               {googleAuthError && (
@@ -193,99 +406,278 @@ function LoginPageContent() {
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-on-surface-variant ml-1" htmlFor="username">
-                Email
-              </label>
-              <div className="relative group">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
-                  person
-                </span>
-                <input
-                  className="w-full pl-12 pr-4 py-4 bg-surface-container-high rounded-[1rem] border-none ring-1 ring-outline-variant/30 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-on-surface placeholder:text-outline"
-                  id="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="you@example.com"
-                  type="email"
-                  required
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center px-1">
-                <label className="block text-sm font-semibold text-on-surface-variant" htmlFor="password">
-                  Password
+          {twoFactor ? (
+            <form onSubmit={handleTwoFactorSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-on-surface-variant ml-1" htmlFor="twoFactorCode">
+                  {t("verificationCode")}
                 </label>
-                <Link
-                  href="/login/forgot-password"
-                  className="text-xs font-semibold text-accent hover:underline underline-offset-4"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-              <div className="relative group">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
-                  lock
-                </span>
-                <input
-                  className="w-full pl-12 pr-12 py-4 bg-surface-container-high rounded-[1rem] border-none ring-1 ring-outline-variant/30 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-on-surface placeholder:text-outline"
-                  id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Your password"
-                  type={showPassword ? "text" : "password"}
-                  required
-                />
-                <button
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface"
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  <span className="material-symbols-outlined">
-                    {showPassword ? "visibility_off" : "visibility"}
+                <div className="relative group">
+                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
+                    password
                   </span>
+                  <input
+                    className="w-full pl-12 pr-4 py-4 bg-surface-container-high rounded-[1rem] border-none ring-1 ring-outline-variant/30 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-on-surface placeholder:text-outline tracking-[0.3em]"
+                    id="twoFactorCode"
+                    value={twoFactorCode}
+                    onChange={(e) => setTwoFactorCode(e.target.value)}
+                    placeholder="000000"
+                    inputMode="text"
+                    autoFocus
+                    required
+                  />
+                </div>
+                <p className="px-1 text-xs text-on-surface-variant">
+                  {t("backupCodeHint")}
+                </p>
+              </div>
+
+              {resendMessage && (
+                <p className="px-1 text-xs font-medium text-accent">{resendMessage}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading || !twoFactorCode.trim()}
+                className="w-full gradient-brand text-white py-4 rounded-full font-bold text-base shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 font-[var(--font-headline)] disabled:opacity-50"
+              >
+                {loading ? t("verifying") : t("verifyButton")}
+              </button>
+
+              <div className="flex items-center justify-between px-1 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={handleBackToPassword}
+                  className="text-on-surface-variant hover:text-on-surface"
+                >
+                  {t("backToLogin")}
+                </button>
+                {twoFactor.methods.includes("email") && (
+                  <button
+                    type="button"
+                    onClick={() => void handleResendOtp()}
+                    disabled={resendingOtp}
+                    className="text-accent hover:underline underline-offset-4 disabled:opacity-50"
+                  >
+                    {resendingOtp ? t("sendingCode") : t("resendCode")}
+                  </button>
+                )}
+              </div>
+            </form>
+          ) : authMode === "otp" ? (
+            <>
+              {!otpSent ? (
+                <form onSubmit={(e) => void handleSendLoginOtp(e)} className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-on-surface-variant ml-1" htmlFor="otp-email">
+                      {t("emailLabel")}
+                    </label>
+                    <div className="relative group">
+                      <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
+                        mail
+                      </span>
+                      <input
+                        className="w-full pl-12 pr-4 py-4 bg-surface-container-high rounded-[1rem] border-none ring-1 ring-outline-variant/30 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-on-surface placeholder:text-outline"
+                        id="otp-email"
+                        value={otpEmail}
+                        onChange={(e) => setOtpEmail(e.target.value)}
+                        placeholder={t("emailPlaceholder")}
+                        type="email"
+                        autoFocus
+                        required
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={otpSending}
+                    className="w-full gradient-brand text-white py-4 rounded-full font-bold text-base shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 font-[var(--font-headline)] disabled:opacity-50"
+                  >
+                    {otpSending ? t("sendingCode") : t("sendLoginCode")}
+                  </button>
+                </form>
+              ) : (
+                <div className="space-y-6">
+                  <div className="flex flex-col items-center gap-6">
+                    <OtpInput
+                      ref={otpFieldRef}
+                      length={6}
+                      label={t("verificationCode")}
+                      status={otpStatus}
+                      errorMessage={otpErrorMessage}
+                      disabled={otpVerifying}
+                      autoFocus
+                      onComplete={(code) => void handleVerifyLoginOtp(code)}
+                    />
+                    {otpResendMessage && (
+                      <p className="text-xs font-medium text-accent text-center">{otpResendMessage}</p>
+                    )}
+                  </div>
+                  <div className="flex w-full items-center justify-between px-1 text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOtpSent(false);
+                        setOtpStatus("idle");
+                        setOtpErrorMessage("");
+                        setOtpResendMessage("");
+                        setOtpResendCooldown(0);
+                      }}
+                      className="text-on-surface-variant hover:text-on-surface"
+                    >
+                      {t("useDifferentEmail")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleResendLoginOtp()}
+                      disabled={otpSending || otpResendCooldown > 0}
+                      className="text-accent hover:underline underline-offset-4 disabled:opacity-50 disabled:no-underline"
+                    >
+                      {otpSending
+                        ? t("sendingCode")
+                        : otpResendCooldown > 0
+                          ? t("resendCodeIn", { seconds: otpResendCooldown })
+                          : t("resendCode")}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="my-6 flex items-center gap-3">
+                <div className="h-px flex-1 bg-outline-variant/20" />
+                <span className="text-xs font-bold uppercase tracking-widest text-outline">{t("or")}</span>
+                <div className="h-px flex-1 bg-outline-variant/20" />
+              </div>
+
+              <div className="mb-3 flex justify-center">
+                <button
+                  type="button"
+                  onClick={handleSwitchToPassword}
+                  disabled={otpSending || otpVerifying}
+                  className="flex h-10 w-full max-w-[400px] items-center justify-center gap-3 rounded-full border border-[#747775] bg-[#131314] px-3 text-sm font-medium text-[#e3e3e3] transition hover:bg-[#1f1f1f] disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-[20px]">lock</span>
+                  {t("useYourPassword")}
                 </button>
               </div>
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full gradient-brand text-white py-4 rounded-full font-bold text-base shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 font-[var(--font-headline)] disabled:opacity-50"
-            >
-              {loading ? "Signing in..." : "Login"}
-            </button>
-          </form>
 
-          <div className="my-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-outline-variant/20" />
-            <span className="text-xs font-bold uppercase tracking-widest text-outline">or</span>
-            <div className="h-px flex-1 bg-outline-variant/20" />
+              <GoogleSignInButton
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleOneTapError}
+                disabled={otpSending || otpVerifying}
+              />
+            </>
+          ) : (
+            <>
+              <form onSubmit={handleLogin} className="space-y-6">
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-on-surface-variant ml-1" htmlFor="username">
+                    {t("emailLabel")}
+                  </label>
+                  <div className="relative group">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
+                      person
+                    </span>
+                    <input
+                      className="w-full pl-12 pr-4 py-4 bg-surface-container-high rounded-[1rem] border-none ring-1 ring-outline-variant/30 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-on-surface placeholder:text-outline"
+                      id="username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder={t("emailPlaceholder")}
+                      type="email"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-on-surface-variant ml-1" htmlFor="password">
+                    {t("passwordLabel")}
+                  </label>
+                  <div className="relative group">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
+                      lock
+                    </span>
+                    <input
+                      className="w-full pl-12 pr-12 py-4 bg-surface-container-high rounded-[1rem] border-none ring-1 ring-outline-variant/30 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-on-surface placeholder:text-outline"
+                      id="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder={t("passwordPlaceholder")}
+                      type={showPassword ? "text" : "password"}
+                      required
+                    />
+                    <button
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface"
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      <span className="material-symbols-outlined">
+                        {showPassword ? "visibility_off" : "visibility"}
+                      </span>
+                    </button>
+                  </div>
+                  <div className="flex justify-end px-1">
+                    <Link
+                      href="/login/forgot-password"
+                      className="text-xs font-semibold text-accent hover:underline underline-offset-4"
+                    >
+                      {t("forgotPassword")}
+                    </Link>
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full gradient-brand text-white py-4 rounded-full font-bold text-base shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 font-[var(--font-headline)] disabled:opacity-50"
+                >
+                  {loading ? t("loggingIn") : t("loginButton")}
+                </button>
+              </form>
+
+              <div className="my-6 flex items-center gap-3">
+                <div className="h-px flex-1 bg-outline-variant/20" />
+                <span className="text-xs font-bold uppercase tracking-widest text-outline">{t("or")}</span>
+                <div className="h-px flex-1 bg-outline-variant/20" />
+              </div>
+
+              <div className="mb-3 flex justify-center">
+                <button
+                  type="button"
+                  onClick={handleSwitchToOtp}
+                  disabled={loading}
+                  className="flex h-10 w-full max-w-[400px] items-center justify-center gap-3 rounded-full border border-[#747775] bg-[#131314] px-3 text-sm font-medium text-[#e3e3e3] transition hover:bg-[#1f1f1f] disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-[20px]">alternate_email</span>
+                  {t("signInWithOtp")}
+                </button>
+              </div>
+
+              <GoogleSignInButton
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleOneTapError}
+                disabled={loading}
+              />
+            </>
+          )}
+        </div>
+
+        {!twoFactor && (
+          <div className="mt-8 text-center">
+            <p className="text-on-surface-variant font-medium text-sm">
+              {t("newToDuo")}{" "}
+              <Link className="text-accent font-bold hover:underline underline-offset-4 ml-1" href="/register">
+                {t("createAccount")}
+              </Link>
+            </p>
           </div>
-
-          <GoogleSignInButton
-            onSuccess={handleGoogleSuccess}
-            onError={() => setError("Google sign-in was cancelled or failed.")}
-            disabled={loading}
-          />
-        </div>
-
-        <div className="mt-8 text-center">
-          <p className="text-on-surface-variant font-medium text-sm">
-            New to Duo?{" "}
-            <Link className="text-accent font-bold hover:underline underline-offset-4 ml-1" href="/register">
-              Create an account
-            </Link>
-          </p>
-        </div>
+        )}
       </main>
 
       <footer className="mt-auto py-6 z-10">
         <div className="flex gap-6 text-[11px] font-bold text-outline uppercase tracking-widest">
-          <Link className="hover:text-primary transition-colors" href="#">Privacy Policy</Link>
-          <Link className="hover:text-primary transition-colors" href="#">Terms of Service</Link>
-          <Link className="hover:text-primary transition-colors" href="#">Help Center</Link>
+          <Link className="hover:text-primary transition-colors" href="#">{t("privacyPolicy")}</Link>
+          <Link className="hover:text-primary transition-colors" href="#">{t("termsOfService")}</Link>
+          <Link className="hover:text-primary transition-colors" href="#">{t("helpCenter")}</Link>
         </div>
       </footer>
     </div>

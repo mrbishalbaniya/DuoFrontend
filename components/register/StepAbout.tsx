@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import api from "@/lib/api";
+import { useToast } from "@/contexts/ToastContext";
 import { assessWritingQuality, truncateAtSentence } from "@/lib/register/aboutQuality";
 import { ABOUT_LIMITS, ABOUT_PLACEHOLDERS } from "@/lib/register/aboutSuggestions";
 import {
@@ -29,7 +30,7 @@ type SaveStatus = "idle" | "saving" | "saved" | "failed";
 export function StepAbout({ onContinue, onBack }: StepAboutProps) {
   const { data, patchData } = useRegistrationStore();
   const [generating, setGenerating] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const { showToast } = useToast();
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -49,22 +50,32 @@ export function StepAbout({ onContinue, onBack }: StepAboutProps) {
   const lookingForText = useWatch({ control: form.control, name: "lookingForText" }) ?? "";
   const futureGoals = useWatch({ control: form.control, name: "futureGoals" }) ?? "";
 
-  const bioQuality = useMemo(() => assessWritingQuality(bio, ABOUT_LIMITS.bio), [bio]);
+  const bioQuality = useMemo(
+    () =>
+      assessWritingQuality(bio, {
+        minChars: ABOUT_LIMITS.bio.min,
+        maxChars: ABOUT_LIMITS.bio.max,
+      }),
+    [bio]
+  );
   const lookingQuality = useMemo(
-    () => assessWritingQuality(lookingForText, ABOUT_LIMITS.lookingForText),
+    () =>
+      assessWritingQuality(lookingForText, {
+        minChars: ABOUT_LIMITS.lookingForText.min,
+        maxChars: ABOUT_LIMITS.lookingForText.max,
+      }),
     [lookingForText]
   );
   const goalsQuality = useMemo(
-    () => assessWritingQuality(futureGoals, ABOUT_LIMITS.futureGoals),
+    () =>
+      assessWritingQuality(futureGoals, {
+        minChars: ABOUT_LIMITS.futureGoals.min,
+        maxChars: ABOUT_LIMITS.futureGoals.max,
+      }),
     [futureGoals]
   );
 
   const isValid = form.formState.isValid;
-
-  const showToast = useCallback((message: string) => {
-    setToast(message);
-    window.setTimeout(() => setToast(null), 3200);
-  }, []);
 
   const persistDraft = useCallback(
     (values: AboutFormValues) => {
@@ -132,7 +143,7 @@ export function StepAbout({ onContinue, onBack }: StepAboutProps) {
       });
       applyGenerated(payload);
     } catch {
-      showToast("Unable to generate profile. Please try again.");
+      showToast("Unable to generate profile. Please try again.", { variant: "error" });
     } finally {
       setGenerating(false);
     }
@@ -316,16 +327,6 @@ export function StepAbout({ onContinue, onBack }: StepAboutProps) {
         onCancel={() => setConfirmReplaceOpen(false)}
         onConfirm={() => void runGenerate()}
       />
-
-      {toast ? (
-        <div
-          role="status"
-          aria-live="assertive"
-          className="fixed bottom-6 left-1/2 z-[90] w-[min(92vw,24rem)] -translate-x-1/2 rounded-2xl border border-error/30 bg-error-container px-4 py-3 text-center text-sm font-medium text-on-error-container shadow-xl"
-        >
-          {toast}
-        </div>
-      ) : null}
     </>
   );
 }

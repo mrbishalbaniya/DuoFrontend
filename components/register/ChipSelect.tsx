@@ -24,7 +24,7 @@ export function ChipSelect<T extends string>({
       {label ? <p className="ml-1 text-sm font-bold text-on-surface">{label}</p> : null}
       <div
         className={cn(
-          "grid gap-2",
+          "grid gap-2.5",
           columns === 3 ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"
         )}
       >
@@ -36,13 +36,23 @@ export function ChipSelect<T extends string>({
               type="button"
               onClick={() => onChange(option.value)}
               className={cn(
-                "rounded-2xl px-4 py-3 text-sm font-semibold transition-all active:scale-[0.98]",
+                "flex items-center justify-between gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all active:scale-[0.98]",
                 active
-                  ? "gradient-brand text-white shadow-lg shadow-primary/20"
-                  : "bg-surface-variant text-on-surface-variant hover:bg-surface-container-high"
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-outline-variant/40 bg-transparent text-on-surface-variant hover:border-outline-variant hover:bg-surface-container"
               )}
             >
-              {option.label}
+              <span>{option.label}</span>
+              <span
+                className={cn(
+                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors",
+                  active ? "border-primary bg-primary text-white" : "border-outline-variant/50"
+                )}
+              >
+                {active ? (
+                  <span className="material-symbols-outlined text-[14px] leading-none">check</span>
+                ) : null}
+              </span>
             </button>
           );
         })}
@@ -96,10 +106,10 @@ export function MultiChipSelect({
               type="button"
               onClick={() => toggle(option)}
               className={cn(
-                "rounded-full px-4 py-2 text-sm font-medium transition-all active:scale-95",
+                "rounded-full border px-4 py-2 text-sm font-medium transition-all active:scale-95",
                 active
-                  ? "bg-primary-container text-white shadow-sm"
-                  : "bg-surface-variant text-on-surface-variant hover:bg-surface-container-high"
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-outline-variant/40 bg-transparent text-on-surface-variant hover:border-outline-variant hover:bg-surface-container"
               )}
             >
               {option}

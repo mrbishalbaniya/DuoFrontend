@@ -1,0 +1,141 @@
+{
+  "map": {
+    "page": {
+      "title": "Friends Map",
+      "hideFriendsPanel": "Hide friends panel",
+      "showFriendsPanel": "Show friends panel",
+      "loading": "Loading…",
+      "findingLocation": "Finding your location…",
+      "matchesNearby": "{count, plural, one {# match} other {# matches}} nearby",
+      "couldNotLoadMatches": "Could not load your matches.",
+      "tryAgain": "Try again",
+      "emptyState": "Match with someone to see them on the map.",
+      "startMatching": "Start matching",
+      "openChat": "Open chat",
+      "getDirections": "Get directions",
+      "closePreview": "Close preview",
+      "locationFallback": "Nepal",
+      "hideSettingsPanel": "Hide settings panel",
+      "showSettingsPanel": "Show settings panel"
+    },
+    "controls": {
+      "mapStyle": "Map style",
+      "mapSettings": "Map settings",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "recenterNorth": "Recenter to north",
+      "hideMapTools": "Hide map tools",
+      "showMapTools": "Show map tools",
+      "centerOnLocation": "Center on my location"
+    },
+    "privacy": {
+      "sectionTitle": "Location privacy",
+      "ghostModeTitle": "Ghost mode",
+      "ghostModeDescription": "When enabled, your friends cannot see your location",
+      "whoCanSee": "Who can see my location",
+      "visibilityFriendsLabel": "My friends",
+      "visibilityFriendsDescription": "All matches can see your location",
+      "visibilityFriendsExceptLabel": "My friends, except…",
+      "visibilityFriendsExceptDescription": "Hide from selected matches",
+      "visibilityOnlyTheseLabel": "Only these friends",
+      "visibilityOnlyTheseDescription": "Only selected matches can see you",
+      "hintExcept": "Selected friends will not see your location",
+      "hintOnly": "Only selected friends will see your location",
+      "pickerEmpty": "Match with someone to choose who can see your location.",
+      "friendFallback": "Friend",
+      "saveError": "Could not save location privacy.",
+      "saved": "Saved"
+    },
+    "settingsSidebar": {
+      "title": "Settings",
+      "privacyOptionsCount": "Privacy · {count} map options",
+      "closeSettings": "Close settings",
+      "searchTitle": "map settings"
+    },
+    "browseSheet": {
+      "dragHandle": "Drag to show map or list",
+      "friendsNearby": "{count, plural, one {# friend} other {# friends}} nearby",
+      "mapTab": "Map",
+      "listTab": "List"
+    },
+    "friendsSidebar": {
+      "title": "Friends",
+      "loading": "Loading…",
+      "findingLocation": "Finding your location…",
+      "matchesNear": "{count, plural, one {# match} other {# matches}} near you",
+      "tryAgain": "Try again",
+      "emptyTitle": "No friends on the map yet",
+      "emptyDescription": "Match with someone to see them here.",
+      "goToDiscover": "Go to Discover"
+    },
+    "matchCard": {
+      "locationHidden": "Location hidden",
+      "locationFallback": "Nepal",
+      "notSharing": "Not sharing location with you"
+    },
+    "heatmap": {
+      "badgeTrending": "Trending",
+      "badgeEvent": "Event",
+      "badgePopular": "Popular",
+      "badgeRecommended": "Recommended",
+      "levelLow": "Low activity",
+      "levelModerate": "Moderate activity",
+      "levelHigh": "High activity",
+      "levelTrending": "Trending zone",
+      "levelViral": "Viral zone",
+      "levelFallback": "Activity zone",
+      "close": "Close",
+      "activeUsers": "Active users",
+      "activityScore": "Activity score",
+      "friendsNearby": "Friends nearby",
+      "nearbyEvents": "Nearby events",
+      "messagesCount": "{count} messages",
+      "matchesCount": "{count} matches",
+      "likesCount": "{count} likes"
+    },
+    "layers": {
+      "removeFromFavorites": "Remove from favorites",
+      "addToFavorites": "Add to favorites",
+      "searchPlaceholder": "Search…",
+      "searchAriaLabel": "Search {title}",
+      "clearSearch": "Clear search",
+      "favorites": "Favorites",
+      "noResults": "No options match your search.",
+      "closeTitled": "Close {title}",
+      "close": "Close",
+      "defaultSearchTitle": "options",
+      "styleTitle": "Map Style",
+      "styleSubtitle": "Choose a look",
+      "settingsTitle": "Map Settings",
+      "settingsSubtitle": "Privacy · {count} map options"
+    },
+    "weather": {
+      "couldNotLoad": "Could not load weather",
+      "title": "Weather",
+      "subtitle": "Live conditions · Snap Map style",
+      "close": "Close",
+      "loadingConditions": "Loading live conditions…",
+      "wind": "Wind",
+      "humidity": "Humidity",
+      "pressure": "Pressure",
+      "visibility": "Visibility",
+      "uvIndex": "UV Index",
+      "aqi": "AQI",
+      "clouds": "Clouds",
+      "sun": "Sun",
+      "feels": "Feels {temp}°C · {description}",
+      "hourly": "Hourly",
+      "sevenDay": "7-Day",
+      "updated": "Updated {time}",
+      "updatedJustNow": "just now",
+      "aqiGood": "Good",
+      "aqiFair": "Fair",
+      "aqiModerate": "Moderate",
+      "aqiPoor": "Poor",
+      "aqiVeryPoor": "Very Poor"
+    },
+    "skeleton": {
+      "loadingMap": "Loading map"
+    }
+  }
+}

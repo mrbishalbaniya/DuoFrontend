@@ -19,7 +19,7 @@ export interface AutoCaptureInput {
 }
 
 const NEUTRAL_HOLD_MS = 700;
-const SELFIE_HOLD_MS = 1200;
+const SELFIE_HOLD_MS = 850;
 const ACTION_HOLD_MS = 300;
 const BLINK_HOLD_MS = 120;
 

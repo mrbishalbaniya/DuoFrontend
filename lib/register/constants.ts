@@ -28,22 +28,31 @@ export const RELATIONSHIP_GOAL_OPTIONS = [
 ] as const;
 
 export const EDUCATION_LEVEL_OPTIONS = [
-  { value: "see", label: "SEE" },
-  { value: "plus_two", label: "+2" },
+  { value: "below_see", label: "Below SEE" },
+  { value: "see", label: "SEE / SLC" },
+  { value: "plus_two", label: "+2 / Intermediate" },
   { value: "diploma", label: "Diploma" },
-  { value: "bachelor", label: "Bachelor" },
-  { value: "master", label: "Master" },
+  { value: "bachelor", label: "Bachelor's" },
+  { value: "master", label: "Master's" },
+  { value: "mphil", label: "MPhil" },
   { value: "phd", label: "PhD" },
+  { value: "other", label: "Other" },
 ] as const;
 
 export const FIELD_OF_STUDY_OPTIONS = [
-  { value: "it", label: "IT" },
+  { value: "it", label: "IT / Computer Science" },
   { value: "engineering", label: "Engineering" },
-  { value: "medical", label: "Medical" },
-  { value: "business", label: "Business" },
+  { value: "medical", label: "Medical / Health Sciences" },
+  { value: "business", label: "Business / Management" },
   { value: "law", label: "Law" },
-  { value: "arts", label: "Arts" },
+  { value: "science", label: "Science" },
+  { value: "arts", label: "Arts / Humanities" },
+  { value: "education", label: "Education" },
   { value: "agriculture", label: "Agriculture" },
+  { value: "hospitality", label: "Hotel Management / Hospitality" },
+  { value: "social_work", label: "Social Work" },
+  { value: "journalism", label: "Journalism / Mass Communication" },
+  { value: "fine_arts", label: "Fine Arts / Design" },
   { value: "other", label: "Other" },
 ] as const;
 
@@ -56,6 +65,18 @@ export const EMPLOYMENT_OPTIONS = [
   { value: "unemployed", label: "Unemployed" },
 ] as const;
 
+// Values here must exactly match the backend's Profile.WORK_PREF_CHOICES
+// keys (accounts/models.py) — this is a strict choices= field.
+export const WORK_PREFERENCE_OPTIONS = [
+  { value: "Private", label: "Private sector" },
+  { value: "Government", label: "Government" },
+  { value: "Business", label: "Business / self-employed" },
+  { value: "Freelancer", label: "Freelancer" },
+  { value: "Student", label: "Student" },
+  { value: "Retired", label: "Retired" },
+  { value: "NotWorking", label: "Not working" },
+] as const;
+
 export const INCOME_OPTIONS = [
   { value: "below_20k", label: "Below NPR 20,000" },
   { value: "20k_50k", label: "NPR 20,000 - 50,000" },
@@ -64,32 +85,79 @@ export const INCOME_OPTIONS = [
   { value: "200k_plus", label: "NPR 200,000+" },
 ] as const;
 
+// Labels here must exactly match the backend's Profile.RELIGION_CHOICES
+// keys (accounts/models.py) — ProfileEditForm's "Religion" select submits
+// the label text directly, and the backend enforces this as a strict
+// choices= field, so a label that doesn't match one of those keys exactly
+// gets rejected on save.
 export const RELIGION_OPTIONS = [
   { value: "hindu", label: "Hindu" },
   { value: "buddhist", label: "Buddhist" },
   { value: "muslim", label: "Muslim" },
   { value: "christian", label: "Christian" },
   { value: "kirat", label: "Kirat" },
+  { value: "sikh", label: "Sikh" },
+  { value: "jain", label: "Jain" },
+  { value: "jewish", label: "Jewish" },
+  { value: "non_religious", label: "Non-religious" },
   { value: "other", label: "Other" },
 ] as const;
 
 export const CASTE_OPTIONS = [
+  // Hill Brahmin / Chhetri
   "Bahun",
   "Chhetri",
   "Thakuri",
+  "Sanyasi / Dashnami",
+  // Newar
   "Newar",
+  // Hill Janajati
   "Gurung",
   "Magar",
   "Rai",
   "Limbu",
   "Tamang",
   "Sherpa",
-  "Tharu",
   "Sunuwar",
+  "Thakali",
+  "Gharti / Bhujel",
+  "Yakkha",
+  "Chepang",
+  "Kumal",
+  "Majhi",
+  "Danuwar",
+  "Hyolmo",
+  // Madhesi / Tarai communities
   "Yadav",
+  "Kurmi",
+  "Teli",
+  "Sah / Sahu",
+  "Mandal",
+  "Kayastha",
+  "Rajput",
+  "Brahmin (Madhesi)",
+  "Marwadi",
+  "Baniya",
+  "Kalwar",
+  "Kanu",
+  "Koiri",
+  "Dhanuk",
+  "Rajbanshi",
+  "Tharu",
+  // Dalit communities
   "Kami",
   "Damai",
   "Sarki",
+  "Sunar",
+  "Gaine",
+  "Badi",
+  "Chamar",
+  "Musahar",
+  "Paswan / Dusadh",
+  "Dom",
+  "Khatik",
+  // Muslim
+  "Muslim",
   "Other",
 ] as const;
 
@@ -104,12 +172,44 @@ export const GOTRA_OPTIONS = [
   "Jamadagni",
   "Sandilya",
   "Angiras",
+  "Bhrigu",
+  "Parashar",
+  "Garg",
+  "Vatsa",
+  "Upamanyu",
+  "Katyayan",
+  "Naitik",
+  "Maitreya",
+  "Kaundinya",
+  "Kutsa",
+  "Shrivatsa",
+  "Vishwamitra",
+  "Harit",
+  "Mudgal",
   "Unknown",
 ] as const;
 
 export const HOROSCOPE_OPTIONS = [
   { value: "required", label: "Required" },
   { value: "not_required", label: "Not Required" },
+] as const;
+
+// The 12 Vedic moon-sign (Rashi) / zodiac signs — for recording someone's
+// own horoscope sign, not a matching preference (see HOROSCOPE_OPTIONS).
+export const RASHI_OPTIONS = [
+  { value: "mesh", label: "Aries (Mesh)" },
+  { value: "vrishabha", label: "Taurus (Vrishabha)" },
+  { value: "mithuna", label: "Gemini (Mithuna)" },
+  { value: "karka", label: "Cancer (Karka)" },
+  { value: "simha", label: "Leo (Simha)" },
+  { value: "kanya", label: "Virgo (Kanya)" },
+  { value: "tula", label: "Libra (Tula)" },
+  { value: "vrishchika", label: "Scorpio (Vrishchika)" },
+  { value: "dhanu", label: "Sagittarius (Dhanu)" },
+  { value: "makara", label: "Capricorn (Makara)" },
+  { value: "kumbha", label: "Aquarius (Kumbha)" },
+  { value: "meena", label: "Pisces (Meena)" },
+  { value: "unknown", label: "Don't know" },
 ] as const;
 
 export const PERSONALITY_OPTIONS = [
@@ -159,6 +259,66 @@ export const INTEREST_OPTIONS = [
   "Spirituality",
 ] as const;
 
+/**
+ * Full interest catalogue for the profile and preferences pages, grouped the
+ * way popular dating apps (Hinge, Bumble, Tinder "Passions") group them, plus
+ * interests common in Nepal. The original INTEREST_OPTIONS names are kept
+ * verbatim so tags already saved still match.
+ */
+export const INTEREST_GROUPS = [
+  {
+    title: "Outdoors & Adventure",
+    items: [
+      "Trekking", "Hiking", "Travel", "Nature", "Camping", "Mountaineering", "Rafting",
+      "Paragliding", "Cycling", "Road Trips", "Bike Rides", "Bird Watching", "Gardening", "Beaches",
+    ],
+  },
+  {
+    title: "Sports & Fitness",
+    items: [
+      "Fitness", "Gym", "Running", "Yoga", "Cricket", "Football", "Futsal", "Basketball",
+      "Volleyball", "Badminton", "Table Tennis", "Swimming", "Martial Arts", "Boxing", "Chess",
+    ],
+  },
+  {
+    title: "Music & Arts",
+    items: [
+      "Music", "Singing", "Guitar", "Dancing", "Concerts", "Art", "Painting", "Sketching",
+      "Photography", "Writing", "Poetry", "Theatre", "Crafts", "Fashion", "Design",
+    ],
+  },
+  {
+    title: "Entertainment",
+    items: [
+      "Movies", "Web Series", "K-Drama", "Anime", "Gaming", "Board Games", "Stand-up Comedy",
+      "Podcasts", "Karaoke", "Bollywood", "Nepali Films",
+    ],
+  },
+  {
+    title: "Food & Drink",
+    items: [
+      "Cooking", "Baking", "Foodie", "Street Food", "Momo Lover", "Coffee", "Tea", "Cafe Hopping",
+      "Vegetarian", "Trying New Restaurants",
+    ],
+  },
+  {
+    title: "Learning & Career",
+    items: [
+      "Reading", "Coding", "Technology", "Business", "Entrepreneurship", "Startups", "Investing",
+      "Science", "History", "Languages", "Public Speaking", "Self Improvement",
+    ],
+  },
+  {
+    title: "Culture & Values",
+    items: [
+      "Spirituality", "Meditation", "Volunteering", "Social Work", "Environment", "Festivals",
+      "Heritage & Temples", "Astrology", "Family Time", "Pets", "Dogs", "Cats",
+    ],
+  },
+] as const;
+
+export const ALL_INTEREST_OPTIONS: string[] = INTEREST_GROUPS.flatMap((group) => [...group.items]);
+
 export const LOOKING_FOR_OPTIONS = [
   { value: "male", label: "Male" },
   { value: "female", label: "Female" },
@@ -181,3 +341,56 @@ export const MARRIAGE_PREF_OPTIONS = [
 
 export const HEIGHT_FEET = [4, 5, 6, 7] as const;
 export const HEIGHT_INCHES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const;
+
+
+/** Occupation groups for partner preferences. Profiles store free-text occupations,
+ * so each group matches by keywords (mirrored in matching/recommendation/scoring.py). */
+export const OCCUPATION_PREF_OPTIONS = [
+  { value: "software", label: "Software / IT" },
+  { value: "engineer", label: "Engineer" },
+  { value: "doctor", label: "Doctor" },
+  { value: "health", label: "Nurse / Healthcare" },
+  { value: "teacher", label: "Teacher / Professor" },
+  { value: "business", label: "Business Owner / Entrepreneur" },
+  { value: "banking", label: "Banking / Finance" },
+  { value: "accountant", label: "Accountant / CA" },
+  { value: "government", label: "Government Officer" },
+  { value: "security", label: "Army / Police" },
+  { value: "lawyer", label: "Lawyer / Legal" },
+  { value: "creative", label: "Designer / Creative" },
+  { value: "architect", label: "Architect" },
+  { value: "marketing", label: "Marketing / Sales" },
+  { value: "manager", label: "Manager / Executive" },
+  { value: "consultant", label: "Consultant" },
+  { value: "aviation", label: "Pilot / Aviation" },
+  { value: "hospitality", label: "Hospitality / Tourism" },
+  { value: "media", label: "Media / Journalist" },
+  { value: "ngo", label: "NGO / INGO" },
+  { value: "research", label: "Researcher / Scientist" },
+  { value: "abroad", label: "Working Abroad" },
+  { value: "student", label: "Student" },
+] as const;
+
+/**
+ * Languages for the profile. Nepal list follows the most-spoken mother tongues
+ * in Nepal's 2021 census; the others are widely spoken internationally or
+ * popular to learn among Nepalis (study / work abroad).
+ */
+export const LANGUAGE_GROUPS = [
+  {
+    title: "Languages of Nepal",
+    items: [
+      "Nepali", "Maithili", "Bhojpuri", "Tharu", "Tamang", "Nepal Bhasa (Newari)", "Bajjika",
+      "Magar", "Doteli", "Urdu", "Awadhi", "Limbu", "Gurung", "Baitadeli", "Rai (Bantawa)",
+      "Achhami", "Sherpa", "Rajbanshi", "Sunuwar", "Thakali", "Tibetan",
+    ],
+  },
+  {
+    title: "Widely spoken",
+    items: ["English", "Hindi", "Bengali", "Arabic", "Chinese (Mandarin)", "Spanish", "Portuguese", "Russian"],
+  },
+  {
+    title: "Popular to learn",
+    items: ["Korean", "Japanese", "German", "French", "Italian", "Turkish", "Hebrew", "Malay", "Dutch"],
+  },
+] as const;

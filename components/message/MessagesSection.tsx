@@ -13,6 +13,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { motion } from "motion/react";
 import { MatchInsightsPanel } from "@/components/chat/MatchInsightsPanel";
 import {
@@ -20,6 +21,7 @@ import {
   ChatPromptDialog,
 } from "@/components/chat/ChatConversationMenu";
 import { ProfileDetailSheet } from "@/components/discover/profileDiscoverUi";
+import { ChatDetailsPanel, type ChatDetailsTab } from "@/components/chat/ChatDetailsPanel";
 import {
   ChatMessagesSkeleton,
   ChatPageSkeleton,
@@ -59,6 +61,11 @@ import {
 } from "./chatMessageGrouping";
 import { ChatComposer } from "./ChatComposer";
 import { ChatMessageBubble } from "./ChatMessageBubble";
+import { useScreenshotDetection } from "@/lib/useScreenshotDetection";
+import { buildLocationMessage, getCurrentLocation } from "@/lib/chatLocation";
+import { pushToast } from "@/components/ui/toast";
+import { isModerationError, isModerationWsFrame, moderationMessage } from "@/lib/chatModeration";
+import { LocationConfirmDialog } from "./LocationConfirmDialog";
 import { ChatThreadHeader } from "./ChatThreadHeader";
 import { ConversationSidebar } from "./ConversationSidebar";
 import { ImageLightbox } from "./ImageLightbox";
@@ -66,6 +73,7 @@ import { ImageLightbox } from "./ImageLightbox";
 export default function MessagesSection() {
   const { user, loading: authLoading } = useAuth();
   const call = useCall();
+  const tMenu = useTranslations("chat.menu");
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -96,6 +104,9 @@ export default function MessagesSection() {
   const [insightsOpen, setInsightsOpen] = useState(false);
   const [chatMenuOpen, setChatMenuOpen] = useState(false);
   const [profileSheetOpen, setProfileSheetOpen] = useState(false);
+  // Desktop right-hand panel (profile / match insights), like the map page's side panels.
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsTab, setDetailsTab] = useState<ChatDetailsTab>("profile");
   const [nicknameDialogOpen, setNicknameDialogOpen] = useState(false);
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
   const [unmatchDialogOpen, setUnmatchDialogOpen] = useState(false);
@@ -133,6 +144,8 @@ export default function MessagesSection() {
   const messagesCacheRef = useRef<Map<string, ChatMessage[]>>(new Map());
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadMessagesRequestRef = useRef(0);
+  /** Which conversation key we've already done the open-at-bottom scroll for. */
+  const initialScrollDoneForKeyRef = useRef<string | null>(null);
   /** Prevents URL sync from re-opening a thread while back navigation clears the query param. */
   const leavingThreadRef = useRef(false);
 
@@ -207,7 +220,9 @@ export default function MessagesSection() {
       resolveProfilePhotoUrl(otherProfile ?? {}),
     [otherProfile]
   );
-  const isTypingActive = isInputFocused || composerHasText;
+  // Collapse camera/image/mic only while there is text to send. Focus alone
+  // shouldn't hide them, since the field now stays focused between messages.
+  const isTypingActive = composerHasText;
   const attachmentSlideTransition = {
     type: "tween" as const,
     duration: 0.24,
@@ -225,6 +240,8 @@ export default function MessagesSection() {
 
     messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
   }, []);
+
+  const stickToBottomRef = useRef(true);
 
   const isNearBottomOfMessages = useCallback(() => {
     const container = messageListRef.current;
@@ -311,8 +328,6 @@ export default function MessagesSection() {
             ? { ...c, unread_count: 0 }
             : c
         );
-        const total = next.reduce((sum, c) => sum + (c.unread_count || 0), 0);
-        useUnreadMessagesStore.getState().setTotalUnread(total);
         return next;
       });
       if (convoDetail) {
@@ -476,30 +491,69 @@ export default function MessagesSection() {
 
   useEffect(() => () => clearPendingImage(), [clearPendingImage]);
 
+  // Scroll to the bottom once when a conversation is first opened — but only
+  // once per conversation. Without the ref guard, this effect would also fire
+  // every time loadOlderMessages() prepends older messages (since that changes
+  // visibleMessages.length too), yanking the view back to the bottom right after
+  // the position-preservation logic in loadOlderMessages runs.
   useEffect(() => {
     if (!selectedKey || loadingMessages) return;
     if (visibleMessages.length === 0) return;
+    if (initialScrollDoneForKeyRef.current === selectedKey) return;
 
-    const frame = window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => scrollToLatestMessage("auto"));
+    // Mark done only once the scroll actually ran; a re-render in between
+    // used to cancel the frame after the key was already recorded.
+    stickToBottomRef.current = true;
+    let inner = 0;
+    const outer = window.requestAnimationFrame(() => {
+      inner = window.requestAnimationFrame(() => {
+        scrollToLatestMessage("auto");
+        initialScrollDoneForKeyRef.current = selectedKey;
+      });
     });
 
-    return () => window.cancelAnimationFrame(frame);
+    return () => {
+      window.cancelAnimationFrame(outer);
+      window.cancelAnimationFrame(inner);
+    };
   }, [selectedKey, loadingMessages, visibleMessages.length, scrollToLatestMessage]);
 
+  // Stay pinned to the newest message while content grows (images, maps,
+  // emoji and voice players finish loading after the first paint). Pinning
+  // stops as soon as the user scrolls up, and resumes near the bottom.
   useEffect(() => {
     const container = messageListRef.current;
     if (!container || !selectedKey || loadingMessages) return;
 
-    const observer = new ResizeObserver(() => {
-      if (isNearBottomOfMessages()) {
-        scrollToLatestMessage("auto");
+    const pin = () => {
+      if (stickToBottomRef.current) container.scrollTop = container.scrollHeight;
+    };
+    const onScroll = () => {
+      stickToBottomRef.current = isNearBottomOfMessages();
+    };
+    const resizeObserver = new ResizeObserver(pin);
+    resizeObserver.observe(container);
+    Array.from(container.children).forEach((child) => resizeObserver.observe(child));
+    const mutationObserver = new MutationObserver((records) => {
+      for (const rec of records) {
+        rec.addedNodes.forEach((node) => {
+          if (node instanceof Element && node.parentElement === container) resizeObserver.observe(node);
+        });
       }
+      pin();
     });
-    observer.observe(container);
+    mutationObserver.observe(container, { childList: true, subtree: true });
+    // Media 'load' events don't bubble, so listen in the capture phase.
+    container.addEventListener("load", pin, true);
+    container.addEventListener("scroll", onScroll, { passive: true });
 
-    return () => observer.disconnect();
-  }, [selectedKey, loadingMessages, visibleMessages.length, scrollToLatestMessage, isNearBottomOfMessages]);
+    return () => {
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      container.removeEventListener("load", pin, true);
+      container.removeEventListener("scroll", onScroll);
+    };
+  }, [selectedKey, loadingMessages, scrollToLatestMessage, isNearBottomOfMessages]);
 
   useEffect(() => {
     if (!selectedApiKey) {
@@ -531,9 +585,52 @@ export default function MessagesSection() {
     if (first) setSelectedKey(conversationPublicKey(first));
   }, [loadingConversations, selectedKey, filteredConversations, searchParams]);
 
+  // Keep the nav badge in sync. Done in an effect (not inside setState
+  // updaters) so we never update another component during render.
+  useEffect(() => {
+    if (loadingConversations) return;
+    const total = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+    useUnreadMessagesStore.getState().setTotalUnread(total);
+  }, [conversations, loadingConversations]);
+
+  // Ready to type as soon as a conversation opens (skip touch devices,
+  // where focusing would pop the on-screen keyboard unasked).
+  useEffect(() => {
+    if (selectedId == null) return;
+    if (window.matchMedia("(pointer: coarse)").matches) return;
+    const t = window.setTimeout(() => messageInputRef.current?.focus(), 50);
+    return () => window.clearTimeout(t);
+  }, [selectedId]);
+
+  const closeEmojiPicker = useCallback(() => setShowEmojiPicker(false), []);
+
+  /** Server refused the text: drop the optimistic bubble (never saved) and say why. */
+  const rejectForModeration = useCallback(
+    (clientTempId: string | undefined, source: unknown) => {
+      if (clientTempId) {
+        failedSendPayloadsRef.current.delete(clientTempId);
+        setMessages((prev) => {
+          const next = prev.filter((m) => m.client_temp_id !== clientTempId);
+          if (selectedApiKey) messagesCacheRef.current.set(selectedApiKey, next);
+          return next;
+        });
+      }
+      pushToast(moderationMessage(source), "error");
+    },
+    [selectedApiKey]
+  );
+
   const handleWsMessage = useCallback(
     (data: Record<string, unknown>) => {
       if (!user?.id || !selectedId) return;
+
+      if (isModerationWsFrame(data)) {
+        rejectForModeration(
+          typeof data.client_temp_id === "string" ? data.client_temp_id : undefined,
+          data
+        );
+        return;
+      }
 
       if (data.type === "chat_message") {
         const clientTempId =
@@ -546,6 +643,7 @@ export default function MessagesSection() {
           timestamp: data.timestamp as string,
           sender_name: data.sender_name as string,
           message_type: data.message_type as ChatMessage["message_type"],
+          event_code: typeof data.event_code === "string" ? data.event_code : undefined,
           reply_to: data.reply_to as ChatMessage["reply_to"],
           is_mine: data.sender_id === user.id,
           is_read: false,
@@ -670,7 +768,14 @@ export default function MessagesSection() {
         );
       }
     },
-    [user?.id, selectedId, selectedApiKey, scrollToLatestMessage, isNearBottomOfMessages]
+    [
+      user?.id,
+      selectedId,
+      selectedApiKey,
+      scrollToLatestMessage,
+      isNearBottomOfMessages,
+      rejectForModeration,
+    ]
   );
 
   const { connected: wsConnected, send: sendWs } = useChatWebSocket(
@@ -683,6 +788,16 @@ export default function MessagesSection() {
     if (!wsConnected || !selectedApiKey) return;
     sendWs({ type: "mark_read" });
   }, [wsConnected, selectedApiKey, sendWs, visibleMessages.length]);
+
+  const [showReconnecting, setShowReconnecting] = useState(false);
+  useEffect(() => {
+    if (wsConnected || !selectedApiKey) {
+      setShowReconnecting(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowReconnecting(true), 1500);
+    return () => clearTimeout(timer);
+  }, [wsConnected, selectedApiKey]);
 
   useEffect(() => {
     if (!selectedApiKey || wsConnected) return;
@@ -750,7 +865,11 @@ export default function MessagesSection() {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: facingMode } },
+        video: {
+          facingMode: { ideal: facingMode },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
         audio: false,
       });
       cameraStreamRef.current = stream;
@@ -866,8 +985,6 @@ export default function MessagesSection() {
     if (selectedId == null) return;
     setConversations((prev) => {
       const next = prev.filter((convo) => convo.id !== selectedId);
-      const total = next.reduce((sum, c) => sum + (c.unread_count || 0), 0);
-      useUnreadMessagesStore.getState().setTotalUnread(total);
       return next;
     });
     handleBackToList();
@@ -976,6 +1093,47 @@ export default function MessagesSection() {
     [selectedApiKey]
   );
 
+  useScreenshotDetection(Boolean(selectedApiKey), () => {
+    if (!selectedApiKey) return;
+    void api
+      .reportSecurityEvent(selectedApiKey, "SCREENSHOT_TAKEN")
+      .then((msg) => commitSentMessage(undefined, { ...(msg as ChatMessage), is_mine: true }))
+      .catch(() => {
+        /* backend may skip duplicates or blocked chats */
+      });
+  });
+
+  const [sharingLocation, setSharingLocation] = useState(false);
+  const [pendingLocation, setPendingLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [sendingLocation, setSendingLocation] = useState(false);
+
+  // Step 1: find the location, then ask before sending anything.
+  const handleShareLocation = async () => {
+    if (sharingLocation || !selectedApiKey) return;
+    setSharingLocation(true);
+    try {
+      setPendingLocation(await getCurrentLocation());
+    } catch (err) {
+      pushToast(err instanceof Error ? err.message : "Couldn't find your location.", "error");
+    } finally {
+      setSharingLocation(false);
+    }
+  };
+
+  // Step 2: user confirmed in the dialog.
+  const confirmShareLocation = async (address: string | null) => {
+    if (!pendingLocation || sendingLocation) return;
+    setSendingLocation(true);
+    try {
+      await handleSend(null, null, buildLocationMessage(pendingLocation.lat, pendingLocation.lng, address));
+      setPendingLocation(null);
+    } finally {
+      setSendingLocation(false);
+    }
+  };
+
+  const cancelShareLocation = useCallback(() => setPendingLocation(null), []);
+
   const handleSend = async (
     e?: FormEvent | React.KeyboardEvent | null,
     imageUrl: string | null = null,
@@ -1022,11 +1180,14 @@ export default function MessagesSection() {
       if (selectedApiKey) messagesCacheRef.current.set(selectedApiKey, next);
       return next;
     });
-    clearComposerDraft();
+    // A location (text override without an image) must not wipe a typed draft.
+    if (contentOverride === undefined || imageUrl) clearComposerDraft();
     setReplyingTo(null);
     setShowEmojiPicker(false);
     setAttachmentsExpanded(false);
-    window.requestAnimationFrame(() => scrollToLatestMessage("smooth"));
+    // Sending always returns to the newest message and re-enables pinning.
+    stickToBottomRef.current = true;
+    window.requestAnimationFrame(() => scrollToLatestMessage("auto"));
 
     const wsPayload = {
       type: "chat_message",
@@ -1061,10 +1222,15 @@ export default function MessagesSection() {
         touchConversationInList(prev, selectedId, preview, ts, true)
       );
     } catch (err) {
-      console.error(err);
-      markMessageFailed(clientTempId);
+      if (isModerationError(err)) {
+        rejectForModeration(clientTempId, err);
+      } else {
+        console.error(err);
+        markMessageFailed(clientTempId);
+      }
     } finally {
       setSending(false);
+      requestAnimationFrame(() => messageInputRef.current?.focus());
     }
   };
 
@@ -1113,8 +1279,9 @@ export default function MessagesSection() {
           setConversations((prev) =>
             touchConversationInList(prev, selectedId, preview, ts, true)
           );
-        } catch {
-          markMessageFailed(clientTempId);
+        } catch (err) {
+          if (isModerationError(err)) rejectForModeration(clientTempId, err);
+          else markMessageFailed(clientTempId);
         }
       })();
     },
@@ -1124,6 +1291,7 @@ export default function MessagesSection() {
       sendWs,
       commitSentMessage,
       markMessageFailed,
+      rejectForModeration,
     ]
   );
 
@@ -1147,6 +1315,21 @@ export default function MessagesSection() {
     },
     [selectedId, loadConversations, handleBackToList]
   );
+
+  /** Receiver-side per-chat setting; the server enforces it (threats/hate always blocked). */
+  const handleToggleOffensiveFilter = useCallback(async (convo: Conversation) => {
+    const key = conversationPublicKey(convo);
+    const next = convo.filter_offensive === false;
+    try {
+      await api.updateConversationSettings(key, { filter_offensive: next });
+      setConversations((prev) =>
+        prev.map((c) => (c.id === convo.id ? { ...c, filter_offensive: next } : c))
+      );
+      pushToast(tMenu(next ? "filterOnToast" : "filterOffToast"), "success");
+    } catch {
+      setChatActionNotice("Could not update the offensive language filter.");
+    }
+  }, [tMenu]);
 
   const handleMuteConversation = useCallback(async (convo: Conversation, muted: boolean) => {
     const key = conversationPublicKey(convo);
@@ -1185,8 +1368,6 @@ export default function MessagesSection() {
         messagesCacheRef.current.delete(key);
         setConversations((prev) => {
           const next = prev.filter((c) => c.id !== convo.id);
-          const total = next.reduce((sum, c) => sum + (c.unread_count || 0), 0);
-          useUnreadMessagesStore.getState().setTotalUnread(total);
           return next;
         });
         if (selectedId === convo.id) {
@@ -1400,51 +1581,83 @@ export default function MessagesSection() {
 
   const addEmoji = (emoji: string) => {
     setPendingEmoji(emoji);
-    setShowEmojiPicker(false);
+    // Stay open so several emojis can be picked; outside click / Esc closes it.
     setAttachmentsExpanded(false);
     requestAnimationFrame(() => messageInputRef.current?.focus());
   };
 
-  const handleReact = (messageId: number, emoji: string) => {
-    if (!user?.id) return;
+  const handleToggleMenu = useCallback((msg: ChatMessage) => {
+    setActiveMessageMenu((prev) => (prev === msg.id ? null : msg.id));
+  }, []);
 
-    setMessages((prev) => {
-      const next = prev.map((m) =>
-        m.id === messageId
-          ? {
-              ...m,
-              reactions: applyUserReaction(m.reactions, user.id, emoji),
-            }
-          : m
-      );
-      if (selectedApiKey) messagesCacheRef.current.set(selectedApiKey, next);
-      return next;
-    });
-    setActiveMessageMenu(null);
+  const handleReact = useCallback(
+    (msg: ChatMessage, emoji: string) => {
+      if (!user?.id) return;
+      const messageId = msg.id;
 
-    if (sendWs({ type: "message_reaction", id: messageId, user_id: user.id, emoji })) {
-      return;
-    }
-    void api.reactToMessage(messageId, emoji).catch(() => undefined);
-  };
+      setMessages((prev) => {
+        const next = prev.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                reactions: applyUserReaction(m.reactions, user.id, emoji),
+              }
+            : m
+        );
+        if (selectedApiKey) messagesCacheRef.current.set(selectedApiKey, next);
+        return next;
+      });
+      setActiveMessageMenu(null);
 
-  const handleDelete = (messageId: number, deleteType: "for_me" | "for_everyone") => {
-    setActiveMessageMenu(null);
-    if (replyingTo?.id === messageId) setReplyingTo(null);
-    if (
-      sendWs({
-        type: "delete_message",
-        id: messageId,
-        user_id: user?.id,
-        delete_type: deleteType,
-      })
-    ) {
-      return;
-    }
-    void api.deleteMessage(messageId, deleteType).catch(() => undefined);
-  };
+      if (sendWs({ type: "message_reaction", id: messageId, user_id: user.id, emoji })) {
+        return;
+      }
+      void api.reactToMessage(messageId, emoji).catch(() => undefined);
+    },
+    [user?.id, selectedApiKey, sendWs]
+  );
 
-  const handleCopyMessage = async (msg: ChatMessage) => {
+  const handleDeleteForMe = useCallback(
+    (msg: ChatMessage) => {
+      const messageId = msg.id;
+      setActiveMessageMenu(null);
+      if (replyingTo?.id === messageId) setReplyingTo(null);
+      if (
+        sendWs({
+          type: "delete_message",
+          id: messageId,
+          user_id: user?.id,
+          delete_type: "for_me",
+        })
+      ) {
+        return;
+      }
+      void api.deleteMessage(messageId, "for_me").catch(() => undefined);
+    },
+    [replyingTo, sendWs, user?.id]
+  );
+
+  const handleDeleteForEveryone = useCallback(
+    (msg: ChatMessage) => {
+      const messageId = msg.id;
+      setActiveMessageMenu(null);
+      if (replyingTo?.id === messageId) setReplyingTo(null);
+      if (
+        sendWs({
+          type: "delete_message",
+          id: messageId,
+          user_id: user?.id,
+          delete_type: "for_everyone",
+        })
+      ) {
+        return;
+      }
+      void api.deleteMessage(messageId, "for_everyone").catch(() => undefined);
+    },
+    [replyingTo, sendWs, user?.id]
+  );
+
+  const handleCopyMessage = useCallback(async (msg: ChatMessage) => {
     const text = getCopyableText(msg);
     if (!text) return;
     try {
@@ -1453,15 +1666,15 @@ export default function MessagesSection() {
       // Clipboard API may be unavailable.
     }
     setActiveMessageMenu(null);
-  };
+  }, []);
 
-  const handleReplyToMessage = (msg: ChatMessage) => {
+  const handleReplyToMessage = useCallback((msg: ChatMessage) => {
     setReplyingTo(msg);
     setActiveMessageMenu(null);
     setShowEmojiPicker(false);
     setAttachmentsExpanded(false);
     requestAnimationFrame(() => messageInputRef.current?.focus());
-  };
+  }, []);
 
   const handleTyping = useCallback(() => {
     if (!selectedApiKey) return;
@@ -1605,13 +1818,22 @@ export default function MessagesSection() {
               Select a conversation to start messaging
             </div>
           ) : (
-            <div className="flex h-full min-h-0 flex-col">
+            <div
+              className="relative flex h-full min-h-0"
+              style={{ "--chat-details-width": "min(26rem, 40vw)" } as React.CSSProperties}
+            >
+            <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
               {insightsOpen && selected?.match_id ? (
                 <MatchInsightsPanel
                   matchId={selected.match_id}
                   myProfile={user?.profile}
                   otherProfile={otherProfile}
                   onClose={() => setInsightsOpen(false)}
+                  onUseStarter={(text) => {
+                    setInsightsOpen(false);
+                    setPendingEmoji(text);
+                    window.setTimeout(() => messageInputRef.current?.focus(), 60);
+                  }}
                 />
               ) : (
                 <>
@@ -1626,22 +1848,39 @@ export default function MessagesSection() {
                 onBack={handleBackToList}
                 onOpenInsights={() => {
                   setChatMenuOpen(false);
-                  setInsightsOpen(true);
+                  if (!isMobile) {
+                    setDetailsTab("insights");
+                    setDetailsOpen(true);
+                  } else {
+                    setInsightsOpen(true);
+                  }
                 }}
                 onChatMenuOpenChange={setChatMenuOpen}
-                onShowProfile={() => setProfileSheetOpen(true)}
+                onShowProfile={() => {
+                  if (!isMobile) {
+                    setDetailsTab("profile");
+                    setDetailsOpen(true);
+                  } else {
+                    setProfileSheetOpen(true);
+                  }
+                }}
                 onEditNickname={() => setNicknameDialogOpen(true)}
                 onBlock={() => setBlockDialogOpen(true)}
                 onUnmatch={() => setUnmatchDialogOpen(true)}
                 onUnmatchBlock={() => setUnmatchBlockDialogOpen(true)}
                 onClearHistory={() => setClearDialogOpen(true)}
                 onReport={() => setReportDialogOpen(true)}
+                filterOffensive={selected?.filter_offensive !== false}
+                onToggleFilter={() => {
+                  if (selected) void handleToggleOffensiveFilter(selected);
+                }}
                 onVoiceCall={() => {
                   if (!selected?.public_id) return;
                   void call.startOutgoing({
                     conversationId: String(selected.public_id),
                     callType: "voice",
                     remoteName: otherDisplayName,
+                    remotePhoto: otherAvatarSrc ?? "",
                   });
                 }}
                 onVideoCall={() => {
@@ -1650,9 +1889,17 @@ export default function MessagesSection() {
                     conversationId: String(selected.public_id),
                     callType: "video",
                     remoteName: otherDisplayName,
+                    remotePhoto: otherAvatarSrc ?? "",
                   });
                 }}
               />
+
+              {showReconnecting ? (
+                <div className="flex shrink-0 items-center justify-center gap-2 border-b border-amber-500/20 bg-amber-500/10 px-4 py-1.5 text-center text-xs font-medium text-amber-600 dark:text-amber-400">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
+                  Reconnecting…
+                </div>
+              ) : null}
 
               {chatActionNotice ? (
                 <div className="shrink-0 border-b border-white/10 bg-surface-variant/40 px-4 py-2 text-center text-xs text-on-surface">
@@ -1709,24 +1956,40 @@ export default function MessagesSection() {
                         otherAvatarSrc={otherAvatarSrc}
                         otherProfileName={otherProfile?.full_name}
                         menuOpen={activeMessageMenu === item.msg.id}
-                        onToggleMenu={() =>
-                          setActiveMessageMenu(
-                            activeMessageMenu === item.msg.id ? null : item.msg.id
-                          )
-                        }
-                        onCopy={() => void handleCopyMessage(item.msg)}
-                        onReply={() => handleReplyToMessage(item.msg)}
-                        onReact={(emoji) => handleReact(item.msg.id, emoji)}
-                        onDeleteForMe={() => handleDelete(item.msg.id, "for_me")}
-                        onDeleteForEveryone={() => handleDelete(item.msg.id, "for_everyone")}
-                        onImageClick={(src) => setLightboxSrc(src)}
-                        onRetry={() => retryFailedMessage(item.msg)}
+                        onToggleMenu={handleToggleMenu}
+                        onCopy={handleCopyMessage}
+                        onReply={handleReplyToMessage}
+                        onReact={handleReact}
+                        onDeleteForMe={handleDeleteForMe}
+                        onDeleteForEveryone={handleDeleteForEveryone}
+                        onImageClick={setLightboxSrc}
+                        onRetry={retryFailedMessage}
+                        onCallBack={(video) => {
+                          if (!selected?.public_id) return;
+                          void call.startOutgoing({
+                            conversationId: String(selected.public_id),
+                            callType: video ? "video" : "voice",
+                            remoteName: otherDisplayName,
+                            remotePhoto: otherAvatarSrc ?? "",
+                          });
+                        }}
                       />
                     )
                   )
                 )}
                 <div ref={messagesEndRef} />
               </div>
+
+              {pendingLocation ? (
+                <LocationConfirmDialog
+                  lat={pendingLocation.lat}
+                  lng={pendingLocation.lng}
+                  recipientName={otherDisplayName}
+                  sending={sendingLocation}
+                  onConfirm={(address) => void confirmShareLocation(address)}
+                  onCancel={cancelShareLocation}
+                />
+              ) : null}
 
               <ChatComposer
                 replyingTo={replyingTo}
@@ -1735,6 +1998,7 @@ export default function MessagesSection() {
                 showEmojiPicker={showEmojiPicker}
                 onAddEmoji={addEmoji}
                 onToggleEmojiPicker={() => setShowEmojiPicker(!showEmojiPicker)}
+                onCloseEmojiPicker={closeEmojiPicker}
                 handleSend={(e) => void handleSend(e)}
                 fileInputRef={fileInputRef}
                 onFileUpload={handleFileUpload}
@@ -1767,9 +2031,48 @@ export default function MessagesSection() {
                 cameraStarting={cameraStarting}
                 cameraVideoRef={cameraVideoRef}
                 onCapturePhoto={() => void capturePhotoFromCamera()}
+                onShareLocation={() => void handleShareLocation()}
+                sharingLocation={sharingLocation}
               />
                 </>
               )}
+            </div>
+            {!isMobile ? (
+              <ChatDetailsPanel
+                open={detailsOpen}
+                tab={detailsTab}
+                onTabChange={setDetailsTab}
+                onToggle={() => setDetailsOpen((o) => !o)}
+                profile={otherProfile ?? null}
+                matchId={selected?.match_id ?? null}
+                myProfile={user?.profile}
+                conversationId={selected?.public_id ?? selectedApiKey ?? null}
+                onOpenImage={setLightboxSrc}
+                matchedAt={selected?.match_created_at ?? null}
+                onVoiceCall={() => {
+                  if (!selected?.public_id) return;
+                  void call.startOutgoing({
+                    conversationId: String(selected.public_id),
+                    callType: "voice",
+                    remoteName: otherDisplayName,
+                    remotePhoto: otherAvatarSrc ?? "",
+                  });
+                }}
+                onVideoCall={() => {
+                  if (!selected?.public_id) return;
+                  void call.startOutgoing({
+                    conversationId: String(selected.public_id),
+                    callType: "video",
+                    remoteName: otherDisplayName,
+                    remotePhoto: otherAvatarSrc ?? "",
+                  });
+                }}
+                onUseStarter={(text) => {
+                  setPendingEmoji(text);
+                  window.setTimeout(() => messageInputRef.current?.focus(), 60);
+                }}
+              />
+            ) : null}
             </div>
           )}
         </motion.main>

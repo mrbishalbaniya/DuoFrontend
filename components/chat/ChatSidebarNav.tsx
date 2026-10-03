@@ -1,24 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { CSSProperties } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { useUnreadMessagesBadge } from "@/hooks/useUnreadMessagesBadge";
+import { navIcons } from "@/lib/iconSets";
+import "./sidebar-nav.css";
 
 type NavItem = {
   href: string;
   icon: string;
   label: string;
 };
-
-const NAV_ITEMS: NavItem[] = [
-  { href: "/", icon: "home", label: "Home" },
-  { href: "/match", icon: "favorite", label: "Match" },
-  { href: "/discover", icon: "group", label: "Discover" },
-  { href: "/chat", icon: "chat_bubble", label: "Chat" },
-  { href: "/map", icon: "map", label: "Map" },
-];
 
 const filledIconStyle: CSSProperties = { fontVariationSettings: "'FILL' 1" };
 
@@ -48,6 +43,7 @@ function SidebarIconButton({
   icon,
   label,
   badgeLabel,
+  tourId,
 }: {
   active?: boolean;
   accent?: boolean;
@@ -56,8 +52,9 @@ function SidebarIconButton({
   icon: string;
   label: string;
   badgeLabel?: string;
+  tourId?: string;
 }) {
-  const className = `relative flex h-11 w-11 items-center justify-center rounded-2xl transition-all active:scale-95 ${
+  const className = `sidebar-nav-btn relative flex h-11 w-11 items-center justify-center rounded-2xl transition-all active:scale-95 ${
     active
       ? accent
         ? "gradient-brand-br text-white shadow-[0_8px_20px] shadow-primary/30"
@@ -70,8 +67,10 @@ function SidebarIconButton({
   const iconEl = (
     <>
       <span
-        className="material-symbols-outlined text-[24px]"
-        style={active ? filledIconStyle : undefined}
+        className="sidebar-nav-icon material-symbols-outlined text-[24px]"
+        data-anim={icon}
+        data-active={active ? "true" : undefined}
+        aria-hidden="true"
       >
         {icon}
       </span>
@@ -93,6 +92,7 @@ function SidebarIconButton({
         onClick={onClick}
         aria-label={ariaLabel}
         title={label}
+        data-tour={href ? `nav-${href.replace("/", "") || "home"}` : tourId}
         className={className}
       >
         {iconEl}
@@ -105,6 +105,7 @@ function SidebarIconButton({
       href={href ?? "#"}
       aria-label={ariaLabel}
       title={label}
+      data-tour={href ? `nav-${href.replace("/", "") || "home"}` : tourId}
       aria-current={active ? "page" : undefined}
       className={className}
     >
@@ -115,13 +116,22 @@ function SidebarIconButton({
 
 export function ChatSidebarNav({ className = "" }: ChatSidebarNavProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { logout } = useAuth();
+  const { resolvedTheme, setTheme, iconSet } = useTheme();
+  const icons = navIcons(iconSet);
   const { badgeLabel } = useUnreadMessagesBadge();
+  const t = useTranslations("nav");
 
-  const handleLogout = () => {
-    logout();
-    router.push("/login");
+  const NAV_ITEMS: NavItem[] = [
+    { href: "/", icon: icons.home, label: t("home") },
+    { href: "/match", icon: icons.match, label: t("match") },
+    { href: "/discover", icon: icons.discover, label: t("discover") },
+    { href: "/chat", icon: icons.chat, label: t("chat") },
+    { href: "/map", icon: icons.map, label: t("map") },
+    { href: "/profile", icon: icons.profile, label: t("profile") },
+  ];
+
+  const handleToggleTheme = () => {
+    setTheme(resolvedTheme === "dark" ? "light" : "dark");
   };
 
   return (
@@ -158,24 +168,17 @@ export function ChatSidebarNav({ className = "" }: ChatSidebarNavProps) {
 
       <div className="mt-2 flex flex-col items-center gap-1.5 border-t border-outline-variant/30 pt-3">
         <SidebarIconButton
-          href="/wallet"
-          icon="account_balance_wallet"
-          label="Wallet"
-          active={pathname === "/wallet"}
-        />
-        <SidebarIconButton
-          href="/profile"
-          icon="person"
-          label="Profile"
-          active={pathname === "/profile"}
+          icon={resolvedTheme === "dark" ? "dark_mode" : "light_mode"}
+          label={resolvedTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          onClick={handleToggleTheme}
+          tourId="nav-theme"
         />
         <SidebarIconButton
           href="/settings"
-          icon="settings"
+          icon={icons.settings}
           label="Settings"
           active={pathname === "/settings" || pathname.startsWith("/settings/")}
         />
-        <SidebarIconButton icon="logout" label="Logout" onClick={handleLogout} />
       </div>
     </nav>
   );

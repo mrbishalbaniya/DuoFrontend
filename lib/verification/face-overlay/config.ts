@@ -27,16 +27,21 @@ export const FACE_OVERLAY_CONFIG = {
   landmarkSmoothingZ: 0.15,
 
   bboxPadding: 0.06,
-  centerTolerance: 0.12,
-  minFaceScale: 0.18,
-  maxFaceScale: 0.55,
-  minBrightness: 55,
-  maxBrightness: 210,
-  minSharpness: 12,
+  // Client-side readiness gates are a UI trigger only — the backend runs its
+  // own independent quality/blur/fraud checks on whatever gets uploaded, so
+  // these can stay forgiving without weakening real verification accuracy.
+  // Kept lenient enough for a dim room / an average laptop webcam so
+  // auto-capture doesn't stall indefinitely on marginal conditions.
+  centerTolerance: 0.16,
+  minFaceScale: 0.16,
+  maxFaceScale: 0.58,
+  minBrightness: 40,
+  maxBrightness: 225,
+  minSharpness: 8,
   minEyeOpenEar: 0.18,
-  maxYawDegrees: 18,
-  maxPitchDegrees: 15,
-  maxRollDegrees: 12,
+  maxYawDegrees: 20,
+  maxPitchDegrees: 18,
+  maxRollDegrees: 14,
 } as const;
 
 export type FaceOverlayConfig = typeof FACE_OVERLAY_CONFIG;

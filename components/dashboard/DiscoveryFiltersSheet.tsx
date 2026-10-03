@@ -1,48 +1,78 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import type { Profile } from "@/types";
-import { detectUserLocation } from "@/lib/geolocation";
+import api from "@/lib/api";
+import { detectUserLocation, type DetectedLocation } from "@/lib/geolocation";
+import { useToast } from "@/contexts/ToastContext";
+import {
+  AGE_LIMITS,
+  DEFAULT_FILTERS,
+  DISTANCE_LIMITS,
+  GENDER_OPTIONS,
+  GOAL_OPTIONS,
+  filtersEqual,
+  filtersFromProfile,
+  formatDistance,
+  normalizeCity,
+  type DiscoveryFilters,
+} from "@/lib/discoveryFilters";
+import { useSheetAnchor } from "@/lib/useSheetAnchor";
+import "./discovery-filters.css";
 
-export type DiscoveryFilters = {
-  pref_age_min: number;
-  pref_age_max: number;
-  pref_location: string;
-  pref_max_distance_km: number;
-  pref_gender: "everyone" | "women" | "men";
-  pref_relationship_goal: "everyone" | "serious" | "casual" | "dating";
-  pref_verified_only: boolean;
-};
+export type { DiscoveryFilters } from "@/lib/discoveryFilters";
 
-const DEFAULT_FILTERS: DiscoveryFilters = {
-  pref_age_min: 22,
-  pref_age_max: 35,
-  pref_location: "",
-  pref_max_distance_km: 50,
-  pref_gender: "everyone",
-  pref_relationship_goal: "everyone",
-  pref_verified_only: false,
-};
+const GOAL_SEGMENTS = GOAL_OPTIONS.map((option) =>
+  option.value === "everyone" ? { ...option, label: "Any" } : option
+);
 
-function normalizeCityPref(location?: string): string {
-  const value = location?.trim() ?? "";
-  if (!value) return "";
-
-  const first = value.split(",")[0]?.trim() ?? value;
-  return first
-    .replace(/\s+metropolitan city$/i, "")
-    .replace(/\s+metropolitan$/i, "")
-    .trim();
+/** iOS segmented control with a sliding selection pill. */
+function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+  label,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+  label: string;
+}) {
+  const index = Math.max(0, options.findIndex((option) => option.value === value));
+  return (
+    <div
+      className="dfs-seg"
+      role="radiogroup"
+      aria-label={label}
+      style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}
+    >
+      <span
+        className="dfs-seg-pill"
+        aria-hidden
+        style={{
+          width: `calc((100% - 4px) / ${options.length})`,
+          transform: `translateX(${index * 100}%)`,
+        }}
+      />
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          role="radio"
+          aria-checked={option.value === value}
+          onClick={() => onChange(option.value)}
+          className="dfs-seg-btn"
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
 }
 
-function formatLocationLabel(location: string): string {
-  const normalized = normalizeCityPref(location);
-  if (normalized.length <= 28) return normalized;
-  return `${normalized.slice(0, 26).trimEnd()}…`;
-}
-
-function IosToggle({
+function Toggle({
   checked,
   onChange,
   label,
@@ -56,41 +86,18 @@ function IosToggle({
       type="button"
       role="switch"
       aria-checked={checked}
-      aria-label={label}
-      data-checked={checked}
       onClick={() => onChange(!checked)}
-      className="ios-toggle"
+      className="dfs-row dfs-row--button"
     >
-      <span className="ios-toggle-thumb" />
+      <span className="dfs-row-title">{label}</span>
+      <span className="dfs-switch" data-on={checked} aria-hidden>
+        <span />
+      </span>
     </button>
   );
 }
 
-function FilterSection({ title, children }: { title?: string; children: ReactNode }) {
-  return (
-    <section className="space-y-2">
-      {title ? (
-        <p className="px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-accent">
-          {title}
-        </p>
-      ) : null}
-      <div className="overflow-hidden rounded-2xl border border-white/10 bg-surface-variant/40">
-        {children}
-      </div>
-    </section>
-  );
-}
-
-function FilterSectionHeader({ title, value }: { title: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
-      <span className="text-[15px] font-medium text-on-surface">{title}</span>
-      <span className="text-[17px] font-semibold tabular-nums text-primary">{value}</span>
-    </div>
-  );
-}
-
-function AgeRangeControl({
+function AgeSlider({
   min,
   max,
   onChange,
@@ -99,55 +106,62 @@ function AgeRangeControl({
   max: number;
   onChange: (min: number, max: number) => void;
 }) {
-  const trackMin = 18;
-  const trackMax = 60;
-  const ageMin = Math.min(min, max);
-  const ageMax = Math.max(min, max);
-  const minPercent = ((ageMin - trackMin) / (trackMax - trackMin)) * 100;
-  const maxPercent = ((ageMax - trackMin) / (trackMax - trackMin)) * 100;
+  const span = AGE_LIMITS.max - AGE_LIMITS.min;
+  const pct = (value: number) => ((value - AGE_LIMITS.min) / span) * 100;
+  // When both thumbs meet at the top end, the min thumb must sit on top to stay draggable.
+  const minOnTop = min >= AGE_LIMITS.max - 1;
 
   return (
-    <>
-      <FilterSectionHeader title="Age" value={`${ageMin} – ${ageMax}`} />
-      <div className="px-4 py-4">
-        <div className="ios-dual-range">
-          <div className="ios-dual-range-track" aria-hidden />
-          <div
-            className="ios-dual-range-fill"
-            style={{ left: `${minPercent}%`, width: `${maxPercent - minPercent}%` }}
-            aria-hidden
-          />
-          <input
-            type="range"
-            min={trackMin}
-            max={trackMax}
-            value={ageMin}
-            onChange={(event) => {
-              const nextMin = Math.min(Number(event.target.value), ageMax);
-              onChange(nextMin, ageMax);
-            }}
-            className="ios-range ios-dual-range-input"
-            aria-label="Minimum age"
-          />
-          <input
-            type="range"
-            min={trackMin}
-            max={trackMax}
-            value={ageMax}
-            onChange={(event) => {
-              const nextMax = Math.max(Number(event.target.value), ageMin);
-              onChange(ageMin, nextMax);
-            }}
-            className="ios-range ios-dual-range-input"
-            aria-label="Maximum age"
-          />
-        </div>
-        <div className="mt-2 flex justify-between text-[11px] tabular-nums text-on-surface-variant/60">
-          <span>{trackMin}</span>
-          <span>{trackMax}</span>
-        </div>
-      </div>
-    </>
+    <div className="dfs-range">
+      <div className="dfs-range-track" aria-hidden />
+      <div
+        className="dfs-range-fill"
+        aria-hidden
+        style={{ left: `${pct(min)}%`, width: `${Math.max(0, pct(max) - pct(min))}%` }}
+      />
+      <input
+        type="range"
+        min={AGE_LIMITS.min}
+        max={AGE_LIMITS.max}
+        value={min}
+        onChange={(event) => onChange(Math.min(Number(event.target.value), max), max)}
+        className="dfs-range-input"
+        style={minOnTop ? { zIndex: 4 } : undefined}
+        aria-label="Minimum age"
+        aria-valuetext={`${min} years`}
+      />
+      <input
+        type="range"
+        min={AGE_LIMITS.min}
+        max={AGE_LIMITS.max}
+        value={max}
+        onChange={(event) => onChange(min, Math.max(Number(event.target.value), min))}
+        className="dfs-range-input"
+        aria-label="Maximum age"
+        aria-valuetext={`${max} years`}
+      />
+    </div>
+  );
+}
+
+function DistanceSlider({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  const pct = ((value - DISTANCE_LIMITS.min) / (DISTANCE_LIMITS.max - DISTANCE_LIMITS.min)) * 100;
+  return (
+    <div className="dfs-range">
+      <div className="dfs-range-track" aria-hidden />
+      <div className="dfs-range-fill" aria-hidden style={{ left: 0, width: `${pct}%` }} />
+      <input
+        type="range"
+        min={DISTANCE_LIMITS.min}
+        max={DISTANCE_LIMITS.max}
+        step={DISTANCE_LIMITS.step}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="dfs-range-input"
+        aria-label="Maximum distance"
+        aria-valuetext={formatDistance(value)}
+      />
+    </div>
   );
 }
 
@@ -164,107 +178,115 @@ export default function DiscoveryFiltersSheet({
   profile,
   onApply,
 }: DiscoveryFiltersSheetProps) {
-  const [prefAgeMin, setPrefAgeMin] = useState(DEFAULT_FILTERS.pref_age_min);
-  const [prefAgeMax, setPrefAgeMax] = useState(DEFAULT_FILTERS.pref_age_max);
-  const [prefLocation, setPrefLocation] = useState("");
-  const [prefMaxDistance, setPrefMaxDistance] = useState(DEFAULT_FILTERS.pref_max_distance_km);
-  const [prefGender, setPrefGender] = useState<DiscoveryFilters["pref_gender"]>("everyone");
-  const [prefRelationshipGoal, setPrefRelationshipGoal] =
-    useState<DiscoveryFilters["pref_relationship_goal"]>("everyone");
-  const [prefVerifiedOnly, setPrefVerifiedOnly] = useState(false);
+  const [draft, setDraft] = useState<DiscoveryFilters>(() => filtersFromProfile(profile));
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [detected, setDetected] = useState<DetectedLocation | null>(null);
   const [mounted, setMounted] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  useSheetAnchor(open, rootRef);
+  const { showErrorToast } = useToast();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Compare against the real saved search city (normally empty): distance is
+  // always measured from the viewer's own position, so a leftover city from
+  // the old search UI counts as a change and is cleared on apply.
+  const saved = useMemo(
+    () => ({ ...filtersFromProfile(profile), pref_location: normalizeCity(profile?.pref_location) }),
+    [profile]
+  );
+  const dirty = !filtersEqual(draft, saved) || detected !== null;
+  const atDefaults = filtersEqual({ ...draft, pref_location: "" }, { ...DEFAULT_FILTERS });
+  const ownCity = normalizeCity(profile?.location);
 
-  const loadFromProfile = useCallback((current: Profile) => {
-    setPrefAgeMin(current.pref_age_min ?? DEFAULT_FILTERS.pref_age_min);
-    setPrefAgeMax(current.pref_age_max ?? DEFAULT_FILTERS.pref_age_max);
-    setPrefLocation(
-      normalizeCityPref(current.pref_location || current.location || "")
-    );
-    setPrefMaxDistance(current.pref_max_distance_km ?? DEFAULT_FILTERS.pref_max_distance_km);
-    setPrefGender((current.pref_gender as DiscoveryFilters["pref_gender"]) ?? "everyone");
-    setPrefRelationshipGoal(
-      (current.pref_relationship_goal as DiscoveryFilters["pref_relationship_goal"]) ??
-        "everyone"
-    );
-    setPrefVerifiedOnly(current.pref_verified_only ?? false);
+  const update = useCallback(<K extends keyof DiscoveryFilters>(key: K, value: DiscoveryFilters[K]) => {
+    setDraft((current) => ({ ...current, [key]: value }));
     setSaveError(null);
-    setLocationError(null);
   }, []);
 
-  const runLocationDetect = useCallback(async () => {
-    setDetectingLocation(true);
-    setLocationError(null);
-    try {
-      const detected = await detectUserLocation();
-      setPrefLocation(detected.city || normalizeCityPref(detected.label));
-      return detected;
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Could not detect your location.";
-      setLocationError(message);
-      throw error;
-    } finally {
-      setDetectingLocation(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (open && profile) {
-      loadFromProfile(profile);
-    }
-  }, [open, profile, loadFromProfile]);
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!open) return;
+    setDraft({ ...filtersFromProfile(profile), pref_location: "" });
+    setDetected(null);
+    setSaveError(null);
+    setLocationError(null);
+    // Only reload the draft when the sheet opens, not on every profile refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
+  // Refs keep the open-effect stable even though parents pass inline callbacks.
+  const onCloseRef = useRef(onClose);
+  const savingRef = useRef(saving);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    savingRef.current = saving;
+  });
+
+  useEffect(() => {
+    if (!open) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    dialogRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !savingRef.current) onCloseRef.current();
+    };
+    window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = previous;
+      window.removeEventListener("keydown", onKey);
     };
   }, [open]);
 
-  const handleReset = () => {
-    setPrefAgeMin(DEFAULT_FILTERS.pref_age_min);
-    setPrefAgeMax(DEFAULT_FILTERS.pref_age_max);
-    setPrefLocation("");
-    setPrefMaxDistance(DEFAULT_FILTERS.pref_max_distance_km);
-    setPrefGender(DEFAULT_FILTERS.pref_gender);
-    setPrefRelationshipGoal(DEFAULT_FILTERS.pref_relationship_goal);
-    setPrefVerifiedOnly(DEFAULT_FILTERS.pref_verified_only);
-    setSaveError(null);
+  const detectLocation = async () => {
+    setDetectingLocation(true);
     setLocationError(null);
+    try {
+      setDetected(await detectUserLocation());
+      setSaveError(null);
+    } catch (error) {
+      setLocationError(error instanceof Error ? error.message : "Could not detect your location.");
+    } finally {
+      setDetectingLocation(false);
+    }
+  };
+
+  const handleReset = () => {
+    setDraft({ ...DEFAULT_FILTERS });
+    setSaveError(null);
   };
 
   const handleApply = async () => {
-    const min = Math.min(prefAgeMin, prefAgeMax);
-    const max = Math.max(prefAgeMin, prefAgeMax);
-
+    if (!dirty) {
+      onClose();
+      return;
+    }
     setSaving(true);
     setSaveError(null);
     try {
+      if (detected) {
+        const [latitude, longitude] = detected.coordinates;
+        try {
+          await api.updateLiveLocation(latitude, longitude);
+        } catch (err) {
+          // e.g. ghost mode: keep the filters, but tell the user their position wasn't saved.
+          showErrorToast(err instanceof Error ? err.message : "Could not save your current location.");
+        }
+      }
       await onApply({
-        pref_age_min: min,
-        pref_age_max: max,
-        pref_location: prefLocation.trim(),
-        pref_max_distance_km: prefMaxDistance,
-        pref_gender: prefGender,
-        pref_relationship_goal: prefRelationshipGoal,
-        pref_verified_only: prefVerifiedOnly,
+        ...draft,
+        pref_age_min: Math.min(draft.pref_age_min, draft.pref_age_max),
+        pref_age_max: Math.max(draft.pref_age_min, draft.pref_age_max),
+        pref_location: "",
       });
       onClose();
     } catch (err) {
-      setSaveError(
-        err instanceof Error ? err.message : "Could not save filters. Please try again."
-      );
+      const message = err instanceof Error ? err.message : "Could not save filters. Please try again.";
+      setSaveError(message);
+      showErrorToast(message);
     } finally {
       setSaving(false);
     }
@@ -272,216 +294,171 @@ export default function DiscoveryFiltersSheet({
 
   if (!mounted) return null;
 
+  const detectedPlace = detected
+    ? normalizeCity(detected.city || detected.place || detected.label) || "Current location"
+    : "";
+  const locationValue = detectingLocation
+    ? "Locating…"
+    : detectedPlace || ownCity || "Not set";
+
   return createPortal(
-    <div
-      className={`fixed inset-0 z-[100] flex flex-col justify-end transition-opacity duration-300 ${
-        open ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
-      }`}
-      aria-hidden={!open}
-      role="presentation"
-    >
+    <div ref={rootRef} className="dfs-root" data-open={open} aria-hidden={!open} role="presentation">
       <button
         type="button"
-        className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+        className="dfs-backdrop"
         aria-label="Close filters"
-        onClick={onClose}
+        onClick={() => !saving && onClose()}
         tabIndex={open ? 0 : -1}
       />
 
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="discovery-filters-title"
-        className={`relative z-[101] mx-auto flex h-[min(92dvh,820px)] min-h-0 w-full max-w-lg flex-col overflow-hidden rounded-t-[1.75rem] border-t border-white/10 bg-background shadow-[0_-12px_48px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-out ${
-          open ? "translate-y-0" : "translate-y-full"
-        }`}
+        className="dfs-sheet"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex shrink-0 justify-center bg-background pb-2 pt-3">
+        <div className="dfs-grabber" aria-hidden>
+          <span />
+        </div>
+
+        <nav className="dfs-navbar">
+          <button type="button" className="dfs-navbtn" onClick={onClose} disabled={saving}>
+            Cancel
+          </button>
+          <h2 id="discovery-filters-title" className="dfs-title">
+            Filters
+          </h2>
           <button
             type="button"
-            onClick={onClose}
-            className="h-1.5 w-12 rounded-full bg-white/20 transition-colors hover:bg-white/30"
-            aria-label="Close filters"
-          />
-        </div>
+            className="dfs-navbtn dfs-navbtn--strong"
+            onClick={() => void handleApply()}
+            disabled={saving}
+          >
+            {saving ? <span className="dfs-spinner" aria-label="Saving" /> : dirty ? "Apply" : "Done"}
+          </button>
+        </nav>
 
-        <div className="flex shrink-0 bg-background px-4 pb-3">
-          <div className="flex w-full items-center justify-between gap-3">
+        <div data-lenis-prevent className="dfs-scroll">
+          {saveError ? <p className="dfs-note dfs-note--error">{saveError}</p> : null}
+
+          <div className="dfs-group">
             <button
               type="button"
-              onClick={onClose}
-              className="text-[17px] font-normal text-primary active:opacity-70"
+              className="dfs-row dfs-row--button"
+              onClick={() => void detectLocation()}
+              disabled={detectingLocation}
             >
-              Cancel
-            </button>
-            <h2 id="discovery-filters-title" className="text-[17px] font-semibold text-on-surface">
-              Filters
-            </h2>
-            <button
-              type="button"
-              onClick={() => void handleApply()}
-              disabled={saving}
-              className="text-[17px] font-semibold text-primary active:opacity-70 disabled:opacity-40"
-            >
-              {saving ? "Saving…" : "Apply"}
+              <span className="dfs-row-title">Location</span>
+              <span className="dfs-row-value">{locationValue}</span>
+              <span className="dfs-locate" data-done={detected !== null} aria-hidden>
+                {detectingLocation ? (
+                  <span className="dfs-spinner" />
+                ) : (
+                  <span className="material-symbols-outlined">{detected ? "check" : "near_me"}</span>
+                )}
+              </span>
             </button>
           </div>
-        </div>
+          {locationError ? <p className="dfs-note dfs-note--error">{locationError}</p> : null}
 
-        <div
-          data-lenis-prevent
-          className="ios-sheet-scroll min-h-0 flex-1 touch-pan-y bg-background"
-        >
-          <div className="space-y-4 px-5 pb-10 pt-2">
-            {saveError ? (
-              <div className="rounded-xl bg-error-container px-4 py-3 text-sm text-on-error-container">
-                {saveError}
+          <div className="dfs-group">
+            <div className="dfs-row dfs-row--stack">
+              <div className="dfs-row-head">
+                <span className="dfs-row-title">Distance</span>
+                <span className="dfs-row-value">{formatDistance(draft.pref_max_distance_km)}</span>
               </div>
-            ) : null}
-
-            <FilterSection title="Location">
-              <button
-                type="button"
-                onClick={() => void runLocationDetect()}
-                disabled={detectingLocation}
-                className="ios-filter-row w-full text-left transition-colors active:bg-white/[0.04] disabled:opacity-60"
-              >
-                <div className="flex min-w-0 flex-1 items-center gap-3">
-                  <span
-                    className={`material-symbols-outlined shrink-0 text-xl text-primary ${
-                      detectingLocation ? "animate-pulse" : ""
-                    }`}
-                  >
-                    my_location
-                  </span>
-                  <div className="min-w-0">
-                    <p className="ios-filter-label">
-                      {detectingLocation ? "Detecting location…" : "Use current location"}
-                    </p>
-                    <p className="mt-0.5 truncate text-[13px] text-on-surface-variant">
-                      {prefLocation
-                        ? `Near ${formatLocationLabel(prefLocation)}`
-                        : "Auto-fill city from GPS"}
-                    </p>
-                  </div>
-                </div>
-                <span className="material-symbols-outlined shrink-0 text-lg text-on-surface-variant/50">
-                  chevron_right
-                </span>
-              </button>
-
-              {locationError ? (
-                <p className="border-t border-white/[0.06] px-4 py-3 text-[13px] text-error">
-                  {locationError}
-                </p>
-              ) : null}
-            </FilterSection>
-
-            <FilterSection>
-              <AgeRangeControl
-                min={prefAgeMin}
-                max={prefAgeMax}
-                onChange={(min, max) => {
-                  setPrefAgeMin(min);
-                  setPrefAgeMax(max);
-                }}
+              <DistanceSlider
+                value={draft.pref_max_distance_km}
+                onChange={(value) => update("pref_max_distance_km", value)}
               />
-            </FilterSection>
-
-            <FilterSection>
-              <FilterSectionHeader title="Distance" value={`${prefMaxDistance} km`} />
-              <div className="px-4 py-4">
-                <input
-                  type="range"
-                  min={5}
-                  max={500}
-                  step={5}
-                  value={prefMaxDistance}
-                  onChange={(event) => setPrefMaxDistance(Number(event.target.value))}
-                  className="ios-range"
-                />
+            </div>
+            <div className="dfs-row dfs-row--stack">
+              <div className="dfs-row-head">
+                <span className="dfs-row-title">Age</span>
+                <span className="dfs-row-value">
+                  {draft.pref_age_min} – {draft.pref_age_max}
+                </span>
               </div>
-            </FilterSection>
-
-            <FilterSection title="Show me">
-              <div className="p-3">
-                <div className="ios-segmented">
-                  <button
-                    type="button"
-                    data-active={prefGender === "women"}
-                    onClick={() => setPrefGender("women")}
-                    className="ios-segmented-btn"
-                  >
-                    Women
-                  </button>
-                  <button
-                    type="button"
-                    data-active={prefGender === "men"}
-                    onClick={() => setPrefGender("men")}
-                    className="ios-segmented-btn"
-                  >
-                    Men
-                  </button>
-                  <button
-                    type="button"
-                    data-active={prefGender === "everyone"}
-                    onClick={() => setPrefGender("everyone")}
-                    className="ios-segmented-btn"
-                  >
-                    Everyone
-                  </button>
-                </div>
-              </div>
-            </FilterSection>
-
-            <FilterSection title="Relationship goals">
-              <div className="flex flex-wrap gap-2 p-3">
-                {(
-                  [
-                    ["serious", "Serious"],
-                    ["casual", "Casual"],
-                    ["dating", "Dating"],
-                    ["everyone", "Everyone"],
-                  ] as const
-                ).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    data-active={prefRelationshipGoal === value}
-                    onClick={() => setPrefRelationshipGoal(value)}
-                    className="ios-chip"
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </FilterSection>
-
-            <FilterSection>
-              <div className="ios-filter-row">
-                <div>
-                  <p className="ios-filter-label">Verified profiles only</p>
-                  <p className="mt-0.5 text-[13px] text-on-surface-variant">
-                    Show people with verified IDs
-                  </p>
-                </div>
-                <IosToggle
-                  checked={prefVerifiedOnly}
-                  onChange={setPrefVerifiedOnly}
-                  label="Verified profiles only"
-                />
-              </div>
-            </FilterSection>
-
-            <button
-              type="button"
-              onClick={handleReset}
-              className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] py-3 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-white/[0.06]"
-            >
-              Reset to recommended defaults
-            </button>
+              <AgeSlider
+                min={draft.pref_age_min}
+                max={draft.pref_age_max}
+                onChange={(min, max) =>
+                  setDraft((current) => ({ ...current, pref_age_min: min, pref_age_max: max }))
+                }
+              />
+            </div>
           </div>
+
+          <div className="dfs-group">
+            <div className="dfs-row dfs-row--stack">
+              <span className="dfs-row-title">Show me</span>
+              <Segmented
+                label="Show me"
+                options={GENDER_OPTIONS}
+                value={draft.pref_gender}
+                onChange={(value) => update("pref_gender", value)}
+              />
+            </div>
+            <div className="dfs-row dfs-row--stack">
+              <span className="dfs-row-title">Looking for</span>
+              <Segmented
+                label="Looking for"
+                options={GOAL_SEGMENTS}
+                value={draft.pref_relationship_goal}
+                onChange={(value) => update("pref_relationship_goal", value)}
+              />
+            </div>
+            <Toggle
+              label="Verified profiles only"
+              checked={draft.pref_verified_only}
+              onChange={(value) => update("pref_verified_only", value)}
+            />
+          </div>
+
+          <p className="dfs-caption">More preferences</p>
+          <div className="dfs-group">
+            <Link
+              href="/preferences"
+              onClick={onClose}
+              className="dfs-row dfs-row--button"
+            >
+              <span className="dfs-row-title">
+                Religion, caste, rashi, height, occupation
+                <span style={{ display: "block", fontSize: 12, opacity: 0.65, fontWeight: 400 }}>
+                  Open all match preferences
+                </span>
+              </span>
+              <span className="material-symbols-outlined" aria-hidden style={{ opacity: 0.6 }}>
+                chevron_right
+              </span>
+            </Link>
+          </div>
+
+          <p className="dfs-caption">If you run out of people nearby</p>
+          <div className="dfs-group">
+            <Toggle
+              label="Expand distance"
+              checked={draft.pref_expand_distance}
+              onChange={(value) => update("pref_expand_distance", value)}
+            />
+            <Toggle
+              label="Expand age range"
+              checked={draft.pref_expand_age}
+              onChange={(value) => update("pref_expand_age", value)}
+            />
+          </div>
+
+          <button
+            type="button"
+            className="dfs-reset"
+            onClick={handleReset}
+            disabled={atDefaults || saving}
+          >
+            Reset to recommended
+          </button>
         </div>
       </div>
     </div>,

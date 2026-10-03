@@ -16,7 +16,11 @@ function mapReligion(religion: RegistrationData["religion"]): string {
     buddhist: "Buddhist",
     muslim: "Muslim",
     christian: "Christian",
-    kirat: "Other",
+    kirat: "Kirat",
+    sikh: "Sikh",
+    jain: "Jain",
+    jewish: "Jewish",
+    non_religious: "Non-religious",
     other: "Other",
   };
   return map[religion] ?? "Other";
@@ -46,15 +50,6 @@ function mapRelationshipGoal(
   if (goal === "dating") return "dating";
   if (goal === "friendship") return "casual";
   return "serious";
-}
-
-function mapPrefRelationshipGoal(
-  goal: RegistrationData["relationshipGoal"]
-): Profile["pref_relationship_goal"] {
-  if (goal === "dating") return "dating";
-  if (goal === "friendship") return "casual";
-  if (goal === "serious" || goal === "marriage") return "serious";
-  return "everyone";
 }
 
 function mapDistanceKm(distance: RegistrationData["distancePreference"]): number {
@@ -162,10 +157,14 @@ export function mapRegistrationToProfile(
     pref_gender: mapPrefGender(data.lookingFor),
     pref_location: "",
     pref_max_distance_km: mapDistanceKm(data.distancePreference),
-    pref_relationship_goal: mapPrefRelationshipGoal(data.relationshipGoal),
+    // The goal filter starts open: the member's own relationship_goal (above)
+    // already ranks people with a matching intent first (backend scoring).
+    pref_relationship_goal: "everyone",
     pref_values: buildPrefValues(data),
-    pref_min_height: `${data.heightFeet}'${data.heightInches}"`,
-    pref_occupation: data.occupation.trim(),
+    // Partner preferences start empty; they are set on /preferences, not
+    // copied from the member's own height or job.
+    pref_min_height: "",
+    pref_occupation: "",
     is_onboarded: true,
   };
 }
