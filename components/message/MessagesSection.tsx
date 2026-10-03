@@ -13,6 +13,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { motion } from "motion/react";
 import { MatchInsightsPanel } from "@/components/chat/MatchInsightsPanel";
 import {
@@ -63,6 +64,7 @@ import { ChatMessageBubble } from "./ChatMessageBubble";
 import { useScreenshotDetection } from "@/lib/useScreenshotDetection";
 import { buildLocationMessage, getCurrentLocation } from "@/lib/chatLocation";
 import { pushToast } from "@/components/ui/toast";
+import { isModerationError, isModerationWsFrame, moderationMessage } from "@/lib/chatModeration";
 import { LocationConfirmDialog } from "./LocationConfirmDialog";
 import { ChatThreadHeader } from "./ChatThreadHeader";
 import { ConversationSidebar } from "./ConversationSidebar";
@@ -71,6 +73,7 @@ import { ImageLightbox } from "./ImageLightbox";
 export default function MessagesSection() {
   const { user, loading: authLoading } = useAuth();
   const call = useCall();
+  const tMenu = useTranslations("chat.menu");
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -601,9 +604,33 @@ export default function MessagesSection() {
 
   const closeEmojiPicker = useCallback(() => setShowEmojiPicker(false), []);
 
+  /** Server refused the text: drop the optimistic bubble (never saved) and say why. */
+  const rejectForModeration = useCallback(
+    (clientTempId: string | undefined, source: unknown) => {
+      if (clientTempId) {
+        failedSendPayloadsRef.current.delete(clientTempId);
+        setMessages((prev) => {
+          const next = prev.filter((m) => m.client_temp_id !== clientTempId);
+          if (selectedApiKey) messagesCacheRef.current.set(selectedApiKey, next);
+          return next;
+        });
+      }
+      pushToast(moderationMessage(source), "error");
+    },
+    [selectedApiKey]
+  );
+
   const handleWsMessage = useCallback(
     (data: Record<string, unknown>) => {
       if (!user?.id || !selectedId) return;
+
+      if (isModerationWsFrame(data)) {
+        rejectForModeration(
+          typeof data.client_temp_id === "string" ? data.client_temp_id : undefined,
+          data
+        );
+        return;
+      }
 
       if (data.type === "chat_message") {
         const clientTempId =
@@ -741,7 +768,14 @@ export default function MessagesSection() {
         );
       }
     },
-    [user?.id, selectedId, selectedApiKey, scrollToLatestMessage, isNearBottomOfMessages]
+    [
+      user?.id,
+      selectedId,
+      selectedApiKey,
+      scrollToLatestMessage,
+      isNearBottomOfMessages,
+      rejectForModeration,
+    ]
   );
 
   const { connected: wsConnected, send: sendWs } = useChatWebSocket(
@@ -1188,8 +1222,12 @@ export default function MessagesSection() {
         touchConversationInList(prev, selectedId, preview, ts, true)
       );
     } catch (err) {
-      console.error(err);
-      markMessageFailed(clientTempId);
+      if (isModerationError(err)) {
+        rejectForModeration(clientTempId, err);
+      } else {
+        console.error(err);
+        markMessageFailed(clientTempId);
+      }
     } finally {
       setSending(false);
       requestAnimationFrame(() => messageInputRef.current?.focus());
@@ -1241,8 +1279,9 @@ export default function MessagesSection() {
           setConversations((prev) =>
             touchConversationInList(prev, selectedId, preview, ts, true)
           );
-        } catch {
-          markMessageFailed(clientTempId);
+        } catch (err) {
+          if (isModerationError(err)) rejectForModeration(clientTempId, err);
+          else markMessageFailed(clientTempId);
         }
       })();
     },
@@ -1252,6 +1291,7 @@ export default function MessagesSection() {
       sendWs,
       commitSentMessage,
       markMessageFailed,
+      rejectForModeration,
     ]
   );
 
@@ -1275,6 +1315,21 @@ export default function MessagesSection() {
     },
     [selectedId, loadConversations, handleBackToList]
   );
+
+  /** Receiver-side per-chat setting; the server enforces it (threats/hate always blocked). */
+  const handleToggleOffensiveFilter = useCallback(async (convo: Conversation) => {
+    const key = conversationPublicKey(convo);
+    const next = convo.filter_offensive === false;
+    try {
+      await api.updateConversationSettings(key, { filter_offensive: next });
+      setConversations((prev) =>
+        prev.map((c) => (c.id === convo.id ? { ...c, filter_offensive: next } : c))
+      );
+      pushToast(tMenu(next ? "filterOnToast" : "filterOffToast"), "success");
+    } catch {
+      setChatActionNotice("Could not update the offensive language filter.");
+    }
+  }, [tMenu]);
 
   const handleMuteConversation = useCallback(async (convo: Conversation, muted: boolean) => {
     const key = conversationPublicKey(convo);
@@ -1815,6 +1870,10 @@ export default function MessagesSection() {
                 onUnmatchBlock={() => setUnmatchBlockDialogOpen(true)}
                 onClearHistory={() => setClearDialogOpen(true)}
                 onReport={() => setReportDialogOpen(true)}
+                filterOffensive={selected?.filter_offensive !== false}
+                onToggleFilter={() => {
+                  if (selected) void handleToggleOffensiveFilter(selected);
+                }}
                 onVoiceCall={() => {
                   if (!selected?.public_id) return;
                   void call.startOutgoing({

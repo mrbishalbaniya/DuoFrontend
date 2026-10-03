@@ -28,9 +28,13 @@
         "unmatch": "Unmatch",
         "unmatchBlock": "Unmatch & block",
         "clear": "Clear chat history",
-        "report": "Report"
+        "report": "Report",
+        "filterOn": "Filter offensive language: On",
+        "filterOff": "Filter offensive language: Off"
       },
-      "closeDialog": "Close dialog"
+      "closeDialog": "Close dialog",
+      "filterOnToast": "Offensive language filter is on for this chat.",
+      "filterOffToast": "Swearing and insults sent to you in this chat are now allowed. Threats, harassment and hate are still blocked."
     },
     "insights": {
       "title": "Match insights",

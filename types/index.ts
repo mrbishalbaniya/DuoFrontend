@@ -425,6 +425,8 @@ export interface Conversation {
   is_archived?: boolean;
   is_muted?: boolean;
   is_pinned?: boolean;
+  /** Receiver-side: hide profanity/insults sent to me in this chat (default true). */
+  filter_offensive?: boolean;
 }
 
 export interface ConversationDetail extends Conversation {

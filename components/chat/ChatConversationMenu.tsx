@@ -13,13 +13,26 @@ type ChatConversationMenuProps = {
   onUnmatchBlock: () => void;
   onClearHistory: () => void;
   onReport: () => void;
+  /** Current state of this chat's offensive-language filter (receiver side). */
+  filterOffensive?: boolean;
+  onToggleFilter?: () => void;
 };
 
-function useMenuItems() {
+function useMenuItems(filterOffensive: boolean | undefined, showFilter: boolean) {
   const t = useTranslations("chat.menu.items");
   return [
     { id: "profile", label: t("profile"), icon: "person", tone: "default" as const },
     { id: "nickname", label: t("nickname"), icon: "edit", tone: "default" as const },
+    ...(showFilter
+      ? [
+          {
+            id: "filter",
+            label: filterOffensive === false ? t("filterOff") : t("filterOn"),
+            icon: filterOffensive === false ? "shield" : "verified_user",
+            tone: "default" as const,
+          },
+        ]
+      : []),
     { id: "block", label: t("block"), icon: "block", tone: "danger" as const },
     { id: "unmatch", label: t("unmatch"), icon: "heart_broken", tone: "danger" as const },
     { id: "unmatchBlock", label: t("unmatchBlock"), icon: "do_not_disturb_on", tone: "danger" as const },
@@ -38,10 +51,12 @@ export function ChatConversationMenu({
   onUnmatchBlock,
   onClearHistory,
   onReport,
+  filterOffensive,
+  onToggleFilter,
 }: ChatConversationMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const t = useTranslations("chat.menu");
-  const MENU_ITEMS = useMenuItems();
+  const MENU_ITEMS = useMenuItems(filterOffensive, Boolean(onToggleFilter));
 
   const handlers: Record<string, () => void> = {
     profile: onShowProfile,
@@ -51,6 +66,7 @@ export function ChatConversationMenu({
     unmatchBlock: onUnmatchBlock,
     clear: onClearHistory,
     report: onReport,
+    filter: () => onToggleFilter?.(),
   };
 
   const runAction = (id: string) => {

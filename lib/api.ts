@@ -1219,9 +1219,10 @@ class ApiClient {
       is_archived?: boolean;
       is_muted?: boolean;
       is_pinned?: boolean;
+      filter_offensive?: boolean;
     }
-  ): Promise<{ nickname: string; is_archived: boolean; is_muted: boolean; is_pinned: boolean }> {
-    return this.request<{ nickname: string; is_archived: boolean; is_muted: boolean; is_pinned: boolean }>(
+  ): Promise<{ nickname: string; is_archived: boolean; is_muted: boolean; is_pinned: boolean; filter_offensive?: boolean }> {
+    return this.request<{ nickname: string; is_archived: boolean; is_muted: boolean; is_pinned: boolean; filter_offensive?: boolean }>(
       `/chat/conversations/${conversationId}/settings/`,
       {
         method: "PATCH",
